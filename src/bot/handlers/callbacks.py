@@ -589,7 +589,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 payment_message = (
                     f"✅ Order created successfully!\n\n"
                     f"📦 Order ID: {order.id}\n"
-                    f"💰 Total: {order.total_amount:,} VND\n\n"
+                    f"💰 Total Amount: {order.total_amount:,} VND\n"
+                    f"📝 Items: {len(order.items)}\n\n"
                     f"💳 Scan QR code below to complete payment\n\n"
                     f"⏰ This order will be automatically cancelled if payment is not completed within 30 minutes."
                 )
@@ -628,7 +629,12 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         photo=InputFile(qr_image, filename="qr_code.png"),
                         caption=(
                             f"📦 Order ID: {order.id}\n"
-                            f"💰 Total: {order.total_amount:,} VND\n\n"
+                            f"💰 Total: {order.total_amount:,} VND\n"
+                            f"📝 Items: {len(order.items)}\n\n"
+                            f"🏦 Bank Information:\n"
+                            f"  • Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
+                            f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
+                            f"  • Name: {qr_list[0].get('account_name', 'N/A')}\n\n"
                             f"⏰ Auto-cancels in 30 minutes if unpaid"
                         ),
                         reply_markup=cancel_keyboard
@@ -638,7 +644,15 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     state_manager.update_user_state(user_id, payment_message_id=sent_message.message_id)
                 else:
                     # Fallback to text message with payment URL if QR code not available
-                    payment_message += f"\n\n🔗 Payment link:\n{payment_url}"
+                    bank_info = ""
+                    if qr_list and len(qr_list) > 0:
+                        bank_info = (
+                            f"\n🏦 Bank Information:\n"
+                            f"  • Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
+                            f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
+                            f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
+                        )
+                    payment_message += f"{bank_info}\n\n🔗 Payment link:\n{payment_url}"
                     # Create cancel button for text message too
                     cancel_keyboard = InlineKeyboardMarkup([
                         [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]

@@ -116,15 +116,20 @@ class IPNOrderProcessor:
                 user_state = state_manager.get_user_state(order.user_id)
                 if user_state and user_state.payment_message_id:
                     try:
+                        logger.info(f"Attempting to delete payment message {user_state.payment_message_id} for user {order.user_id}")
                         run_async(self.bot.delete_message(
                             chat_id=order.user_id,
                             message_id=user_state.payment_message_id
                         ))
-                        logger.info(f"Deleted payment message {user_state.payment_message_id} for paid order {order_id}")
+                        logger.info(f"✓ Successfully deleted payment message {user_state.payment_message_id} for paid order {order_id}")
                         # Clear payment message ID from state
                         state_manager.update_user_state(order.user_id, payment_message_id=None)
                     except Exception as e:
                         logger.warning(f"Could not delete payment message: {str(e)}")
+                else:
+                    logger.info(f"No payment message to delete for user {order.user_id} (order {order_id})")
+            else:
+                logger.warning(f"Bot instance not available to delete payment message for order {order_id}")
             
             logger.info(f"Delivery type: {delivery_type}")
             
