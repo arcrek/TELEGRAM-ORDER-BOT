@@ -5,6 +5,7 @@ import asyncio
 import logging
 import os
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Optional, Dict, Any
 from src.database.connection import get_session_factory
@@ -413,13 +414,38 @@ class IPNOrderProcessor:
             except Exception as e:
                 logger.error(f"Error saving delivery data to file: {str(e)}")
             
-            # Send message
+            # Send message via Telegram
             logger.info(f"Sending delivery message to user {user_id}")
             run_async(self.bot.send_message(chat_id=user_id, text=confirmation_message))
             logger.info(f"Delivery message sent successfully to user {user_id}")
             
-            # Keep the delivery file for records (do not delete)
-            logger.info(f"Delivery file kept for records: {file_path}")
+            # Send delivery file as document to user
+            try:
+                if file_path.exists():
+                    logger.info(f"Sending delivery file to user {user_id}")
+                    with open(file_path, 'rb') as f:
+                        file_data = f.read()
+                    
+                    file_obj = BytesIO(file_data)
+                    file_obj.name = f"Order_{order_id}_Delivery.txt"
+                    
+                    run_async(self.bot.send_document(
+                        chat_id=user_id,
+                        document=file_obj,
+                        filename=f"Order_{order_id}_Delivery.txt",
+                        caption=f"📄 Delivery details for order {order_id}"
+                    ))
+                    logger.info(f"Delivery file sent successfully to user {user_id}")
+            except Exception as e:
+                logger.error(f"Failed to send delivery file to user: {str(e)}")
+            
+            # Delete the delivery file after successful delivery
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    logger.info(f"✓ Delivery file deleted after successful delivery: {file_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete delivery file: {str(e)}")
             
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")
