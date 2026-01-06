@@ -344,14 +344,7 @@ class IPNOrderProcessor:
             logger.info(f"=== Sending pre-uploaded products for order {order_id} ===")
             logger.info(f"Total products to deliver: {len(products)}")
             
-            # Send delivery confirmation
-            confirmation_message = (
-                f"✅ Payment confirmed!\n\n"
-                f"📦 Order ID: {order_id}\n"
-                f"📋 Products delivered:\n\n"
-            )
-            
-            # Create file content with timestamp
+            # Create file content with timestamp and header
             delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             file_content = (
                 f"================\n"
@@ -359,13 +352,13 @@ class IPNOrderProcessor:
                 f"Order ID: {order_id}\n"
                 f"Delivered: {delivery_time}\n"
                 f"User ID: {user_id}\n"
-                f"================\n"
+                f"================\n\n"
             )
             
-            for idx, product in enumerate(products, 1):
-                logger.info(f"Product {idx}: {product}")
+            for product in products:
+                logger.info(f"Product: {product}")
                 product_data = product.get("data", {})
-                logger.info(f"Product {idx} data: {product_data}")
+                logger.info(f"Product data: {product_data}")
                 
                 # Format product data (could be account credentials, codes, etc.)
                 if isinstance(product_data, dict) and product_data:
@@ -373,44 +366,23 @@ class IPNOrderProcessor:
                     if "delivery_data" in product_data and len(product_data) == 1:
                         # Plain text data wrapped in delivery_data key
                         raw_text = product_data["delivery_data"]
-                        product_info = f"📦 {raw_text}"
-                        file_product_info = raw_text
+                        file_content += f"{raw_text}\n"
                     elif "value" in product_data and len(product_data) == 1:
                         # Single value wrapped
-                        product_info = f"📦 {product_data['value']}"
-                        file_product_info = str(product_data['value'])
+                        file_content += f"{product_data['value']}\n"
                     else:
                         # If it's a non-empty dict with multiple keys, show all key-value pairs
-                        product_info = "\n".join(
-                            f"  • {key}: {value}"
-                            for key, value in product_data.items()
-                        )
-                        file_product_info = "\n".join(
-                            f"{key}: {value}"
-                            for key, value in product_data.items()
-                        )
+                        for key, value in product_data.items():
+                            file_content += f"{key}: {value}\n"
                 elif isinstance(product_data, dict) and not product_data:
                     # Empty dict means product_data is null in database
                     product_id = product.get('id', 'N/A')
-                    product_info = (
-                        f"🆔 Product ID: {product_id}\n"
-                        f"⚠️ No delivery data available\n"
-                        f"(product_data was null in database)"
-                    )
-                    file_product_info = (
-                        f"Product ID: {product_id}\n"
-                        f"No delivery data available\n"
-                        f"(product_data was null in database)"
-                    )
+                    file_content += f"[Product ID: {product_id} - No delivery data available]\n"
                 else:
-                    # product_data is not a dict (shouldn't happen, but handle it)
-                    product_info = f"📦 {str(product_data)}"
-                    file_product_info = str(product_data)
-                
-                confirmation_message += f"{idx}. {product_info}\n\n"
-                file_content += f"\n{idx}. {file_product_info}\n"
+                    # product_data is not a dict
+                    file_content += f"{str(product_data)}\n"
             
-            logger.info(f"Final message to send:\n{confirmation_message}")
+            logger.info(f"File content:\n{file_content}")
             
             # Save to file
             file_path = DELIVERY_FILES_DIR / f"{order_id}.txt"
@@ -425,10 +397,7 @@ class IPNOrderProcessor:
             except Exception as e:
                 logger.error(f"Error saving delivery data to file: {str(e)}")
             
-            # Send message via Telegram
-            logger.info(f"Sending delivery message to user {user_id}")
-            run_async(self.bot.send_message(chat_id=user_id, text=confirmation_message))
-            logger.info(f"Delivery message sent successfully to user {user_id}")
+            # Skip sending telegram message - only send file
             
             # Send delivery file as document to user
             try:
