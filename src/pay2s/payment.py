@@ -101,6 +101,33 @@ def create_payment(
         )
         response.raise_for_status()
         return response.json()
+    except requests.exceptions.ConnectionError as e:
+        raise Exception(
+            f"Connection error to payment gateway: {endpoint}\n"
+            f"Details: {str(e)}\n"
+            f"Please check if the payment gateway is reachable and properly configured."
+        )
+    except requests.exceptions.Timeout as e:
+        raise Exception(
+            f"Payment gateway request timeout.\n"
+            f"Endpoint: {endpoint}\n"
+            f"Details: {str(e)}"
+        )
+    except requests.exceptions.HTTPError as e:
+        raise Exception(
+            f"HTTP error from payment gateway: {str(e)}\n"
+            f"Status code: {e.response.status_code}\n"
+            f"Response: {e.response.text if hasattr(e.response, 'text') else 'N/A'}"
+        )
+    except ValueError as e:
+        # JSON decode error
+        raise Exception(
+            f"Invalid response from payment gateway.\n"
+            f"Failed to parse JSON: {str(e)}"
+        )
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Error creating payment: {str(e)}")
+        raise Exception(
+            f"Payment request error: {str(e)}\n"
+            f"Please check your payment configuration and try again."
+        )
 

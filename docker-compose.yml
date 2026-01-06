@@ -32,6 +32,7 @@ services:
       PAY2S_PARTNER_CODE: ${PAY2S_PARTNER_CODE}
       PAY2S_ACCESS_KEY: ${PAY2S_ACCESS_KEY}
       PAY2S_SECRET_KEY: ${PAY2S_SECRET_KEY}
+      DEFAULT_BANK_ACCOUNTS: ${DEFAULT_BANK_ACCOUNTS:-[{"account_number":"99999999","bank_id":"ACB"}]}
       # Payment URLs
       IPN_URL: ${IPN_URL}
       REDIRECT_URL: ${REDIRECT_URL:-https://t.me/your_bot}

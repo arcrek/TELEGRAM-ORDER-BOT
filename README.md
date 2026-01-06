@@ -87,11 +87,12 @@ SUPPLIER_TELEGRAM_BOT_TOKEN=your_supplier_bot_token_here
 # Database (optional - defaults to sqlite:///data/database.db)
 DATABASE_URL=sqlite:///data/database.db
 
-# Pay2S (optional - already has defaults in config.py)
+# Pay2S (REQUIRED for payment functionality)
 PAY2S_ENDPOINT=https://sandbox-payment.pay2s.vn/v1/gateway/api/create
 PAY2S_PARTNER_CODE=your_partner_code
 PAY2S_ACCESS_KEY=your_access_key
 PAY2S_SECRET_KEY=your_secret_key
+DEFAULT_BANK_ACCOUNTS=[{"account_number":"1234567890","bank_id":"ACB"}]
 
 # IPN Server (optional - defaults in config.py)
 IPN_HOST=0.0.0.0

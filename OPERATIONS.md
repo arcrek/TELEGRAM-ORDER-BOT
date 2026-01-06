@@ -426,6 +426,53 @@ grep TELEGRAM_BOT_TOKEN .env
 **Test bot directly:**
 Send `/start` to your bot on Telegram and watch logs.
 
+### Payment Error: "Error creating payment. Please try again later."
+
+**Symptoms:**
+- User clicks "Proceed payment" but gets error message
+- Error only appears sometimes (intermittent)
+
+**Check payment configuration:**
+```bash
+grep -E "PAY2S_ENDPOINT|PARTNER_CODE|ACCESS_KEY|SECRET_KEY|DEFAULT_BANK_ACCOUNTS" .env
+```
+
+**Ensure these are set correctly:**
+1. `PAY2S_ENDPOINT` - Must be a valid HTTPS URL (e.g., https://pay2s.example.com/api/payment)
+2. `PARTNER_CODE` - Must be provided by Pay2S
+3. `ACCESS_KEY` - Must be provided by Pay2S
+4. `SECRET_KEY` - Must be provided by Pay2S (kept secure!)
+5. `DEFAULT_BANK_ACCOUNTS` - Must be configured with at least one bank account
+
+**Check bot logs during payment:**
+```bash
+docker compose logs bot --tail=100 --follow
+# Then try payment in Telegram bot
+```
+
+**Common causes:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Configuration error | Payment endpoint not configured | Set PAY2S_ENDPOINT in .env |
+| Connection error | Can't reach payment gateway | Check internet, verify endpoint URL is reachable |
+| Invalid credentials | Wrong access/secret key | Verify keys with Pay2S provider |
+| No bank accounts | DEFAULT_BANK_ACCOUNTS not configured | Add bank accounts to config |
+| Timeout | Payment service too slow | Check network latency, increase timeout if needed |
+
+**Test payment gateway connectivity:**
+```bash
+docker compose exec bot curl -v https://<your_pay2s_endpoint>
+```
+
+**Reset and retry:**
+1. Check .env configuration is correct
+2. Restart bot service:
+   ```bash
+   docker compose restart bot
+   ```
+3. Try payment again in Telegram bot
+
 ### Database Errors
 
 **Symptom:** `sqlite3.OperationalError: no such table`

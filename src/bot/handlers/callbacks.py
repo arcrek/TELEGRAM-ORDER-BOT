@@ -429,15 +429,33 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         # Create payment URL
         try:
-            from config.config import (
-                PAY2S_ENDPOINT,
-                PARTNER_CODE,
-                ACCESS_KEY,
-                SECRET_KEY,
-                DEFAULT_BANK_ACCOUNTS,
-            )
-            from src.pay2s import create_payment
             import os
+            import sys
+            
+            # Try to import config - handle both direct and Docker execution
+            try:
+                from config.config import (
+                    PAY2S_ENDPOINT,
+                    PARTNER_CODE,
+                    ACCESS_KEY,
+                    SECRET_KEY,
+                    DEFAULT_BANK_ACCOUNTS,
+                )
+            except ModuleNotFoundError:
+                # Fallback: Use environment variables directly
+                PAY2S_ENDPOINT = os.getenv("PAY2S_ENDPOINT", "...")
+                PARTNER_CODE = os.getenv("PAY2S_PARTNER_CODE", "...")
+                ACCESS_KEY = os.getenv("PAY2S_ACCESS_KEY", "...")
+                SECRET_KEY = os.getenv("PAY2S_SECRET_KEY", "...")
+                DEFAULT_BANK_ACCOUNTS = os.getenv("DEFAULT_BANK_ACCOUNTS", "[]")
+                if isinstance(DEFAULT_BANK_ACCOUNTS, str):
+                    import json
+                    try:
+                        DEFAULT_BANK_ACCOUNTS = json.loads(DEFAULT_BANK_ACCOUNTS)
+                    except:
+                        DEFAULT_BANK_ACCOUNTS = []
+            
+            from src.pay2s import create_payment
             
             # Validate PAY2S_ENDPOINT
             if not PAY2S_ENDPOINT or PAY2S_ENDPOINT == '...' or not PAY2S_ENDPOINT.startswith(('http://', 'https://')):
@@ -452,12 +470,38 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 logger.error(f"Invalid PAY2S_ENDPOINT: {repr(PAY2S_ENDPOINT)}")
                 return
             
+            # Validate other required config
+            if not ACCESS_KEY or ACCESS_KEY == '...' or not SECRET_KEY or SECRET_KEY == '...':
+                error_msg = (
+                    "❌ Payment configuration error.\n\n"
+                    "ACCESS_KEY or SECRET_KEY is not configured correctly.\n"
+                    "Please update config/config.py\n"
+                )
+                await query.answer("Payment configuration error", show_alert=True)
+                await query.edit_message_text(error_msg)
+                logger.error("Invalid ACCESS_KEY or SECRET_KEY in payment config")
+                return
+            
+            # Validate bank accounts are configured
+            if not DEFAULT_BANK_ACCOUNTS or len(DEFAULT_BANK_ACCOUNTS) == 0:
+                error_msg = (
+                    "❌ Payment configuration error.\n\n"
+                    "No bank accounts configured.\n"
+                    "Please configure DEFAULT_BANK_ACCOUNTS in config/config.py\n"
+                )
+                await query.answer("Payment configuration error", show_alert=True)
+                await query.edit_message_text(error_msg)
+                logger.error("DEFAULT_BANK_ACCOUNTS not configured")
+                return
+            
             # Get IPN URL from environment or use default
             ipn_url = os.getenv("IPN_URL", f"http://localhost:{os.getenv('IPN_PORT', '5001')}/ipn")
             redirect_url = os.getenv("REDIRECT_URL", "https://t.me/your_bot")
             
             # Create order info (10-32 chars, alphanumeric only)
             order_info = f"Order{order.id}"[:32]
+            
+            logger.debug(f"Creating payment with endpoint: {PAY2S_ENDPOINT}, order_id: {order.id}, amount: {order.total_amount}")
             
             # Create payment
             payment_response = create_payment(
@@ -472,6 +516,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 ipn_url=ipn_url,
                 bank_accounts=DEFAULT_BANK_ACCOUNTS,
             )
+            
+            logger.debug(f"Payment response: {payment_response}")
             
             # Extract payment URL and QR code
             if payment_response.get("resultCode") == 0 and payment_response.get("payUrl"):
@@ -557,9 +603,26 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 await query.edit_message_text(f"❌ Payment creation failed: {error_msg}")
                 logger.error(f"Payment creation failed: {payment_response}")
         
+        except ValueError as e:
+            # Config validation errors
+            error_msg = str(e)
+            logger.error(f"Payment configuration error: {error_msg}")
+            await query.edit_message_text(f"❌ Configuration error: {error_msg}")
         except Exception as e:
             logger.error(f"Error creating payment: {str(e)}", exc_info=True)
-            await query.edit_message_text("❌ Error creating payment. Please try again later.")
+            # Provide more helpful error message
+            error_detail = str(e)
+            if "Connection" in error_detail or "timeout" in error_detail.lower():
+                error_message = (
+                    "❌ Payment service connection error.\n\n"
+                    "Unable to connect to payment gateway.\n"
+                    "Please check your internet connection and try again."
+                )
+            elif "Invalid" in error_detail:
+                error_message = f"❌ Invalid payment request: {error_detail}"
+            else:
+                error_message = "❌ Error creating payment. Please try again later."
+            await query.edit_message_text(error_message)
     
     finally:
         session.close()
