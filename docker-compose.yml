@@ -77,11 +77,16 @@ services:
       context: .
       dockerfile: Dockerfile.ipn
     container_name: pay2s-ipn-server
+    env_file:
+      - .env
     ports:
       - "${IPN_PORT:-5001}:5001"
     environment:
       # Database Configuration (same as other services)
       - DATABASE_URL=${DATABASE_URL:-sqlite:///data/database.db}
+      # Telegram Bot Tokens (for sending messages after payment)
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - SUPPLIER_TELEGRAM_BOT_TOKEN=${SUPPLIER_TELEGRAM_BOT_TOKEN}
       # Pay2S Configuration
       - PAY2S_ENDPOINT=${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
       - PAY2S_PARTNER_CODE=${PAY2S_PARTNER_CODE:-PAY2S7EPF0SB1ZP27W71}

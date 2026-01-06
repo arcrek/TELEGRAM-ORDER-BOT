@@ -48,6 +48,11 @@ class IPNOrderProcessor:
         Returns:
             True if processing successful, False otherwise
         """
+        logger.info(f"=== Processing Payment Success ===")
+        logger.info(f"Order ID: {order_id}, Transaction ID: {transaction_id}, Amount: {amount}")
+        logger.info(f"Bot instance available: {self.bot is not None}")
+        logger.info(f"Supplier bot instance available: {self.supplier_bot is not None}")
+        
         session = self.session_factory()
         try:
             order_service = OrderService(session)
@@ -56,8 +61,10 @@ class IPNOrderProcessor:
             # Get order
             order = order_service.get_order_by_id(order_id)
             if not order:
-                logger.error(f"Order {order_id} not found")
+                logger.error(f"Order {order_id} not found in database")
                 return False
+            
+            logger.info(f"Found order: user_id={order.user_id}, status={order.status}, total={order.total_amount}")
             
             # Update order status to PAID
             order_service.update_order_status(
@@ -92,13 +99,20 @@ class IPNOrderProcessor:
                     except Exception as e:
                         logger.warning(f"Could not delete payment message: {str(e)}")
             
+            logger.info(f"Delivery type: {delivery_type}")
+            
             if delivery_type == DeliveryType.PRE_UPLOADED:
                 # Handle pre-uploaded product delivery
+                logger.info(f"Processing PRE_UPLOADED delivery for order {order_id}")
                 self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
             elif delivery_type == DeliveryType.SUPPLIER_BASED:
                 # Handle supplier-based delivery
+                logger.info(f"Processing SUPPLIER_BASED delivery for order {order_id}")
                 self._handle_supplier_delivery(session, order_id, order.user_id)
+            else:
+                logger.warning(f"Unknown delivery type: {delivery_type}")
             
+            logger.info(f"=== Payment Processing Complete for order {order_id} ===")
             return True
             
         except Exception as e:
@@ -348,12 +362,61 @@ def get_global_customer_bot() -> Optional[Bot]:
     return _global_bot
 
 
+def _create_bot_from_env() -> Optional[Bot]:
+    """
+    Create a Bot instance from environment variable if available.
+    Used when running in IPN server container.
+    
+    Returns:
+        Bot instance or None
+    """
+    import os
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if token:
+        try:
+            bot = Bot(token=token)
+            logger.info("Created Telegram bot instance from TELEGRAM_BOT_TOKEN")
+            return bot
+        except Exception as e:
+            logger.error(f"Failed to create bot from token: {e}")
+    return None
+
+
+def _create_supplier_bot_from_env() -> Optional[Bot]:
+    """
+    Create a supplier Bot instance from environment variable if available.
+    
+    Returns:
+        Bot instance or None
+    """
+    import os
+    token = os.getenv("SUPPLIER_TELEGRAM_BOT_TOKEN")
+    if token:
+        try:
+            bot = Bot(token=token)
+            logger.info("Created supplier Telegram bot instance from SUPPLIER_TELEGRAM_BOT_TOKEN")
+            return bot
+        except Exception as e:
+            logger.error(f"Failed to create supplier bot from token: {e}")
+    return None
+
+
 def get_ipn_processor() -> IPNOrderProcessor:
     """
     Get IPN order processor instance with bots.
+    If global bots are not set, tries to create them from environment variables.
     
     Returns:
         IPNOrderProcessor instance
     """
+    global _global_bot, _global_supplier_bot
+    
+    # If bot not set, try to create from env (for IPN server container)
+    if _global_bot is None:
+        _global_bot = _create_bot_from_env()
+    
+    if _global_supplier_bot is None:
+        _global_supplier_bot = _create_supplier_bot_from_env()
+    
     return IPNOrderProcessor(bot=_global_bot, supplier_bot=_global_supplier_bot)
 
