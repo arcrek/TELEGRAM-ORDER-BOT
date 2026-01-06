@@ -15,6 +15,7 @@ class UserState:
     quantity: int = 1
     pending_order_id: Optional[str] = None
     payment_message_id: Optional[int] = None  # Telegram message ID of QR code payment message
+    payment_message_ids: Optional[list] = None  # List of all payment-related message IDs to delete
 
 
 class StateManager:
@@ -55,6 +56,7 @@ class StateManager:
         quantity: Optional[int] = None,
         pending_order_id: Optional[str] = None,
         payment_message_id: Optional[int] = None,
+        payment_message_ids: Optional[list] = None,
     ) -> None:
         """
         Update user state with new values.
@@ -67,6 +69,7 @@ class StateManager:
             quantity: Order quantity
             pending_order_id: Pending order ID
             payment_message_id: Telegram message ID of QR code payment message
+            payment_message_ids: List of all payment-related message IDs to delete
         """
         state = self.get_user_state(user_id)
         if state is None:
@@ -84,6 +87,8 @@ class StateManager:
             state.pending_order_id = pending_order_id
         if payment_message_id is not None:
             state.payment_message_id = payment_message_id
+        if payment_message_ids is not None:
+            state.payment_message_ids = payment_message_ids
         
         self.set_user_state(user_id, state)
     

@@ -620,6 +620,9 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
                     ])
                     
+                    # Get the original message ID before editing
+                    text_message_id = query.message.message_id
+                    
                     # Edit the callback message first
                     await query.edit_message_text(payment_message)
                     
@@ -640,8 +643,12 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         reply_markup=cancel_keyboard
                     )
                     
-                    # Store message ID for later deletion
-                    state_manager.update_user_state(user_id, payment_message_id=sent_message.message_id)
+                    # Store both message IDs for later deletion
+                    state_manager.update_user_state(
+                        user_id, 
+                        payment_message_id=sent_message.message_id,
+                        payment_message_ids=[text_message_id, sent_message.message_id]
+                    )
                 else:
                     # Fallback to text message with payment URL if QR code not available
                     bank_info = ""
@@ -657,11 +664,18 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     cancel_keyboard = InlineKeyboardMarkup([
                         [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
                     ])
+                    
+                    # Get the original message ID
+                    text_message_id = query.message.message_id
                     edited_message = await query.edit_message_text(payment_message, reply_markup=cancel_keyboard)
                     
                     # Store message ID for later deletion (use edited message ID)
                     if edited_message:
-                        state_manager.update_user_state(user_id, payment_message_id=edited_message.message_id)
+                        state_manager.update_user_state(
+                            user_id, 
+                            payment_message_id=edited_message.message_id,
+                            payment_message_ids=[text_message_id]
+                        )
             else:
                 error_msg = payment_response.get("message", "Unknown error")
                 await query.edit_message_text(f"❌ Payment creation failed: {error_msg}")
