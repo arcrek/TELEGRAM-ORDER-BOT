@@ -375,13 +375,24 @@ class IPNOrderProcessor:
             
             # Save to file
             file_path = DELIVERY_FILES_DIR / f"{order_id}.txt"
-            file_path.write_text(file_content, encoding='utf-8')
-            logger.info(f"Delivery data saved to file: {file_path}")
+            try:
+                file_path.write_text(file_content, encoding='utf-8')
+                logger.info(f"Delivery data saved to file: {file_path}")
+            except PermissionError as e:
+                logger.warning(f"Could not save delivery data to file: {str(e)}")
             
             # Send message
             logger.info(f"Sending delivery message to user {user_id}")
             run_async(self.bot.send_message(chat_id=user_id, text=confirmation_message))
             logger.info(f"Delivery message sent successfully to user {user_id}")
+            
+            # Delete the delivery file after successful delivery
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+                    logger.info(f"Delivery file deleted: {file_path}")
+            except Exception as e:
+                logger.warning(f"Could not delete delivery file: {str(e)}")
             
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")

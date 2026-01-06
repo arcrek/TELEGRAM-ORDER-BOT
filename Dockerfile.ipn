@@ -39,6 +39,9 @@ COPY config ./config
 COPY run_ipn_server.py ./run_ipn_server.py
 COPY wsgi.py ./wsgi.py
 
+# Create delivery_data directory with proper permissions
+RUN mkdir -p /app/delivery_data && chmod 777 /app/delivery_data
+
 RUN useradd -m appuser
 USER appuser
 

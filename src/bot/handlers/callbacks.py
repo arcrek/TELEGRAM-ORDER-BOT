@@ -648,7 +648,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     if qr_list and len(qr_list) > 0:
                         bank_info = (
                             f"\n🏦 Bank Information:\n"
-                            f"  • Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
+                            f"  • Bank: {qr_list[0].get('bank_id', 'N/A')}\n"
                             f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
                             f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
                         )
