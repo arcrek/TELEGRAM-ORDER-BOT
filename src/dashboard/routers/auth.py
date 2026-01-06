@@ -2,10 +2,12 @@
 Authentication router.
 """
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from src.database.models.admin import Admin, AdminRole
 from src.dashboard.auth import (
     authenticate_admin,
@@ -19,6 +21,7 @@ from src.dashboard.auth import (
 )
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 class Token(BaseModel):
@@ -53,19 +56,27 @@ class AdminResponse(BaseModel):
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")  # Rate limit: 5 attempts per minute per IP
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):
     """
-    Login endpoint.
+    Login endpoint with rate limiting to prevent brute force attacks.
+    
+    Rate limit: 5 login attempts per minute per IP address.
     
     Args:
+        request: FastAPI request object (for rate limiting)
         form_data: OAuth2 password form data
-        session_factory: Database session factory
+        db: Database session
         
     Returns:
         Access token
+        
+    Raises:
+        HTTPException: 401 if credentials invalid, 429 if rate limit exceeded
     """
     admin = authenticate_admin(db, form_data.username, form_data.password)
     if not admin:

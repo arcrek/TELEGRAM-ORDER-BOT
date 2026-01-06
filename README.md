@@ -223,6 +223,28 @@ docker compose up -d --build
   - Accent Blue: `#6EA8FF`
   - No gradients, no glassmorphism, minimalist design
 
+## Operations & Maintenance
+
+For detailed operator instructions including:
+- Starting/stopping the system
+- Database backup and restore
+- Monitoring and troubleshooting
+- User management
+
+**See: [OPERATIONS.md](OPERATIONS.md)**
+
+### Quick Backup
+
+**Linux/Mac:**
+```bash
+./scripts/backup_database.sh
+```
+
+**Windows:**
+```cmd
+scripts\backup_database.bat
+```
+
 ## Testing
 
 ```bash
@@ -271,6 +293,7 @@ npm run lint
 
 ## Documentation
 
+- **Operations Guide:** `OPERATIONS.md` - Complete guide for operators (running, monitoring, backup)
 - **Implementation Plan:** `.claude/plans/telegram-bot-order-system.md`
 - **Frontend README:** `frontend/README.md`
 
