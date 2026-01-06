@@ -369,15 +369,26 @@ class IPNOrderProcessor:
                 
                 # Format product data (could be account credentials, codes, etc.)
                 if isinstance(product_data, dict) and product_data:
-                    # If it's a non-empty dict, show all key-value pairs
-                    product_info = "\n".join(
-                        f"  • {key}: {value}"
-                        for key, value in product_data.items()
-                    )
-                    file_product_info = "\n".join(
-                        f"{key}: {value}"
-                        for key, value in product_data.items()
-                    )
+                    # Check if it's our wrapper dict for plain text
+                    if "delivery_data" in product_data and len(product_data) == 1:
+                        # Plain text data wrapped in delivery_data key
+                        raw_text = product_data["delivery_data"]
+                        product_info = f"📦 {raw_text}"
+                        file_product_info = raw_text
+                    elif "value" in product_data and len(product_data) == 1:
+                        # Single value wrapped
+                        product_info = f"📦 {product_data['value']}"
+                        file_product_info = str(product_data['value'])
+                    else:
+                        # If it's a non-empty dict with multiple keys, show all key-value pairs
+                        product_info = "\n".join(
+                            f"  • {key}: {value}"
+                            for key, value in product_data.items()
+                        )
+                        file_product_info = "\n".join(
+                            f"{key}: {value}"
+                            for key, value in product_data.items()
+                        )
                 elif isinstance(product_data, dict) and not product_data:
                     # Empty dict means product_data is null in database
                     product_id = product.get('id', 'N/A')
@@ -393,8 +404,8 @@ class IPNOrderProcessor:
                     )
                 else:
                     # product_data is not a dict (shouldn't happen, but handle it)
-                    product_info = f"Data: {str(product_data)}"
-                    file_product_info = f"Data: {str(product_data)}"
+                    product_info = f"📦 {str(product_data)}"
+                    file_product_info = str(product_data)
                 
                 confirmation_message += f"{idx}. {product_info}\n\n"
                 file_content += f"\n{idx}. {file_product_info}\n"

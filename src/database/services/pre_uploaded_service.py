@@ -94,7 +94,7 @@ class PreUploadedService:
 
     def get_product_data(self, product: PreUploadedProduct) -> Dict[str, Any]:
         """
-        Parse product data from JSON string.
+        Parse product data from JSON string or plain text.
         
         Args:
             product: PreUploadedProduct instance
@@ -102,10 +102,29 @@ class PreUploadedService:
         Returns:
             Parsed product data as dictionary
         """
-        try:
-            return json.loads(product.product_data)
-        except (json.JSONDecodeError, AttributeError):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        if not product.product_data:
+            logger.warning(f"Product {product.id} has no product_data (None or empty)")
             return {}
+        
+        raw_data = product.product_data
+        logger.info(f"Product {product.id} raw product_data: {raw_data[:200] if len(raw_data) > 200 else raw_data}")
+        
+        # Try to parse as JSON first
+        try:
+            parsed = json.loads(raw_data)
+            if isinstance(parsed, dict):
+                return parsed
+            else:
+                # JSON but not a dict (e.g., a string like "account@email.com")
+                return {"value": parsed}
+        except (json.JSONDecodeError, TypeError):
+            # Not valid JSON - treat as plain text
+            logger.info(f"Product {product.id} product_data is plain text, not JSON")
+            # Return as a dict with the raw text
+            return {"delivery_data": raw_data}
 
     def deliver_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """
