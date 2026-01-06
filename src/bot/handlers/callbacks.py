@@ -494,13 +494,44 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 logger.error("DEFAULT_BANK_ACCOUNTS not configured")
                 return
             
+            # Log and validate bank accounts format
+            logger.info(f"Bank accounts type: {type(DEFAULT_BANK_ACCOUNTS)}, value: {DEFAULT_BANK_ACCOUNTS}")
+            
+            # Ensure bank accounts have correct format per Pay2S API spec
+            validated_bank_accounts = []
+            for bank in DEFAULT_BANK_ACCOUNTS:
+                if isinstance(bank, dict) and "account_number" in bank and "bank_id" in bank:
+                    validated_bank_accounts.append({
+                        "account_number": str(bank["account_number"]),
+                        "bank_id": str(bank["bank_id"]).upper()  # Ensure uppercase bank_id
+                    })
+                else:
+                    logger.warning(f"Invalid bank account format: {bank}")
+            
+            if not validated_bank_accounts:
+                error_msg = (
+                    "❌ Payment configuration error.\n\n"
+                    "Bank accounts have invalid format.\n"
+                    f"Expected: [{{'account_number': '...', 'bank_id': '...'}}]\n"
+                    f"Got: {DEFAULT_BANK_ACCOUNTS}\n"
+                )
+                await query.answer("Payment configuration error", show_alert=True)
+                await query.edit_message_text(error_msg)
+                logger.error(f"Invalid bank accounts format: {DEFAULT_BANK_ACCOUNTS}")
+                return
+            
+            # Use validated bank accounts
+            bank_accounts_to_use = validated_bank_accounts
+            logger.info(f"Using validated bank accounts: {bank_accounts_to_use}")
+            
             # Get IPN URL from environment or use default
             ipn_url = os.getenv("IPN_URL", f"http://localhost:{os.getenv('IPN_PORT', '5001')}/ipn")
             redirect_url = os.getenv("REDIRECT_URL", "https://t.me/your_bot")
             
-            # Create order info (10-32 chars, alphanumeric only)
-            # Format: MTK + order_id (matching Pay2S expected format)
-            order_info = f"MTK_{order.id}"[:32]
+            # Create order info (10-32 chars, alphanumeric ONLY - no special chars!)
+            # API spec: "chỉ chấp nhận ký tự chữ + số, không dấu gạch ngang hoặc đặc biệt"
+            # Format: MTK + order_id (no underscores or special characters!)
+            order_info = f"MTK{order.id}"[:32]
             
             # Generate unique request_id using timestamp (as per Pay2S API sample)
             import time
@@ -521,7 +552,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 order_info=order_info,
                 redirect_url=redirect_url,
                 ipn_url=ipn_url,
-                bank_accounts=DEFAULT_BANK_ACCOUNTS,
+                bank_accounts=bank_accounts_to_use,
                 request_id=request_id,
             )
             

@@ -99,7 +99,12 @@ def create_payment(
     log_data["accessKey"] = log_data["accessKey"][:8] + "..." if len(log_data["accessKey"]) > 8 else "***"
     log_data["signature"] = log_data["signature"][:16] + "..." if len(log_data["signature"]) > 16 else "***"
     logger.info(f"Pay2S Request: POST {endpoint}")
+    logger.info(f"Pay2S bankAccounts: {data['bankAccounts']}")
     logger.debug(f"Pay2S Request Data: {log_data}")
+    
+    # Log the exact JSON that will be sent
+    import json as json_module
+    logger.debug(f"Pay2S Request JSON: {json_module.dumps(data, ensure_ascii=False)}")
     
     # Make POST request
     try:
