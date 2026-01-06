@@ -39,7 +39,7 @@ docker compose up -d --build
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `PAY2S_ENDPOINT` | Payment gateway API endpoint | `https://sandbox-payment.pay2s.vn/v1/gateway/api/create` |
+| `PAY2S_ENDPOINT` | Payment gateway API endpoint | Production: `https://payment.pay2s.vn/v1/gateway/api/create`<br>Sandbox: `https://sandbox-payment.pay2s.vn/v1/gateway/api/create` |
 | `PAY2S_PARTNER_CODE` | Partner code from Pay2S | `PAY2S7EPF0SB1ZP27W71` |
 | `PAY2S_ACCESS_KEY` | API access key | `REDACTED_PAY2S_ACCESS_KEY` |
 | `PAY2S_SECRET_KEY` | Secret key for signing (KEEP SECURE!) | `REDACTED_PAY2S_SECRET_KEY` |

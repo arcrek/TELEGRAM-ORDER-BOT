@@ -2,8 +2,11 @@
 Pay2S Payment API Module
 Functions for creating payment requests with Pay2S.
 """
+import logging
 import requests
 from .signature import generate_payment_signature
+
+logger = logging.getLogger(__name__)
 
 
 def create_payment(
@@ -91,6 +94,13 @@ def create_payment(
             "Please set PAY2S_ENDPOINT environment variable or update config/config.py"
         )
     
+    # Log request data (mask sensitive info)
+    log_data = data.copy()
+    log_data["accessKey"] = log_data["accessKey"][:8] + "..." if len(log_data["accessKey"]) > 8 else "***"
+    log_data["signature"] = log_data["signature"][:16] + "..." if len(log_data["signature"]) > 16 else "***"
+    logger.info(f"Pay2S Request: POST {endpoint}")
+    logger.debug(f"Pay2S Request Data: {log_data}")
+    
     # Make POST request
     try:
         response = requests.post(
@@ -99,6 +109,16 @@ def create_payment(
             headers=headers,
             timeout=10
         )
+        
+        # Log response
+        logger.info(f"Pay2S Response Status: {response.status_code}")
+        try:
+            response_json = response.json()
+            logger.info(f"Pay2S Response resultCode: {response_json.get('resultCode')}, message: {response_json.get('message')}")
+            logger.debug(f"Pay2S Response: {response_json}")
+        except:
+            logger.warning(f"Pay2S Response (non-JSON): {response.text[:500]}")
+        
         response.raise_for_status()
         return response.json()
     except requests.exceptions.ConnectionError as e:

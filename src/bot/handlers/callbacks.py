@@ -499,9 +499,16 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             redirect_url = os.getenv("REDIRECT_URL", "https://t.me/your_bot")
             
             # Create order info (10-32 chars, alphanumeric only)
-            order_info = f"Order{order.id}"[:32]
+            # Format: MTK + order_id (matching Pay2S expected format)
+            order_info = f"MTK_{order.id}"[:32]
             
-            logger.debug(f"Creating payment with endpoint: {PAY2S_ENDPOINT}, order_id: {order.id}, amount: {order.total_amount}")
+            # Generate unique request_id using timestamp (as per Pay2S API sample)
+            import time
+            request_id = str(int(time.time() * 1000))  # milliseconds timestamp
+            
+            logger.info(f"Creating payment: endpoint={PAY2S_ENDPOINT}, order_id={order.id}, amount={order.total_amount}, order_info={order_info}, request_id={request_id}")
+            logger.debug(f"Bank accounts: {DEFAULT_BANK_ACCOUNTS}")
+            logger.debug(f"IPN URL: {ipn_url}, Redirect URL: {redirect_url}")
             
             # Create payment
             payment_response = create_payment(
@@ -515,6 +522,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 redirect_url=redirect_url,
                 ipn_url=ipn_url,
                 bank_accounts=DEFAULT_BANK_ACCOUNTS,
+                request_id=request_id,
             )
             
             logger.debug(f"Payment response: {payment_response}")

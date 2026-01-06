@@ -6,6 +6,8 @@ For production, use environment variables or a secure config file.
 import os
 
 # Pay2S API Configuration
+# Sandbox: https://sandbox-payment.pay2s.vn/v1/gateway/api/create
+# Production: https://payment.pay2s.vn/v1/gateway/api/create
 PAY2S_ENDPOINT = os.getenv(
     "PAY2S_ENDPOINT",
     "https://sandbox-payment.pay2s.vn/v1/gateway/api/create"
