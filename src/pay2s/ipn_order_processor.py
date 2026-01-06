@@ -3,6 +3,8 @@ IPN order processor for handling payment confirmations and order fulfillment.
 """
 import asyncio
 import logging
+import os
+from pathlib import Path
 from typing import Optional, Dict, Any
 from src.database.connection import get_session_factory
 from src.database.services.order_service import OrderService
@@ -15,6 +17,10 @@ from telegram.error import TelegramError
 from src.bot.states.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
+
+# Directory for storing delivery files
+DELIVERY_FILES_DIR = Path(__file__).parent.parent.parent / "delivery_data"
+DELIVERY_FILES_DIR.mkdir(exist_ok=True)
 
 
 def run_async(coro):
@@ -311,7 +317,7 @@ class IPNOrderProcessor:
         self, user_id: int, order_id: str, products: list[Dict[str, Any]]
     ) -> None:
         """
-        Send pre-uploaded products to user via Telegram.
+        Send pre-uploaded products to user via Telegram and save to file.
         
         Args:
             user_id: Telegram user ID
@@ -319,6 +325,9 @@ class IPNOrderProcessor:
             products: List of product data dictionaries
         """
         try:
+            logger.info(f"=== Sending pre-uploaded products for order {order_id} ===")
+            logger.info(f"Total products to deliver: {len(products)}")
+            
             # Send delivery confirmation
             confirmation_message = (
                 f"✅ Payment confirmed!\n\n"
@@ -326,18 +335,43 @@ class IPNOrderProcessor:
                 f"📋 Products delivered:\n\n"
             )
             
+            # Create file content
+            file_content = (
+                f"================\n"
+                f"MUATAIKHOANPRO\n"
+                f"Order ID: {order_id}\n"
+                f"================\n"
+            )
+            
             for idx, product in enumerate(products, 1):
+                logger.info(f"Product {idx}: {product}")
                 product_data = product.get("data", {})
+                logger.info(f"Product {idx} data: {product_data}")
+                
                 # Format product data (could be account credentials, codes, etc.)
-                if isinstance(product_data, dict):
+                if isinstance(product_data, dict) and product_data:
                     product_info = "\n".join(
                         f"  • {key}: {value}"
                         for key, value in product_data.items()
                     )
+                    file_product_info = "\n".join(
+                        f"{key}: {value}"
+                        for key, value in product_data.items()
+                    )
                 else:
-                    product_info = str(product_data)
+                    # If product_data is empty or not a dict, show the product info
+                    product_info = f"ID: {product.get('id', 'N/A')}\nData: {str(product_data)}"
+                    file_product_info = f"ID: {product.get('id', 'N/A')}\nData: {str(product_data)}"
                 
                 confirmation_message += f"{idx}. {product_info}\n\n"
+                file_content += f"\n{idx}. {file_product_info}\n"
+            
+            logger.info(f"Final message to send:\n{confirmation_message}")
+            
+            # Save to file
+            file_path = DELIVERY_FILES_DIR / f"{order_id}.txt"
+            file_path.write_text(file_content, encoding='utf-8')
+            logger.info(f"Delivery data saved to file: {file_path}")
             
             # Send message
             logger.info(f"Sending delivery message to user {user_id}")
@@ -346,6 +380,8 @@ class IPNOrderProcessor:
             
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error in _send_pre_uploaded_products: {str(e)}", exc_info=True)
 
 
 # Global bot instances (set by bot applications)

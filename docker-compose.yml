@@ -38,6 +38,7 @@ services:
       REDIRECT_URL: ${REDIRECT_URL:-https://t.me/your_bot}
     volumes:
       - database-data:/app/data
+      - delivery-data:/app/delivery_data
     depends_on:
       api:
         condition: service_healthy
@@ -97,6 +98,7 @@ services:
       - IPN_PORT=5001
     volumes:
       - database-data:/app/data
+      - delivery-data:/app/delivery_data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
@@ -111,4 +113,5 @@ networks:
 
 volumes:
   database-data:
+  delivery-data:
 
