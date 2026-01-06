@@ -4,6 +4,7 @@ IPN order processor for handling payment confirmations and order fulfillment.
 import asyncio
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
 from src.database.connection import get_session_factory
@@ -92,6 +93,15 @@ class IPNOrderProcessor:
                 return False
             
             logger.info(f"Found order: user_id={order.user_id}, status={order.status}, total={order.total_amount}")
+            
+            # Check if order is already delivered to prevent duplicate deliveries
+            if order.status == OrderStatus.DELIVERED:
+                logger.warning(f"Order {order_id} is already DELIVERED. Skipping duplicate delivery.")
+                return True  # Return True because order was already processed successfully
+            
+            # Check if order is already paid (duplicate IPN)
+            if order.status == OrderStatus.PAID:
+                logger.warning(f"Order {order_id} is already PAID but not delivered. Will attempt delivery.")
             
             # Update order status to PAID
             order_service.update_order_status(
@@ -340,11 +350,14 @@ class IPNOrderProcessor:
                 f"📋 Products delivered:\n\n"
             )
             
-            # Create file content
+            # Create file content with timestamp
+            delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             file_content = (
                 f"================\n"
                 f"MUATAIKHOANPRO\n"
                 f"Order ID: {order_id}\n"
+                f"Delivered: {delivery_time}\n"
+                f"User ID: {user_id}\n"
                 f"================\n"
             )
             
@@ -390,23 +403,23 @@ class IPNOrderProcessor:
             # Save to file
             file_path = DELIVERY_FILES_DIR / f"{order_id}.txt"
             try:
-                file_path.write_text(file_content, encoding='utf-8')
-                logger.info(f"Delivery data saved to file: {file_path}")
+                if file_path.exists():
+                    logger.warning(f"Delivery file already exists for order {order_id}. This should not happen due to order status check.")
+                else:
+                    file_path.write_text(file_content, encoding='utf-8')
+                    logger.info(f"Delivery data saved to file: {file_path}")
             except PermissionError as e:
                 logger.warning(f"Could not save delivery data to file: {str(e)}")
+            except Exception as e:
+                logger.error(f"Error saving delivery data to file: {str(e)}")
             
             # Send message
             logger.info(f"Sending delivery message to user {user_id}")
             run_async(self.bot.send_message(chat_id=user_id, text=confirmation_message))
             logger.info(f"Delivery message sent successfully to user {user_id}")
             
-            # Delete the delivery file after successful delivery
-            try:
-                if file_path.exists():
-                    file_path.unlink()
-                    logger.info(f"Delivery file deleted: {file_path}")
-            except Exception as e:
-                logger.warning(f"Could not delete delivery file: {str(e)}")
+            # Keep the delivery file for records (do not delete)
+            logger.info(f"Delivery file kept for records: {file_path}")
             
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")
