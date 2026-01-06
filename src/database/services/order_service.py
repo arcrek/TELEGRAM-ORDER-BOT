@@ -55,7 +55,39 @@ class OrderService:
         variation = self.variation_service.get_variation_by_id(variation_id)
         if not variation:
             return False
-        return variation.stock >= quantity and quantity > 0
+        
+        # Get actual available stock based on delivery type
+        actual_stock = self._get_actual_stock(variation_id)
+        return actual_stock >= quantity and quantity > 0
+    
+    def _get_actual_stock(self, variation_id: str) -> int:
+        """
+        Get actual available stock for a variation based on product delivery type.
+        
+        Args:
+            variation_id: Variation ID
+        
+        Returns:
+            Actual available stock count
+        """
+        from src.database.services.product_service import ProductService
+        from src.database.models.enums import DeliveryType
+        
+        variation = self.variation_service.get_variation_by_id(variation_id)
+        if not variation:
+            return 0
+        
+        product_service = ProductService(self.session)
+        product = product_service.get_product_by_id(variation.product_id)
+        if not product:
+            return 0
+        
+        if product.delivery_type == DeliveryType.PRE_UPLOADED:
+            # For PRE_UPLOADED products, calculate from available pre-uploaded products
+            return self.variation_service.calculate_stock_from_pre_uploaded(variation_id)
+        else:
+            # For SUPPLIER_BASED products, use the stock field directly
+            return variation.stock
 
     def calculate_total(self, variation_id: str, quantity: int) -> int:
         """
@@ -98,8 +130,9 @@ class OrderService:
             variation = self.variation_service.get_variation_by_id(variation_id)
             if not variation:
                 raise ValueError(f"Variation {variation_id} not found")
+            actual_stock = self._get_actual_stock(variation_id)
             raise ValueError(
-                f"Insufficient stock. Available: {variation.stock}, Requested: {quantity}"
+                f"Insufficient stock. Available: {actual_stock}, Requested: {quantity}"
             )
 
         # Get variation and product

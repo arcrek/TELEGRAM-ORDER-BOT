@@ -32,7 +32,7 @@ def sample_product(db_session):
         "id": "prod_1",
         "name": "Test Product",
         "description": "Test description",
-        "delivery_type": DeliveryType.PRE_UPLOADED,
+        "delivery_type": DeliveryType.SUPPLIER_BASED,
         "is_active": True,
     })
 
@@ -223,23 +223,15 @@ class TestOrderService:
 
     def test_decrease_stock(self, order_service, sample_variation, db_session):
         """Test decreasing stock after order."""
-        # For PRE_UPLOADED products, stock is calculated from pre-uploaded products
-        # The decrease_stock method validates availability but doesn't modify the stock field
-        # Stock reduction happens when pre-uploaded products are marked as used
+        # For SUPPLIER_BASED products, stock is decreased directly
         initial_stock = sample_variation.stock
         
-        # This should validate stock availability (from pre-uploaded products)
-        # but won't decrease the stock field for PRE_UPLOADED products
-        try:
-            order_service.decrease_stock("var_1", 10)
-            # If no pre-uploaded products exist, this will raise ValueError
-        except ValueError:
-            # Expected if no pre-uploaded products exist
-            pass
+        # Decrease stock by 10
+        order_service.decrease_stock("var_1", 10)
         
         variation = db_session.query(ProductVariation).filter_by(id="var_1").first()
-        # Stock field doesn't change for PRE_UPLOADED products
-        assert variation.stock == initial_stock
+        # Stock should be decreased
+        assert variation.stock == initial_stock - 10
 
     def test_cancel_order_success(self, order_service, sample_variation, db_session):
         """Test successfully cancelling a PENDING order."""

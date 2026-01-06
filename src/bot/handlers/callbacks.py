@@ -14,12 +14,33 @@ from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
 from src.bot.states.state_manager import StateManager
+from src.database.models.enums import DeliveryType
 
 logger = logging.getLogger(__name__)
 
 
 # Global state manager instance
 state_manager = StateManager()
+
+
+def get_actual_stock(variation, product, variation_service: VariationService) -> int:
+    """
+    Get actual available stock for a variation based on product delivery type.
+    
+    Args:
+        variation: ProductVariation instance
+        product: Product instance
+        variation_service: VariationService instance
+    
+    Returns:
+        Actual available stock count
+    """
+    if product.delivery_type == DeliveryType.PRE_UPLOADED:
+        # For PRE_UPLOADED products, calculate from available pre-uploaded products
+        return variation_service.calculate_stock_from_pre_uploaded(variation.id)
+    else:
+        # For SUPPLIER_BASED products, use the stock field directly
+        return variation.stock
 
 
 async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -98,7 +119,13 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
         
         # Get variations
         variations = variation_service.list_variations_by_product(product_id, only_active=True)
-        total_stock = sum(v.stock for v in variations)
+        
+        # Calculate actual stock based on delivery type and update variation objects
+        total_stock = 0
+        for variation in variations:
+            actual_stock = get_actual_stock(variation, product, variation_service)
+            variation.stock = actual_stock  # Override with actual stock
+            total_stock += actual_stock
         
         # Get current page from state (for back button)
         user_state = state_manager.get_user_state(user_id)
@@ -150,6 +177,10 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
             await query.edit_message_text("❌ Product not found.")
             return
         
+        # Get actual stock based on delivery type
+        actual_stock = get_actual_stock(variation, product, variation_service)
+        variation.stock = actual_stock  # Override with actual stock
+        
         # Update user state
         state_manager.update_user_state(
             user_id,
@@ -160,7 +191,7 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         # Format order confirmation
         quantity = 1
         message = formatter.format_order_confirmation(product, variation, quantity)
-        keyboard = formatter.create_quantity_keyboard(variation_id, quantity, variation.stock)
+        keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -212,20 +243,24 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
             await query.edit_message_text("❌ Product not found.")
             return
         
+        # Get actual stock based on delivery type
+        actual_stock = get_actual_stock(variation, product, variation_service)
+        variation.stock = actual_stock  # Override with actual stock
+        
         # Calculate new quantity
         current_quantity = user_state.quantity
         adjustment_value = int(adjustment)
         new_quantity = current_quantity + adjustment_value
         
         # Validate quantity
-        new_quantity = formatter.validate_quantity(new_quantity, variation.stock)
+        new_quantity = formatter.validate_quantity(new_quantity, actual_stock)
         
         # Update state
         state_manager.update_user_state(user_id, quantity=new_quantity)
         
         # Format updated order confirmation
         message = formatter.format_order_confirmation(product, variation, new_quantity)
-        keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, variation.stock)
+        keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -271,7 +306,13 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
         
         # Get variations
         variations = variation_service.list_variations_by_product(product_id, only_active=True)
-        total_stock = sum(v.stock for v in variations)
+        
+        # Calculate actual stock based on delivery type and update variation objects
+        total_stock = 0
+        for variation in variations:
+            actual_stock = get_actual_stock(variation, product, variation_service)
+            variation.stock = actual_stock  # Override with actual stock
+            total_stock += actual_stock
         
         # Get current page from state (for back button)
         current_page = user_state.current_page if user_state else 1
@@ -363,9 +404,14 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if not order_service.validate_stock(variation_id, quantity):
             variation = variation_service.get_variation_by_id(variation_id)
             if variation:
-                await query.edit_message_text(
-                    f"❌ Insufficient stock. Available: {variation.stock}, Requested: {quantity}"
-                )
+                product = product_service.get_product_by_id(variation.product_id)
+                if product:
+                    actual_stock = get_actual_stock(variation, product, variation_service)
+                    await query.edit_message_text(
+                        f"❌ Insufficient stock. Available: {actual_stock}, Requested: {quantity}"
+                    )
+                else:
+                    await query.edit_message_text("❌ Product not found.")
             else:
                 await query.edit_message_text("❌ Variation not found.")
             return
