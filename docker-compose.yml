@@ -80,6 +80,8 @@ services:
     ports:
       - "${IPN_PORT:-5001}:5001"
     environment:
+      # Database Configuration (same as other services)
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/database.db}
       # Pay2S Configuration
       - PAY2S_ENDPOINT=${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
       - PAY2S_PARTNER_CODE=${PAY2S_PARTNER_CODE:-PAY2S7EPF0SB1ZP27W71}
@@ -88,6 +90,8 @@ services:
       # IPN Server Configuration
       - IPN_HOST=0.0.0.0
       - IPN_PORT=5001
+    volumes:
+      - database-data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
@@ -95,8 +99,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
-    networks:
-      - pay2s-network
 
 networks:
   pay2s-network:
