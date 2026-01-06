@@ -29,7 +29,8 @@ class SupplierResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/")
+@router.get("", include_in_schema=True)
+@router.get("/", include_in_schema=False)
 async def list_suppliers(
     only_active: Optional[bool] = Query(None, description="Filter by active status"),
     current_admin=Depends(get_current_admin),

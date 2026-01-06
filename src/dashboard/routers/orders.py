@@ -19,7 +19,8 @@ class OrderStatusUpdate(BaseModel):
     status: str
 
 
-@router.get("/")
+@router.get("", include_in_schema=True)
+@router.get("/", include_in_schema=False)
 async def list_orders(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(15, ge=1, le=100, description="Items per page"),

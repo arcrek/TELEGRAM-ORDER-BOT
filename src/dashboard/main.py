@@ -2,9 +2,6 @@
 Main FastAPI application for dashboard.
 """
 import os
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,32 +22,12 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Disable redirect_slashes on the router to prevent 307 redirects
+app.router.redirect_slashes = False
+
 # Add rate limiter to app state
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-# Middleware to add trailing slashes (prevent 307 redirects)
-# FastAPI routes expect trailing slashes, but requests often don't include them
-class TrailingSlashMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
-        # Add trailing slash if missing (except for root and files)
-        if (
-            path != "/" 
-            and not path.endswith("/") 
-            and not "." in path.split("/")[-1]  # Not a file (e.g., .txt, .json)
-        ):
-            # Add trailing slash
-            scope = dict(request.scope)
-            scope["path"] = path + "/"
-            # Update raw_path if present
-            if scope.get("raw_path"):
-                scope["raw_path"] = scope["raw_path"] + b"/"
-            request = Request(scope, request.receive)
-        response = await call_next(request)
-        return response
-
-app.add_middleware(TrailingSlashMiddleware)
 
 # CORS middleware - configure with environment variable
 allowed_origins = os.getenv("CORS_ORIGINS", "*").split(",")

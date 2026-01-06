@@ -67,7 +67,8 @@ class BulkVariationOperation(BaseModel):
     variation_ids: List[str]
 
 
-@router.get("/")
+@router.get("", include_in_schema=True)
+@router.get("/", include_in_schema=False)
 async def list_variations(
     product_id: Optional[str] = Query(None, description="Filter by product ID"),
     only_active: Optional[bool] = Query(None, description="Filter by active status"),
