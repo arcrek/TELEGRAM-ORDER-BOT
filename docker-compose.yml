@@ -12,7 +12,7 @@ services:
     volumes:
       - ./data/database.db:/app/data/database.db
     ports:
-      - "8000:8000"
+      - "8001:8000"
     restart: unless-stopped
 
   bot:
@@ -47,8 +47,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8001}
     ports:
-      - "8080:80"
+      - "8082:80"
     restart: unless-stopped
     depends_on:
       - api
