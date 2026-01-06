@@ -355,6 +355,7 @@ class IPNOrderProcessor:
                 
                 # Format product data (could be account credentials, codes, etc.)
                 if isinstance(product_data, dict) and product_data:
+                    # If it's a non-empty dict, show all key-value pairs
                     product_info = "\n".join(
                         f"  • {key}: {value}"
                         for key, value in product_data.items()
@@ -363,10 +364,23 @@ class IPNOrderProcessor:
                         f"{key}: {value}"
                         for key, value in product_data.items()
                     )
+                elif isinstance(product_data, dict) and not product_data:
+                    # Empty dict means product_data is null in database
+                    product_id = product.get('id', 'N/A')
+                    product_info = (
+                        f"🆔 Product ID: {product_id}\n"
+                        f"⚠️ No delivery data available\n"
+                        f"(product_data was null in database)"
+                    )
+                    file_product_info = (
+                        f"Product ID: {product_id}\n"
+                        f"No delivery data available\n"
+                        f"(product_data was null in database)"
+                    )
                 else:
-                    # If product_data is empty or not a dict, show the product info
-                    product_info = f"ID: {product.get('id', 'N/A')}\nData: {str(product_data)}"
-                    file_product_info = f"ID: {product.get('id', 'N/A')}\nData: {str(product_data)}"
+                    # product_data is not a dict (shouldn't happen, but handle it)
+                    product_info = f"Data: {str(product_data)}"
+                    file_product_info = f"Data: {str(product_data)}"
                 
                 confirmation_message += f"{idx}. {product_info}\n\n"
                 file_content += f"\n{idx}. {file_product_info}\n"

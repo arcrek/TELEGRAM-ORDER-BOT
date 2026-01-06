@@ -4,6 +4,7 @@ Product upload service layer for parsing and importing product data.
 import uuid
 import csv
 import io
+import json
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from src.database.models.product import Product
@@ -146,12 +147,27 @@ class ProductUploadService:
                     })
                     continue
                 
+                # Ensure product_data is properly JSON-serialized
+                product_data = data["product_data"]
+                if isinstance(product_data, dict):
+                    product_data_str = json.dumps(product_data, ensure_ascii=False)
+                elif isinstance(product_data, str):
+                    # If it's already a string, try to parse and re-serialize for validation
+                    try:
+                        parsed = json.loads(product_data)
+                        product_data_str = json.dumps(parsed, ensure_ascii=False)
+                    except json.JSONDecodeError:
+                        # If it's not valid JSON, treat it as a plain string value
+                        product_data_str = json.dumps({"value": product_data}, ensure_ascii=False)
+                else:
+                    product_data_str = json.dumps({"value": str(product_data)}, ensure_ascii=False)
+                
                 # Create pre-uploaded product
                 pre_uploaded = PreUploadedProduct(
                     id=f"pre_{uuid.uuid4().hex[:8]}",
                     product_id=data["product_id"],
                     variation_id=data["variation_id"],
-                    product_data=data["product_data"],
+                    product_data=product_data_str,
                     is_used=False,
                 )
                 
