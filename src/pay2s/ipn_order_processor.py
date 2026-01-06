@@ -1,6 +1,7 @@
 """
 IPN order processor for handling payment confirmations and order fulfillment.
 """
+import asyncio
 import logging
 from typing import Optional, Dict, Any
 from src.database.connection import get_session_factory
@@ -14,6 +15,26 @@ from telegram.error import TelegramError
 from src.bot.states.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
+
+
+def run_async(coro):
+    """
+    Run an async coroutine in a synchronous context.
+    Used for calling telegram-bot async methods from Flask (sync).
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If loop is already running, create a new one
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, coro)
+                return future.result(timeout=30)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        # No event loop, create a new one
+        return asyncio.run(coro)
 
 # Global state manager instance
 state_manager = StateManager()
@@ -89,10 +110,10 @@ class IPNOrderProcessor:
                 user_state = state_manager.get_user_state(order.user_id)
                 if user_state and user_state.payment_message_id:
                     try:
-                        self.bot.delete_message(
+                        run_async(self.bot.delete_message(
                             chat_id=order.user_id,
                             message_id=user_state.payment_message_id
-                        )
+                        ))
                         logger.info(f"Deleted payment message {user_state.payment_message_id} for paid order {order_id}")
                         # Clear payment message ID from state
                         state_manager.update_user_state(order.user_id, payment_message_id=None)
@@ -156,10 +177,10 @@ class IPNOrderProcessor:
                         f"Result Code: {result_code}\n\n"
                         f"Please try again or contact support."
                     )
-                    self.bot.send_message(
+                    run_async(self.bot.send_message(
                         chat_id=order.user_id,
                         text=error_message,
-                    )
+                    ))
                 except TelegramError as e:
                     logger.error(f"Failed to send failure notification: {str(e)}")
             
@@ -219,7 +240,7 @@ class IPNOrderProcessor:
                         f"Please contact support."
                     )
                     try:
-                        self.bot.send_message(chat_id=user_id, text=error_message)
+                        run_async(self.bot.send_message(chat_id=user_id, text=error_message))
                     except TelegramError as e:
                         logger.error(f"Failed to send partial delivery notification: {str(e)}")
                         
@@ -279,7 +300,7 @@ class IPNOrderProcessor:
                         f"Your order has been sent to our supplier.\n"
                         f"You will receive your product soon."
                     )
-                    self.bot.send_message(chat_id=user_id, text=user_message)
+                    run_async(self.bot.send_message(chat_id=user_id, text=user_message))
                 except TelegramError as e:
                     logger.error(f"Failed to send supplier delivery confirmation: {str(e)}")
                     
@@ -319,7 +340,9 @@ class IPNOrderProcessor:
                 confirmation_message += f"{idx}. {product_info}\n\n"
             
             # Send message
-            self.bot.send_message(chat_id=user_id, text=confirmation_message)
+            logger.info(f"Sending delivery message to user {user_id}")
+            run_async(self.bot.send_message(chat_id=user_id, text=confirmation_message))
+            logger.info(f"Delivery message sent successfully to user {user_id}")
             
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")
