@@ -120,9 +120,19 @@ def create_payment(
         try:
             response_json = response.json()
             logger.info(f"Pay2S Response resultCode: {response_json.get('resultCode')}, message: {response_json.get('message')}")
-            logger.debug(f"Pay2S Response: {response_json}")
-        except:
-            logger.warning(f"Pay2S Response (non-JSON): {response.text[:500]}")
+            logger.info(f"Pay2S Response transId: {response_json.get('transId')}, payUrl: {response_json.get('payUrl', 'N/A')[:50] if response_json.get('payUrl') else 'N/A'}...")
+            
+            # Log qrList details
+            qr_list = response_json.get('qrList', [])
+            if qr_list:
+                for i, qr in enumerate(qr_list):
+                    logger.info(f"Pay2S qrList[{i}]: bank_id={qr.get('bank_id')}, account_number={qr.get('account_number')}, account_name={qr.get('account_name')}")
+            else:
+                logger.warning("Pay2S Response: qrList is empty or missing!")
+            
+            logger.debug(f"Pay2S Full Response: {response_json}")
+        except Exception as e:
+            logger.warning(f"Pay2S Response (non-JSON or parse error): {response.text[:500]}, error: {e}")
         
         response.raise_for_status()
         return response.json()

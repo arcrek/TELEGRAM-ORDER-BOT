@@ -556,20 +556,31 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 request_id=request_id,
             )
             
-            logger.debug(f"Payment response: {payment_response}")
+            logger.info(f"Payment response keys: {payment_response.keys()}")
+            logger.info(f"Payment response resultCode type: {type(payment_response.get('resultCode'))}, value: {payment_response.get('resultCode')}")
             
             # Extract payment URL and QR code
-            if payment_response.get("resultCode") == 0 and payment_response.get("payUrl"):
+            # Handle resultCode as both string "0" or integer 0
+            result_code = payment_response.get("resultCode")
+            is_success = (result_code == 0 or result_code == "0") and payment_response.get("payUrl")
+            
+            if is_success:
                 payment_url = payment_response["payUrl"]
+                logger.info(f"Payment created successfully! payUrl: {payment_url[:50]}...")
                 
                 # Update order with transaction ID if available
                 transaction_id = payment_response.get("transId")
+                logger.info(f"Transaction ID from response: {transaction_id}")
+                
                 if transaction_id:
                     order_service.update_order_status(
                         order.id,
                         order.status,  # Keep current status
                         payment_transaction_id=transaction_id,
                     )
+                    logger.info(f"Updated order {order.id} with transaction_id: {transaction_id}")
+                else:
+                    logger.warning(f"No transId in payment response for order {order.id}")
                 
                 # Update user state
                 state_manager.update_user_state(user_id, pending_order_id=order.id)
