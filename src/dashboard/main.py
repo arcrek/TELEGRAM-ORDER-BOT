@@ -2,8 +2,11 @@
 Main FastAPI application for dashboard.
 """
 import os
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -25,6 +28,25 @@ app = FastAPI(
 # Add rate limiter to app state
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Middleware to handle trailing slashes (prevent 307 redirects)
+# This ensures requests without trailing slashes work correctly
+class TrailingSlashMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        # If path ends with / and is not root, remove it
+        # This prevents FastAPI from redirecting /api/products to /api/products/
+        if path != "/" and path.endswith("/") and "?" not in str(request.url):
+            # Remove trailing slash before query params
+            new_path = path.rstrip("/")
+            # Create new request with modified path
+            scope = dict(request.scope)
+            scope["path"] = new_path
+            request = Request(scope, request.receive)
+        response = await call_next(request)
+        return response
+
+app.add_middleware(TrailingSlashMiddleware)
 
 # CORS middleware - configure with environment variable
 allowed_origins = os.getenv("CORS_ORIGINS", "*").split(",")
