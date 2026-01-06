@@ -1,7 +1,7 @@
 """
 Order model.
 """
-from sqlalchemy import Column, String, BigInteger, Integer, DateTime, Enum
+from sqlalchemy import Column, String, BigInteger, Integer, DateTime, Enum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.database.models.base import Base
@@ -18,6 +18,7 @@ class Order(Base):
     status = Column(Enum(OrderStatus, native_enum=False), default=OrderStatus.PENDING, nullable=False)
     total_amount = Column(Integer, nullable=False)  # Total in VND
     payment_transaction_id = Column(String, nullable=True)  # Pay2S transaction ID
+    payment_message_ids = Column(Text, nullable=True)  # JSON list of Telegram message IDs to delete after payment
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 

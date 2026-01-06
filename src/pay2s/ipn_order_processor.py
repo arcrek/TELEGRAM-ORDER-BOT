@@ -100,6 +100,13 @@ class IPNOrderProcessor:
                 logger.warning(f"Order {order_id} is already DELIVERED. Skipping duplicate delivery.")
                 return True  # Return True because order was already processed successfully
             
+            # Validate amount: IPN amount must match order total
+            if amount != order.total_amount:
+                logger.error(f"Amount mismatch! IPN amount: {amount}, Order total: {order.total_amount}. Skipping delivery.")
+                return False
+            
+            logger.info(f"Amount validated: IPN amount ({amount}) matches order total ({order.total_amount})")
+            
             # Check if order is already paid (duplicate IPN)
             if order.status == OrderStatus.PAID:
                 logger.warning(f"Order {order_id} is already PAID but not delivered. Will attempt delivery.")
@@ -122,45 +129,36 @@ class IPNOrderProcessor:
                 logger.error(f"Could not determine delivery type for order {order_id}")
                 return False
             
-            # Delete all payment-related messages if they exist
+            # Delete all payment-related messages from database
             if self.bot:
-                user_state = state_manager.get_user_state(order.user_id)
+                import json
                 messages_deleted = 0
                 
-                # Delete all messages from payment_message_ids list
-                if user_state and user_state.payment_message_ids:
-                    logger.info(f"Attempting to delete {len(user_state.payment_message_ids)} payment messages for user {order.user_id}")
-                    for msg_id in user_state.payment_message_ids:
-                        try:
-                            run_async(self.bot.delete_message(
-                                chat_id=order.user_id,
-                                message_id=msg_id
-                            ))
-                            messages_deleted += 1
-                            logger.info(f"✓ Deleted message {msg_id}")
-                        except Exception as e:
-                            logger.warning(f"Could not delete message {msg_id}: {str(e)}")
-                    
-                    # Clear payment message IDs from state
-                    state_manager.update_user_state(
-                        order.user_id, 
-                        payment_message_id=None,
-                        payment_message_ids=None
-                    )
-                    logger.info(f"✓ Successfully deleted {messages_deleted} payment messages for paid order {order_id}")
-                elif user_state and user_state.payment_message_id:
-                    # Fallback: delete single message if only payment_message_id is set
+                # Read message IDs from database
+                if order.payment_message_ids:
                     try:
-                        run_async(self.bot.delete_message(
-                            chat_id=order.user_id,
-                            message_id=user_state.payment_message_id
-                        ))
-                        logger.info(f"✓ Successfully deleted payment message {user_state.payment_message_id}")
-                        state_manager.update_user_state(order.user_id, payment_message_id=None)
-                    except Exception as e:
-                        logger.warning(f"Could not delete payment message: {str(e)}")
+                        message_ids = json.loads(order.payment_message_ids)
+                        logger.info(f"Found {len(message_ids)} payment message IDs in database: {message_ids}")
+                        
+                        for msg_id in message_ids:
+                            try:
+                                run_async(self.bot.delete_message(
+                                    chat_id=order.user_id,
+                                    message_id=msg_id
+                                ))
+                                messages_deleted += 1
+                                logger.info(f"✓ Deleted message {msg_id}")
+                            except Exception as e:
+                                logger.warning(f"Could not delete message {msg_id}: {str(e)}")
+                        
+                        # Clear payment message IDs from database
+                        order.payment_message_ids = None
+                        session.commit()
+                        logger.info(f"✓ Successfully deleted {messages_deleted}/{len(message_ids)} payment messages for order {order_id}")
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Failed to parse payment_message_ids: {str(e)}")
                 else:
-                    logger.info(f"No payment messages to delete for user {order.user_id} (order {order_id})")
+                    logger.info(f"No payment message IDs in database for order {order_id}")
             else:
                 logger.warning(f"Bot instance not available to delete payment messages for order {order_id}")
             
@@ -429,12 +427,12 @@ class IPNOrderProcessor:
                         file_data = f.read()
                     
                     file_obj = BytesIO(file_data)
-                    file_obj.name = f"Order_{order_id}_Delivery.txt"
+                    file_obj.name = f"Order_{order_id}.txt"
                     
                     run_async(self.bot.send_document(
                         chat_id=user_id,
                         document=file_obj,
-                        filename=f"Order_{order_id}_Delivery.txt",
+                        filename=f"Order_{order_id}.txt",
                         caption=f"📄 Delivery details for order {order_id}"
                     ))
                     logger.info(f"Delivery file sent successfully to user {user_id}")

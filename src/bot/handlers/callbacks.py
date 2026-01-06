@@ -643,12 +643,19 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         reply_markup=cancel_keyboard
                     )
                     
-                    # Store both message IDs for later deletion
+                    # Store both message IDs for later deletion (in state and database)
+                    message_ids = [text_message_id, sent_message.message_id]
                     state_manager.update_user_state(
                         user_id, 
                         payment_message_id=sent_message.message_id,
-                        payment_message_ids=[text_message_id, sent_message.message_id]
+                        payment_message_ids=message_ids
                     )
+                    
+                    # Also store in database for IPN server to access
+                    import json
+                    order.payment_message_ids = json.dumps(message_ids)
+                    session.commit()
+                    logger.info(f"Stored payment message IDs in database: {message_ids}")
                 else:
                     # Fallback to text message with payment URL if QR code not available
                     bank_info = ""
@@ -671,11 +678,18 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     
                     # Store message ID for later deletion (use edited message ID)
                     if edited_message:
+                        message_ids = [text_message_id]
                         state_manager.update_user_state(
                             user_id, 
                             payment_message_id=edited_message.message_id,
-                            payment_message_ids=[text_message_id]
+                            payment_message_ids=message_ids
                         )
+                        
+                        # Also store in database for IPN server to access
+                        import json
+                        order.payment_message_ids = json.dumps(message_ids)
+                        session.commit()
+                        logger.info(f"Stored payment message IDs in database: {message_ids}")
             else:
                 error_msg = payment_response.get("message", "Unknown error")
                 await query.edit_message_text(f"❌ Payment creation failed: {error_msg}")
