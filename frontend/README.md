@@ -91,7 +91,7 @@ The theme system uses **Dark Mode UI with Soft Neumorphism/Glassmorphism**:
 Create a `.env` file:
 
 ```
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8001
 ```
 
 ## Testing

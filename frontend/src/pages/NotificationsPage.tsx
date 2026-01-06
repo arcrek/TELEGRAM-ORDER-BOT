@@ -16,7 +16,7 @@ import {
 import axios from 'axios'
 import './NotificationsPage.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 interface BotUser {
   id: string

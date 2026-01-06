@@ -44,9 +44,10 @@ ENV/
 .DS_Store
 Thumbs.db
 
+*.db
+
 # Project specific
 .cursor/
 .claude/
 
 data/database.db
-

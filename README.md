@@ -96,9 +96,13 @@ PAY2S_SECRET_KEY=your_secret_key
 # IPN Server (optional - defaults in config.py)
 IPN_HOST=0.0.0.0
 IPN_PORT=5001
+IPN_URL=https://your-public-domain.com/ipn
+
+# Payment Redirect (optional)
+REDIRECT_URL=https://t.me/your_bot_username
 
 # Dashboard (optional)
-DASHBOARD_PORT=8000
+DASHBOARD_PORT=8001
 DASHBOARD_SECRET_KEY=your_secret_key_for_jwt
 ```
 
@@ -183,9 +187,9 @@ docker compose up -d --build
 
 - **Customer Bot:** Search for your bot on Telegram
 - **Supplier Bot:** Search for your supplier bot on Telegram
-- **Dashboard API:** `http://localhost:8000`
-- **Dashboard API Docs:** `http://localhost:8000/docs`
-- **Frontend Dashboard:** `http://localhost:8080`
+- **Dashboard API:** `http://localhost:8001`
+- **Dashboard API Docs:** `http://localhost:8001/docs`
+- **Frontend Dashboard:** `http://localhost:8082`
 - **IPN Endpoint:** `http://localhost:5001/ipn`
 
 ## Technology Stack
