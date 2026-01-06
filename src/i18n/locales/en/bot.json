@@ -1,0 +1,122 @@
+{
+  "commands": {
+    "start": {
+      "welcome": "Welcome, {name}! 👋",
+      "description": "I'm your order bot. Use /products to browse available products.",
+      "help_hint": "Use /help to see all available commands."
+    },
+    "help": {
+      "title": "📋 Available Commands:",
+      "start": "/start - Start the bot",
+      "help": "/help - Show this help message",
+      "products": "/products - Browse available products",
+      "interaction_hint": "Use the buttons in messages to interact with products and place orders.",
+      "admin_title": "🔧 Admin Commands:",
+      "notify_all": "/notify_all <message> - Send notification to all users",
+      "notify_user": "/notify_user <user_id> <message> - Send notification to specific user",
+      "notify_active": "/notify_active <message> - Send notification to active users only"
+    },
+    "products": {
+      "error": "❌ Error loading products. Please try again later."
+    },
+    "language": {
+      "title": "🌐 Language Selection",
+      "current": "Current language: {language}",
+      "select": "Please select your preferred language:",
+      "changed": "✅ Language changed to {language}",
+      "error": "❌ Error changing language. Please try again."
+    }
+  },
+  "products": {
+    "list": {
+      "title": "LIST PRODUCT",
+      "page": "page {current} / {total}"
+    },
+    "detail": {
+      "not_found": "❌ Product not found.",
+      "no_variations": "❌ No variations available for this product.",
+      "title": "PRODUCT DETAIL",
+      "name": "Name: {name}",
+      "description": "Description: {description}",
+      "variations": "Variations:",
+      "back": "Back to Products"
+    },
+    "variation": {
+      "title": "VARIATION DETAIL",
+      "name": "Name: {name}",
+      "price": "Price: {price}",
+      "stock": "Stock: {stock}",
+      "description": "Description: {description}",
+      "back": "Back to Product",
+      "add_to_cart": "Add to Cart"
+    }
+  },
+  "cart": {
+    "added": "✅ Added to cart: {product_name} - {variation_name}",
+    "empty": "Your cart is empty.",
+    "title": "YOUR CART",
+    "item": "{product_name} - {variation_name}",
+    "quantity": "Quantity: {quantity}",
+    "total": "Total: {total}",
+    "checkout": "Checkout",
+    "clear": "Clear Cart"
+  },
+  "order": {
+    "confirmation": {
+      "title": "ORDER CONFIRMATION",
+      "order_id": "Order ID: {order_id}",
+      "items": "Items:",
+      "item": "{product_name} - {variation_name} x {quantity}",
+      "total": "Total: {total}",
+      "confirm": "Confirm Order",
+      "cancel": "Cancel"
+    },
+    "created": "✅ Order created successfully! Order ID: {order_id}",
+    "error": "❌ Error creating order. Please try again.",
+    "not_found": "❌ Order not found.",
+    "cancelled": "✅ Order cancelled successfully.",
+    "cancel_error": "❌ Error cancelling order. Please try again.",
+    "already_paid": "❌ This order has already been paid and cannot be cancelled.",
+    "already_cancelled": "❌ This order has already been cancelled.",
+    "not_pending": "❌ Only pending orders can be cancelled."
+  },
+  "payment": {
+    "title": "💳 Payment Information",
+    "order_id": "Order ID: {order_id}",
+    "amount": "Amount: {amount}",
+    "qr_code": "Please scan the QR code below to complete payment:",
+    "auto_cancel_notice": "⏰ Note: This order will be automatically cancelled if payment is not completed within 30 minutes.",
+    "cancel_button": "Cancel Order",
+    "success": "✅ Payment successful! Your order is being processed.",
+    "pending": "⏳ Payment pending. Please complete the payment.",
+    "failed": "❌ Payment failed. Please try again.",
+    "timeout": "⏰ Payment timeout. Order has been cancelled."
+  },
+  "delivery": {
+    "ready": "✅ Your product is ready!",
+    "order_id": "📦 Order ID: {order_id}",
+    "data": "Product Data:\n{data}"
+  },
+  "errors": {
+    "generic": "❌ An error occurred. Please try again.",
+    "not_found": "❌ Not found.",
+    "unauthorized": "❌ Unauthorized access.",
+    "validation": "❌ Validation error: {error}"
+  },
+  "buttons": {
+    "next": "Next ▶️",
+    "prev": "◀️ Prev",
+    "back": "Back",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "add_to_cart": "Add to Cart",
+    "checkout": "Checkout",
+    "clear_cart": "Clear Cart",
+    "cancel_order": "Cancel Order"
+  },
+  "languages": {
+    "en": "🇬🇧 English",
+    "vi": "🇻🇳 Tiếng Việt"
+  }
+}
+

@@ -1,0 +1,273 @@
+"""
+Orders router.
+"""
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from src.dashboard.auth import get_current_admin, get_db
+from src.database.services.order_service import OrderService
+from src.database.models.enums import OrderStatus
+import csv
+import io
+
+router = APIRouter()
+
+
+class OrderStatusUpdate(BaseModel):
+    """Order status update schema."""
+    status: str
+
+
+@router.get("/")
+async def list_orders(
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(15, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    product_id: Optional[str] = Query(None, description="Filter by product ID"),
+    search: Optional[str] = Query(None, description="Search by order ID"),
+    sort_by: Optional[str] = Query("created_at", description="Sort field: created_at, total_amount, status"),
+    sort_order: Optional[str] = Query("desc", description="Sort order: asc, desc"),
+    start_date: Optional[str] = Query(None, description="Filter from date (ISO format)"),
+    end_date: Optional[str] = Query(None, description="Filter until date (ISO format)"),
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    List orders with pagination, filters, and search.
+    
+    Args:
+        page: Page number (1-indexed)
+        per_page: Items per page
+        status: Filter by order status
+        user_id: Filter by user ID
+        product_id: Filter by product ID
+        search: Search term (order ID)
+        sort_by: Field to sort by
+        sort_order: Sort order (asc/desc)
+        start_date: Filter from date
+        end_date: Filter until date
+    
+    Returns:
+        Paginated list of orders
+    """
+    service = OrderService(db)
+    
+    # Parse status enum if provided
+    status_enum = None
+    if status:
+        try:
+            status_enum = OrderStatus(status.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {status}"
+            )
+    
+    # Get orders with filters
+    orders = service.list_orders(
+        page=page,
+        per_page=per_page,
+        status=status_enum,
+        user_id=user_id,
+        product_id=product_id,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    # Get total count with same filters
+    total = service.get_total_count(
+        status=status_enum,
+        user_id=user_id,
+        product_id=product_id,
+        search=search,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    return {
+        "items": [
+            {
+                "id": order.id,
+                "user_id": order.user_id,
+                "status": order.status.value,
+                "total_amount": order.total_amount,
+                "payment_transaction_id": order.payment_transaction_id,
+                "created_at": order.created_at.isoformat(),
+                "updated_at": order.updated_at.isoformat(),
+            }
+            for order in orders
+        ],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 0,
+    }
+
+
+@router.get("/export")
+async def export_orders(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    user_id: Optional[int] = Query(None, description="Filter by user ID"),
+    product_id: Optional[str] = Query(None, description="Filter by product ID"),
+    search: Optional[str] = Query(None, description="Search by order ID"),
+    start_date: Optional[str] = Query(None, description="Filter from date (ISO format)"),
+    end_date: Optional[str] = Query(None, description="Filter until date (ISO format)"),
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Export orders to CSV.
+    
+    Args:
+        status: Filter by order status
+        user_id: Filter by user ID
+        product_id: Filter by product ID
+        search: Search term
+        start_date: Filter from date
+        end_date: Filter until date
+    
+    Returns:
+        CSV file with orders
+    """
+    service = OrderService(db)
+    
+    # Parse status enum if provided
+    status_enum = None
+    if status:
+        try:
+            status_enum = OrderStatus(status.lower())
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status: {status}"
+            )
+    
+    # Get all orders matching filters (no pagination for export)
+    orders = service.list_orders(
+        page=1,
+        per_page=10000,  # Large limit for export
+        status=status_enum,
+        user_id=user_id,
+        product_id=product_id,
+        search=search,
+        sort_by="created_at",
+        sort_order="desc",
+        start_date=start_date,
+        end_date=end_date,
+    )
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        "Order ID",
+        "User ID",
+        "Status",
+        "Total Amount (VND)",
+        "Payment Transaction ID",
+        "Created At",
+        "Updated At",
+    ])
+    
+    # Write data
+    for order in orders:
+        writer.writerow([
+            order.id,
+            order.user_id,
+            order.status.value,
+            order.total_amount,
+            order.payment_transaction_id or "",
+            order.created_at.isoformat(),
+            order.updated_at.isoformat(),
+        ])
+    
+    # Return CSV as response
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=orders_export.csv"
+        }
+    )
+
+
+@router.get("/{order_id}")
+async def get_order(
+    order_id: str,
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Get order details by ID.
+    
+    Args:
+        order_id: Order ID
+    
+    Returns:
+        Order details with items and supplier orders
+    """
+    service = OrderService(db)
+    
+    order_details = service.get_order_with_details(order_id)
+    
+    if not order_details:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+    
+    return order_details
+
+
+@router.put("/{order_id}/status")
+async def update_order_status(
+    order_id: str,
+    status_data: OrderStatusUpdate,
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Update order status.
+    
+    Args:
+        order_id: Order ID
+        status_data: Status update data
+    
+    Returns:
+        Updated order
+    """
+    service = OrderService(db)
+    
+    # Parse status enum
+    try:
+        new_status = OrderStatus(status_data.status.lower())
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status: {status_data.status}"
+        )
+    
+    order = service.update_order_status(order_id, new_status)
+    
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Order {order_id} not found"
+        )
+    
+    return {
+        "id": order.id,
+        "user_id": order.user_id,
+        "status": order.status.value,
+        "total_amount": order.total_amount,
+        "payment_transaction_id": order.payment_transaction_id,
+        "created_at": order.created_at.isoformat(),
+        "updated_at": order.updated_at.isoformat(),
+    }

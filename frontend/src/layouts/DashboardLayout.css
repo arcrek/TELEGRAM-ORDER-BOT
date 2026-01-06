@@ -1,0 +1,116 @@
+/**
+ * Premium Dark SaaS Dashboard Layout styles.
+ * Minimalist, enterprise-grade design with borders instead of shadows.
+ * Spacing: 8px base system
+ */
+.dashboard-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary, #0F0F0D);
+}
+
+.dashboard-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px;
+  background: var(--bg-secondary, #141412);
+  border-bottom: 1px solid var(--border-color, #2A2A26);
+  gap: 24px;
+}
+
+.nav-brand h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary, #EAEAEA);
+  margin: 0;
+}
+
+.nav-links {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.nav-link {
+  padding: 12px 16px;
+  text-decoration: none;
+  color: var(--text-secondary, #B5B5B5);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.nav-link:hover {
+  color: var(--text-primary, #EAEAEA);
+  background: var(--card-bg, #181816);
+  border-color: var(--border-color, #2A2A26);
+}
+
+.nav-link.active {
+  color: var(--accent-blue, #6EA8FF);
+  background: var(--card-bg, #181816);
+  border: 1px solid var(--border-color, #2A2A26);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--text-primary, #EAEAEA);
+}
+
+.button-icon {
+  margin-right: 0;
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  background: var(--bg-primary, #0F0F0D);
+}
+
+@media (max-width: 768px) {
+  .dashboard-nav {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .nav-link {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .nav-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .dashboard-main {
+    padding: 16px;
+  }
+}

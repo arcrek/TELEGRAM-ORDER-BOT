@@ -1,0 +1,106 @@
+"""
+Pay2S Payment API Module
+Functions for creating payment requests with Pay2S.
+"""
+import requests
+from .signature import generate_payment_signature
+
+
+def create_payment(
+    endpoint,
+    access_key,
+    secret_key,
+    partner_code,
+    amount,
+    order_id,
+    order_info,
+    redirect_url,
+    ipn_url,
+    bank_accounts,
+    request_type="pay2s",
+    partner_name=None,
+    request_id=None
+):
+    """
+    Create a payment request with Pay2S.
+    
+    Args:
+        endpoint: Pay2S API endpoint URL
+        access_key: Access key from Pay2S
+        secret_key: Secret key for signature generation
+        partner_code: Partner code
+        amount: Payment amount (VND)
+        order_id: Order ID
+        order_info: Order information (10-32 characters, alphanumeric only)
+        redirect_url: URL to redirect after payment
+        ipn_url: IPN callback URL
+        bank_accounts: List of bank accounts [{"account_number": "...", "bank_id": "..."}]
+        request_type: Request type (default: "pay2s")
+        partner_name: Partner name (optional)
+        request_id: Request ID (defaults to order_id if not provided)
+    
+    Returns:
+        dict: Response from Pay2S API containing payUrl if successful
+    """
+    if request_id is None:
+        request_id = str(order_id)
+    
+    if partner_name is None:
+        partner_name = "Pay2S Payment"
+    
+    # Generate signature
+    signature = generate_payment_signature(
+        access_key=access_key,
+        amount=amount,
+        ipn_url=ipn_url,
+        order_id=str(order_id),
+        order_info=order_info,
+        partner_code=partner_code,
+        redirect_url=redirect_url,
+        request_id=str(request_id),
+        request_type=request_type,
+        secret_key=secret_key
+    )
+    
+    # Prepare request data
+    data = {
+        "accessKey": access_key,
+        "partnerCode": partner_code,
+        "partnerName": partner_name,
+        "requestId": str(request_id),
+        "amount": amount,
+        "orderId": str(order_id),
+        "orderInfo": order_info,
+        "orderType": request_type,
+        "bankAccounts": bank_accounts,
+        "redirectUrl": redirect_url,
+        "ipnUrl": ipn_url,
+        "requestType": request_type,
+        "signature": signature
+    }
+    
+    # Set headers
+    headers = {
+        "Content-Type": "application/json; charset=UTF-8"
+    }
+    
+    # Validate endpoint before making request
+    if not endpoint or endpoint == '...' or not endpoint.startswith(('http://', 'https://')):
+        raise ValueError(
+            f"Invalid payment endpoint: {repr(endpoint)}. "
+            "Please set PAY2S_ENDPOINT environment variable or update config/config.py"
+        )
+    
+    # Make POST request
+    try:
+        response = requests.post(
+            endpoint,
+            json=data,
+            headers=headers,
+            timeout=10
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"Error creating payment: {str(e)}")
+

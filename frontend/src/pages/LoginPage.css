@@ -1,0 +1,53 @@
+/**
+ * Premium Dark SaaS Login Page styles.
+ * Minimalist design with borders instead of shadows.
+ * Spacing: 8px base system
+ */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: var(--bg-primary, #0F0F0D);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-title {
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+  color: var(--text-primary, #EAEAEA);
+}
+
+.login-subtitle {
+  text-align: center;
+  color: var(--text-secondary, #B5B5B5);
+  margin-bottom: 32px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.login-button {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.login-error {
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  color: rgba(239, 68, 68, 1);
+  font-size: 0.875rem;
+  text-align: center;
+}

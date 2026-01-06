@@ -1,0 +1,463 @@
+"""
+Order service layer for business logic.
+"""
+import uuid
+from typing import Optional, List, Dict
+from sqlalchemy.orm import Session
+from src.database.models import Order, OrderItem
+from src.database.models.enums import OrderStatus
+from src.database.services.variation_service import VariationService
+
+
+class OrderService:
+    """Service for order operations."""
+
+    def __init__(self, session: Session):
+        """
+        Initialize order service.
+        
+        Args:
+            session: Database session
+        """
+        self.session = session
+        self.variation_service = VariationService(session)
+
+    def generate_order_id(self) -> str:
+        """
+        Generate a unique order ID.
+        
+        Returns:
+            Order ID string
+        """
+        # Generate a short unique ID (first 8 chars of UUID)
+        return str(uuid.uuid4()).replace("-", "")[:8]
+
+    def generate_order_item_id(self) -> str:
+        """
+        Generate a unique order item ID.
+        
+        Returns:
+            Order item ID string
+        """
+        return f"item_{uuid.uuid4().hex[:8]}"
+
+    def validate_stock(self, variation_id: str, quantity: int) -> bool:
+        """
+        Validate that sufficient stock is available.
+        
+        Args:
+            variation_id: Variation ID
+            quantity: Requested quantity
+        
+        Returns:
+            True if stock is available, False otherwise
+        """
+        variation = self.variation_service.get_variation_by_id(variation_id)
+        if not variation:
+            return False
+        return variation.stock >= quantity and quantity > 0
+
+    def calculate_total(self, variation_id: str, quantity: int) -> int:
+        """
+        Calculate total price for an order item.
+        
+        Args:
+            variation_id: Variation ID
+            quantity: Quantity
+        
+        Returns:
+            Total price in VND
+        """
+        variation = self.variation_service.get_variation_by_id(variation_id)
+        if not variation:
+            raise ValueError(f"Variation {variation_id} not found")
+        return variation.price * quantity
+
+    def create_order(
+        self,
+        user_id: int,
+        variation_id: str,
+        quantity: int,
+    ) -> Order:
+        """
+        Create a new order from user selection.
+        
+        Args:
+            user_id: Telegram user ID
+            variation_id: Selected variation ID
+            quantity: Order quantity
+        
+        Returns:
+            Created Order instance
+        
+        Raises:
+            ValueError: If stock is insufficient or variation not found
+        """
+        # Validate stock
+        if not self.validate_stock(variation_id, quantity):
+            variation = self.variation_service.get_variation_by_id(variation_id)
+            if not variation:
+                raise ValueError(f"Variation {variation_id} not found")
+            raise ValueError(
+                f"Insufficient stock. Available: {variation.stock}, Requested: {quantity}"
+            )
+
+        # Get variation and product
+        variation = self.variation_service.get_variation_by_id(variation_id)
+        if not variation:
+            raise ValueError(f"Variation {variation_id} not found")
+
+        # Calculate total
+        total_amount = self.calculate_total(variation_id, quantity)
+
+        # Generate order ID
+        order_id = self.generate_order_id()
+
+        # Create order
+        order = Order(
+            id=order_id,
+            user_id=user_id,
+            status=OrderStatus.PENDING,
+            total_amount=total_amount,
+        )
+        self.session.add(order)
+
+        # Create order item
+        order_item = OrderItem(
+            id=self.generate_order_item_id(),
+            order_id=order_id,
+            product_id=variation.product_id,
+            variation_id=variation_id,
+            quantity=quantity,
+            unit_price=variation.price,
+            subtotal=total_amount,
+        )
+        self.session.add(order_item)
+
+        # Commit transaction
+        self.session.commit()
+        self.session.refresh(order)
+
+        return order
+
+    def get_order_by_id(self, order_id: str) -> Optional[Order]:
+        """
+        Get order by ID.
+        
+        Args:
+            order_id: Order ID
+        
+        Returns:
+            Order instance or None if not found
+        """
+        return self.session.query(Order).filter_by(id=order_id).first()
+
+    def get_user_orders(
+        self,
+        user_id: int,
+        status: Optional[OrderStatus] = None,
+        limit: int = 50,
+    ) -> List[Order]:
+        """
+        Get orders for a user.
+        
+        Args:
+            user_id: Telegram user ID
+            status: Optional status filter
+            limit: Maximum number of orders to return
+        
+        Returns:
+            List of Order instances
+        """
+        query = self.session.query(Order).filter_by(user_id=user_id)
+        if status:
+            query = query.filter_by(status=status)
+        return query.order_by(Order.created_at.desc()).limit(limit).all()
+
+    def update_order_status(
+        self,
+        order_id: str,
+        status: OrderStatus,
+        payment_transaction_id: Optional[str] = None,
+    ) -> Optional[Order]:
+        """
+        Update order status.
+        
+        Args:
+            order_id: Order ID
+            status: New status
+            payment_transaction_id: Optional payment transaction ID
+        
+        Returns:
+            Updated Order instance or None if not found
+        """
+        order = self.get_order_by_id(order_id)
+        if not order:
+            return None
+
+        order.status = status
+        if payment_transaction_id:
+            order.payment_transaction_id = payment_transaction_id
+
+        self.session.commit()
+        self.session.refresh(order)
+        return order
+
+    def decrease_stock(self, variation_id: str, quantity: int) -> None:
+        """
+        Decrease stock for a variation (called after payment confirmation).
+        
+        Args:
+            variation_id: Variation ID
+            quantity: Quantity to decrease
+        
+        Raises:
+            ValueError: If stock is insufficient
+        """
+        self.variation_service.decrease_stock(variation_id, quantity)
+
+    def list_orders(
+        self,
+        page: int = 1,
+        per_page: int = 15,
+        status: Optional[OrderStatus] = None,
+        user_id: Optional[int] = None,
+        product_id: Optional[str] = None,
+        search: Optional[str] = None,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> List[Order]:
+        """
+        List orders with pagination, filters, and search.
+        
+        Args:
+            page: Page number (1-indexed)
+            per_page: Items per page
+            status: Filter by order status
+            user_id: Filter by user ID
+            product_id: Filter by product ID (orders containing this product)
+            search: Search term (searches order ID)
+            sort_by: Field to sort by (created_at, total_amount, status)
+            sort_order: Sort order (asc, desc)
+            start_date: Filter orders from this date (ISO format)
+            end_date: Filter orders until this date (ISO format)
+        
+        Returns:
+            List of Order instances
+        """
+        from datetime import datetime
+        
+        query = self.session.query(Order)
+        
+        # Apply status filter
+        if status:
+            query = query.filter_by(status=status)
+        
+        # Apply user_id filter
+        if user_id:
+            query = query.filter_by(user_id=user_id)
+        
+        # Apply product_id filter (through order items)
+        if product_id:
+            query = query.join(OrderItem).filter(OrderItem.product_id == product_id)
+        
+        # Apply search filter (order ID)
+        if search:
+            query = query.filter(Order.id.ilike(f"%{search}%"))
+        
+        # Apply date filters
+        if start_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                query = query.filter(Order.created_at >= start_dt)
+            except ValueError:
+                pass  # Invalid date format, ignore
+        
+        if end_date:
+            try:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                query = query.filter(Order.created_at <= end_dt)
+            except ValueError:
+                pass  # Invalid date format, ignore
+        
+        # Apply sorting
+        if sort_by == "created_at":
+            if sort_order == "desc":
+                query = query.order_by(Order.created_at.desc())
+            else:
+                query = query.order_by(Order.created_at.asc())
+        elif sort_by == "total_amount":
+            if sort_order == "desc":
+                query = query.order_by(Order.total_amount.desc())
+            else:
+                query = query.order_by(Order.total_amount.asc())
+        elif sort_by == "status":
+            if sort_order == "desc":
+                query = query.order_by(Order.status.desc())
+            else:
+                query = query.order_by(Order.status.asc())
+        else:
+            # Default: newest first
+            query = query.order_by(Order.created_at.desc())
+        
+        # Apply pagination
+        offset = (page - 1) * per_page
+        return query.offset(offset).limit(per_page).all()
+
+    def get_total_count(
+        self,
+        status: Optional[OrderStatus] = None,
+        user_id: Optional[int] = None,
+        product_id: Optional[str] = None,
+        search: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> int:
+        """
+        Get total count of orders matching filters.
+        
+        Args:
+            status: Filter by order status
+            user_id: Filter by user ID
+            product_id: Filter by product ID
+            search: Search term
+            start_date: Filter orders from this date
+            end_date: Filter orders until this date
+        
+        Returns:
+            Total count
+        """
+        from sqlalchemy import func
+        from datetime import datetime
+        
+        query = self.session.query(func.count(Order.id))
+        
+        # Apply same filters as list_orders
+        if status:
+            query = query.filter_by(status=status)
+        
+        if user_id:
+            query = query.filter_by(user_id=user_id)
+        
+        if product_id:
+            query = query.join(OrderItem).filter(OrderItem.product_id == product_id)
+        
+        if search:
+            query = query.filter(Order.id.ilike(f"%{search}%"))
+        
+        if start_date:
+            try:
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                query = query.filter(Order.created_at >= start_dt)
+            except ValueError:
+                pass
+        
+        if end_date:
+            try:
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                query = query.filter(Order.created_at <= end_dt)
+            except ValueError:
+                pass
+        
+        return query.scalar() or 0
+
+    def get_order_with_details(self, order_id: str) -> Optional[Dict]:
+        """
+        Get order with all related details (items, products, variations).
+        
+        Args:
+            order_id: Order ID
+        
+        Returns:
+            Dictionary with order details or None if not found
+        """
+        order = self.get_order_by_id(order_id)
+        if not order:
+            return None
+        
+        # Get order items with product and variation info
+        items = []
+        for item in order.items:
+            item_data = {
+                "id": item.id,
+                "quantity": item.quantity,
+                "unit_price": item.unit_price,
+                "subtotal": item.subtotal,
+            }
+            
+            # Add product info if available
+            if item.product:
+                item_data["product"] = {
+                    "id": item.product.id,
+                    "name": item.product.name,
+                    "description": item.product.description,
+                }
+            else:
+                item_data["product"] = None
+            
+            # Add variation info if available
+            if item.variation:
+                item_data["variation"] = {
+                    "id": item.variation.id,
+                    "name": item.variation.name,
+                    "price": item.variation.price,
+                }
+            else:
+                item_data["variation"] = None
+            
+            items.append(item_data)
+        
+        # Get supplier orders if any
+        supplier_orders = []
+        for so in order.supplier_orders:
+            supplier_orders.append({
+                "id": so.id,
+                "supplier_id": so.supplier_id,
+                "status": so.status.value,
+                "created_at": so.created_at.isoformat(),
+                "updated_at": so.updated_at.isoformat(),
+            })
+        
+        return {
+            "id": order.id,
+            "user_id": order.user_id,
+            "status": order.status.value,
+            "total_amount": order.total_amount,
+            "payment_transaction_id": order.payment_transaction_id,
+            "created_at": order.created_at.isoformat(),
+            "updated_at": order.updated_at.isoformat(),
+            "items": items,
+            "supplier_orders": supplier_orders,
+        }
+
+    def cancel_order(self, order_id: str) -> Order:
+        """
+        Cancel an order (only PENDING orders can be cancelled).
+        
+        Args:
+            order_id: Order ID to cancel
+        
+        Returns:
+            Cancelled Order instance
+        
+        Raises:
+            ValueError: If order not found or cannot be cancelled (not PENDING)
+        """
+        order = self.get_order_by_id(order_id)
+        if not order:
+            raise ValueError(f"Order {order_id} not found")
+        
+        if order.status != OrderStatus.PENDING:
+            raise ValueError(
+                f"Order {order_id} can only be cancelled if it is PENDING. Current status: {order.status.value}"
+            )
+        
+        # Update order status to CANCELLED
+        order.status = OrderStatus.CANCELLED
+        self.session.commit()
+        self.session.refresh(order)
+        
+        return order
+

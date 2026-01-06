@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+#
+# Multistage build for the Telegram customer bot.
+
+ARG PYTHON_VERSION=3.11-slim
+
+FROM python:${PYTHON_VERSION} AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --prefix=/install -r requirements.txt
+
+FROM python:${PYTHON_VERSION}
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
+COPY src ./src
+COPY alembic.ini ./alembic.ini
+
+# Create non-root user and app data dir with proper ownership (run as root)
+RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app
+
+# Switch to non-root user for running the app
+USER appuser
+
+ENV DATABASE_URL=sqlite:///data/database.db
+
+CMD ["python", "-m", "src.bot.main"]
+

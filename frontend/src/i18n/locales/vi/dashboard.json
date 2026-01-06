@@ -1,0 +1,89 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "save": "Lưu",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "next": "Tiếp",
+    "previous": "Trước",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "actions": "Thao tác",
+    "status": "Trạng thái",
+    "created": "Đã tạo",
+    "updated": "Đã cập nhật"
+  },
+  "navigation": {
+    "statistics": "Thống kê",
+    "products": "Sản phẩm",
+    "variations": "Phân loại",
+    "orders": "Đơn hàng",
+    "suppliers": "Nguồn",
+    "notifications": "Thông báo",
+    "productUpload": "Tải lên Sản phẩm",
+    "preUploaded": "Kho hàng",
+    "logout": "Đăng xuất"
+  },
+  "login": {
+    "title": "Đăng nhập",
+    "username": "Tên người dùng",
+    "password": "Mật khẩu",
+    "loginButton": "Đăng nhập",
+    "error": "Tên người dùng hoặc mật khẩu không hợp lệ"
+  },
+  "statistics": {
+    "title": "Thống kê",
+    "totalProducts": "Tổng Sản phẩm",
+    "totalOrders": "Tổng Đơn hàng",
+    "totalRevenue": "Tổng Doanh thu",
+    "pendingOrders": "Đơn hàng Đang chờ"
+  },
+  "products": {
+    "title": "Sản phẩm",
+    "create": "Tạo Sản phẩm",
+    "name": "Tên Sản phẩm",
+    "description": "Mô tả",
+    "deliveryType": "Loại Giao hàng",
+    "isActive": "Hoạt động",
+    "variations": "Phân loại",
+    "noProducts": "Không tìm thấy sản phẩm"
+  },
+  "orders": {
+    "title": "Đơn hàng",
+    "orderId": "Mã Đơn hàng",
+    "userId": "Mã Người dùng",
+    "totalAmount": "Tổng Tiền",
+    "status": "Trạng thái",
+    "createdAt": "Ngày Tạo",
+    "pending": "Đang chờ",
+    "paid": "Đã thanh toán",
+    "processing": "Đang xử lý",
+    "delivered": "Đã giao",
+    "cancelled": "Đã hủy",
+    "filterByStatus": "Lọc theo Trạng thái",
+    "allStatuses": "Tất cả Trạng thái"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "sendToAll": "Gửi đến Tất cả Người dùng",
+    "sendToActive": "Gửi đến Người dùng Hoạt động",
+    "sendToUser": "Gửi đến Người dùng Cụ thể",
+    "message": "Tin nhắn",
+    "selectUser": "Chọn Người dùng",
+    "send": "Gửi",
+    "success": "Đã gửi thông báo thành công",
+    "error": "Gửi thông báo thất bại"
+  },
+  "language": {
+    "select": "Chọn Ngôn ngữ",
+    "english": "Tiếng Anh",
+    "vietnamese": "Tiếng Việt"
+  }
+}
+

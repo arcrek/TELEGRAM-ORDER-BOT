@@ -1,0 +1,74 @@
+/**
+ * Global app styles for Premium Dark SaaS Dashboard.
+ * Soft dark theme (not pure black) with minimalist design.
+ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* Light theme (default - kept for compatibility) */
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #e8ecf1;
+  --card-bg: #ffffff;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --text-primary: #1a1b2e;
+  --text-secondary: rgba(26, 27, 46, 0.7);
+  --text-muted: rgba(26, 27, 46, 0.5);
+  --accent-blue: #6EA8FF;
+}
+
+[data-theme="dark"] {
+  /* Premium Dark SaaS Theme */
+  --bg-primary: #0F0F0D;        /* Main application background */
+  --bg-secondary: #141412;      /* Sidebar / Secondary BG */
+  --card-bg: #181816;            /* Card BG */
+  --border-color: #2A2A26;       /* Borders and dividers */
+  --text-primary: #EAEAEA;       /* Primary text */
+  --text-secondary: #B5B5B5;     /* Secondary text */
+  --text-muted: #8F8F8F;         /* Muted text (placeholders) */
+  --accent-blue: #6EA8FF;        /* Accent blue for interactive elements */
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-primary);
+  min-height: 100vh;
+  color: var(--text-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Scrollbar styling - premium dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary, #141412);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color, #2A2A26);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted, #8F8F8F);
+}

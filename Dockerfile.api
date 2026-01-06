@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+#
+# Multistage build for the FastAPI dashboard API.
+# Goals: small runtime image, no build tools in final stage, non-root user.
+
+ARG PYTHON_VERSION=3.11-slim
+
+########################
+# Builder
+########################
+FROM python:${PYTHON_VERSION} AS builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# System deps for compiling any wheels (kept in builder only)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --prefix=/install -r requirements.txt
+
+########################
+# Runtime
+########################
+FROM python:${PYTHON_VERSION}
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy deps from builder
+COPY --from=builder /install /usr/local
+
+# Copy application and Alembic config
+COPY src ./src
+COPY alembic.ini ./alembic.ini
+
+# Create non-root user and app data dir with proper ownership
+RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app
+
+# Default envs (override in compose/.env)
+ENV HOST=0.0.0.0 \
+    PORT=8000 \
+    DATABASE_URL=sqlite:///data/database.db
+
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "src.dashboard.main:app", "--host", "0.0.0.0", "--port", "8000"]
+

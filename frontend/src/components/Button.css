@@ -1,0 +1,109 @@
+/**
+ * Premium Dark SaaS Button styles.
+ * NO gradients, NO shadows - use borders instead.
+ * Rounded corners: 12px
+ * Spacing: 8px base system
+ */
+.button {
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 1rem;
+  font-family: inherit;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-primary, #EAEAEA);
+}
+
+.button svg {
+  flex-shrink: 0;
+}
+
+/* Size variants - using 8px base spacing */
+.button--small {
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  gap: 6px;
+}
+
+.button--medium {
+  padding: 12px 24px;
+  font-size: 1rem;
+  gap: 8px;
+}
+
+.button--large {
+  padding: 16px 32px;
+  font-size: 1.125rem;
+  gap: 10px;
+}
+
+/* Primary button - accent blue background */
+.button--primary {
+  background: var(--accent-blue, #6EA8FF);
+  color: #0F0F0D;
+  border: 1px solid var(--accent-blue, #6EA8FF);
+}
+
+.button--primary:hover:not(.button--disabled) {
+  background: var(--accent-blue, #6EA8FF);
+  opacity: 0.9;
+  border-color: var(--accent-blue, #6EA8FF);
+}
+
+.button--primary:active:not(.button--disabled) {
+  opacity: 0.8;
+}
+
+/* Secondary button - border with transparent background */
+.button--secondary {
+  background: var(--card-bg, #181816);
+  color: var(--text-primary, #EAEAEA);
+  border: 1px solid var(--border-color, #2A2A26);
+}
+
+.button--secondary:hover:not(.button--disabled) {
+  border-color: var(--accent-blue, #6EA8FF);
+  background: var(--card-bg, #181816);
+}
+
+.button--secondary:active:not(.button--disabled) {
+  background: var(--card-bg, #181816);
+}
+
+/* Outline button - border only */
+.button--outline {
+  background: transparent;
+  border: 1px solid var(--border-color, #2A2A26);
+  color: var(--text-primary, #EAEAEA);
+}
+
+.button--outline:hover:not(.button--disabled) {
+  border-color: var(--accent-blue, #6EA8FF);
+  color: var(--accent-blue, #6EA8FF);
+}
+
+.button--outline:active:not(.button--disabled) {
+  background: transparent;
+}
+
+/* Disabled state */
+.button--disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Focus state */
+.button:focus {
+  outline: 2px solid var(--accent-blue, #6EA8FF);
+  outline-offset: 2px;
+}
+
+.button:focus:not(:focus-visible) {
+  outline: none;
+}

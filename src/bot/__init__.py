@@ -1,0 +1,4 @@
+"""
+Telegram bot package initialization.
+"""
+

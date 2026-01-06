@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+    volumes:
+      - ./data/database.db:/app/data/database.db
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+    volumes:
+      - ./data/database.db:/app/data/database.db
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  bot_supplier:
+    build:
+      context: .
+      dockerfile: Dockerfile.bot-supplier
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+    volumes:
+      - ./data/database.db:/app/data/database.db
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  ipn-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.ipn
+    container_name: pay2s-ipn-server
+    ports:
+      - "${IPN_PORT:-5001}:5001"
+    environment:
+      # Pay2S Configuration
+      - PAY2S_ENDPOINT=${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
+      - PAY2S_PARTNER_CODE=${PAY2S_PARTNER_CODE:-PAY2S7EPF0SB1ZP27W71}
+      - PAY2S_ACCESS_KEY=${PAY2S_ACCESS_KEY:-REDACTED_PAY2S_ACCESS_KEY}
+      - PAY2S_SECRET_KEY=${PAY2S_SECRET_KEY:-REDACTED_PAY2S_SECRET_KEY}
+      # IPN Server Configuration
+      - IPN_HOST=0.0.0.0
+      - IPN_PORT=5001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - pay2s-network
+
+networks:
+  pay2s-network:
+    driver: bridge
+

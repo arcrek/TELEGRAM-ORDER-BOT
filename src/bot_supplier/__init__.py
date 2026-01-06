@@ -1,0 +1,4 @@
+"""
+Supplier bot package.
+"""
+
