@@ -3,7 +3,7 @@ WSGI entry point for Gunicorn production server.
 """
 import os
 from src.pay2s.ipn import create_ipn_app
-from config import SECRET_KEY
+from config.config import SECRET_KEY
 
 # Create the Flask app
 app = create_ipn_app(secret_key=SECRET_KEY)

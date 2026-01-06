@@ -3,7 +3,7 @@ Run IPN server for receiving Pay2S transaction confirmations.
 """
 import os
 from src.pay2s.ipn import run_ipn_server
-from config import SECRET_KEY, IPN_HOST, IPN_PORT
+from config.config import SECRET_KEY, IPN_HOST, IPN_PORT
 
 if __name__ == '__main__':
     # Run the IPN server
