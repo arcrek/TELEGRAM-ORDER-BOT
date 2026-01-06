@@ -14,6 +14,12 @@ services:
     ports:
       - "8001:8000"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   bot:
     build:
@@ -34,7 +40,8 @@ services:
     volumes:
       - database-data:/app/data
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   bot_supplier:
@@ -50,7 +57,8 @@ services:
     volumes:
       - database-data:/app/data
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:

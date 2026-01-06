@@ -41,9 +41,11 @@ COPY --from=builder /install /usr/local
 # Copy application and Alembic config
 COPY src ./src
 COPY alembic.ini ./alembic.ini
+COPY entrypoint.sh ./entrypoint.sh
 
 # Create non-root user and app data dir with proper ownership
-RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app
+RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app && \
+    chmod +x /app/entrypoint.sh
 
 # Default envs (override in compose/.env)
 ENV HOST=0.0.0.0 \
@@ -54,5 +56,6 @@ USER appuser
 
 EXPOSE 8000
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uvicorn", "src.dashboard.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
