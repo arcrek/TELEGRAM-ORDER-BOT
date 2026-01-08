@@ -1,20 +1,20 @@
 {
   "commands": {
     "start": {
-      "welcome": "Chào mừng, {name}! 👋",
-      "description": "Tôi là bot đặt hàng của bạn. Sử dụng /products để xem các sản phẩm có sẵn.",
-      "help_hint": "Sử dụng /help để xem tất cả các lệnh có sẵn."
+      "welcome": "Xin chào, {name}! 👋",
+      "description": "🛒 Chào mừng bạn đến với MUATAIKHOANPRO - Hệ thống mua tài khoản tự động 24/7!\n\n✨ Tại đây bạn có thể:\n• Xem danh sách sản phẩm\n• Đặt hàng nhanh chóng\n• Thanh toán qua QR Code\n• Nhận sản phẩm tự động sau thanh toán",
+      "help_hint": "\n📌 Sử dụng /products để xem sản phẩm\n📌 Sử dụng /help để xem hướng dẫn\n📌 Sử dụng /lang để đổi ngôn ngữ"
     },
     "help": {
-      "title": "📋 Các Lệnh Có Sẵn:",
+      "title": "📋 Hướng Dẫn Sử Dụng:",
       "start": "/start - Khởi động bot",
-      "help": "/help - Hiển thị thông báo trợ giúp này",
-      "products": "/products - Duyệt các sản phẩm có sẵn",
-      "interaction_hint": "Sử dụng các nút trong tin nhắn để tương tác với sản phẩm và đặt hàng.",
-      "admin_title": "🔧 Lệnh Quản Trị:",
-      "notify_all": "/notify_all <tin nhắn> - Gửi thông báo cho tất cả người dùng",
-      "notify_user": "/notify_user <user_id> <tin nhắn> - Gửi thông báo cho người dùng cụ thể",
-      "notify_active": "/notify_active <tin nhắn> - Gửi thông báo chỉ cho người dùng đang hoạt động"
+      "help": "/help - Xem hướng dẫn này",
+      "products": "/products - Xem danh sách sản phẩm",
+      "interaction_hint": "\n💡 Mẹo: Sử dụng các nút bấm trong tin nhắn để chọn sản phẩm và đặt hàng nhanh chóng!",
+      "admin_title": "\n🔧 Lệnh Quản Trị:",
+      "notify_all": "/notify_all <nội dung> - Gửi thông báo cho tất cả",
+      "notify_user": "/notify_user <user_id> <nội dung> - Gửi cho người dùng cụ thể",
+      "notify_active": "/notify_active <nội dung> - Gửi cho người dùng đang hoạt động"
     },
     "products": {
       "error": "❌ Lỗi khi tải sản phẩm. Vui lòng thử lại sau."
@@ -22,101 +22,100 @@
     "language": {
       "title": "🌐 Chọn Ngôn Ngữ",
       "current": "Ngôn ngữ hiện tại: {language}",
-      "select": "Vui lòng chọn ngôn ngữ ưa thích của bạn:",
+      "select": "Vui lòng chọn ngôn ngữ:",
       "changed": "✅ Đã đổi ngôn ngữ sang {language}",
       "error": "❌ Lỗi khi đổi ngôn ngữ. Vui lòng thử lại."
     }
   },
   "products": {
     "list": {
-      "title": "DANH SÁCH SẢN PHẨM",
-      "page": "trang {current} / {total}"
+      "title": "🛍️ DANH SÁCH SẢN PHẨM",
+      "page": "📄 Trang {current}/{total}"
     },
     "detail": {
       "not_found": "❌ Không tìm thấy sản phẩm.",
-      "no_variations": "❌ Không có phân loại nào cho sản phẩm này.",
-      "title": "CHI TIẾT SẢN PHẨM",
-      "name": "Tên: {name}",
-      "description": "Mô tả: {description}",
-      "variations": "Phân loại:",
-      "back": "Quay lại Sản phẩm"
+      "no_variations": "❌ Sản phẩm này chưa có phân loại nào.",
+      "title": "📦 CHI TIẾT SẢN PHẨM",
+      "name": "📌 Tên: {name}",
+      "description": "📝 Mô tả: {description}",
+      "variations": "🔸 Các phân loại:",
+      "back": "◀️ Quay lại"
     },
     "variation": {
-      "title": "CHI TIẾT PHÂN LOẠI",
-      "name": "Tên: {name}",
-      "price": "Giá: {price}",
-      "stock": "Tồn kho: {stock}",
-      "description": "Mô tả: {description}",
-      "back": "Quay lại Sản phẩm",
-      "add_to_cart": "Thêm vào Giỏ"
+      "title": "📦 CHI TIẾT PHÂN LOẠI",
+      "name": "📌 Tên: {name}",
+      "price": "💰 Giá: {price}",
+      "stock": "📊 Còn lại: {stock}",
+      "description": "📝 Mô tả: {description}",
+      "back": "◀️ Quay lại",
+      "add_to_cart": "🛒 Thêm vào giỏ"
     }
   },
   "cart": {
-    "added": "✅ Đã thêm vào giỏ: {product_name} - {variation_name}",
-    "empty": "Giỏ hàng của bạn trống.",
-    "title": "GIỎ HÀNG CỦA BẠN",
+    "added": "✅ Đã thêm: {product_name} - {variation_name}",
+    "empty": "🛒 Giỏ hàng trống.",
+    "title": "🛒 GIỎ HÀNG CỦA BẠN",
     "item": "{product_name} - {variation_name}",
     "quantity": "Số lượng: {quantity}",
-    "total": "Tổng: {total}",
-    "checkout": "Thanh toán",
-    "clear": "Xóa Giỏ hàng"
+    "total": "💰 Tổng: {total}",
+    "checkout": "💳 Thanh toán",
+    "clear": "🗑️ Xóa giỏ hàng"
   },
   "order": {
     "confirmation": {
-      "title": "XÁC NHẬN ĐẶT HÀNG",
-      "order_id": "Mã đơn hàng: {order_id}",
-      "items": "Mặt hàng:",
+      "title": "📋 XÁC NHẬN ĐƠN HÀNG",
+      "order_id": "🔖 Mã đơn: {order_id}",
+      "items": "📦 Sản phẩm:",
       "item": "{product_name} - {variation_name} x {quantity}",
-      "total": "Tổng: {total}",
-      "confirm": "Xác nhận Đặt hàng",
-      "cancel": "Hủy"
+      "total": "💰 Tổng: {total}",
+      "confirm": "✅ Xác nhận",
+      "cancel": "❌ Hủy"
     },
-    "created": "✅ Đã tạo đơn hàng thành công! Mã đơn hàng: {order_id}",
-    "error": "❌ Lỗi khi tạo đơn hàng. Vui lòng thử lại.",
+    "created": "✅ Đã tạo đơn hàng!\n🔖 Mã đơn: {order_id}",
+    "error": "❌ Lỗi tạo đơn hàng. Vui lòng thử lại.",
     "not_found": "❌ Không tìm thấy đơn hàng.",
-    "cancelled": "✅ Đã hủy đơn hàng thành công.",
-    "cancel_error": "❌ Lỗi khi hủy đơn hàng. Vui lòng thử lại.",
-    "already_paid": "❌ Đơn hàng này đã được thanh toán và không thể hủy.",
-    "already_cancelled": "❌ Đơn hàng này đã được hủy.",
-    "not_pending": "❌ Chỉ có thể hủy các đơn hàng đang chờ."
+    "cancelled": "✅ Đã hủy đơn hàng.",
+    "cancel_error": "❌ Lỗi khi hủy đơn. Vui lòng thử lại.",
+    "already_paid": "❌ Đơn hàng đã thanh toán, không thể hủy.",
+    "already_cancelled": "❌ Đơn hàng đã được hủy trước đó.",
+    "not_pending": "❌ Chỉ có thể hủy đơn đang chờ thanh toán."
   },
   "payment": {
-    "title": "💳 Thông Tin Thanh Toán",
-    "order_id": "Mã đơn hàng: {order_id}",
-    "amount": "Số tiền: {amount}",
-    "qr_code": "Vui lòng quét mã QR bên dưới để hoàn tất thanh toán:",
-    "auto_cancel_notice": "⏰ Lưu ý: Đơn hàng này sẽ tự động bị hủy nếu không hoàn tất thanh toán trong vòng 30 phút.",
-    "cancel_button": "Hủy Đơn hàng",
-    "success": "✅ Thanh toán thành công! Đơn hàng của bạn đang được xử lý.",
-    "pending": "⏳ Thanh toán đang chờ. Vui lòng hoàn tất thanh toán.",
+    "title": "💳 THANH TOÁN",
+    "order_id": "🔖 Mã đơn: {order_id}",
+    "amount": "💰 Số tiền: {amount}",
+    "qr_code": "📱 Quét mã QR bên dưới để thanh toán:",
+    "auto_cancel_notice": "⏰ Đơn hàng sẽ tự động hủy sau 30 phút nếu chưa thanh toán.",
+    "cancel_button": "❌ Hủy đơn hàng",
+    "success": "✅ Thanh toán thành công! Đang xử lý đơn hàng...",
+    "pending": "⏳ Đang chờ thanh toán...",
     "failed": "❌ Thanh toán thất bại. Vui lòng thử lại.",
     "timeout": "⏰ Hết thời gian thanh toán. Đơn hàng đã bị hủy."
   },
   "delivery": {
     "ready": "✅ Sản phẩm của bạn đã sẵn sàng!",
-    "order_id": "📦 Mã đơn hàng: {order_id}",
-    "data": "Dữ liệu Sản phẩm:\n{data}"
+    "order_id": "📦 Mã đơn: {order_id}",
+    "data": "📋 Thông tin sản phẩm:\n{data}"
   },
   "errors": {
     "generic": "❌ Đã xảy ra lỗi. Vui lòng thử lại.",
     "not_found": "❌ Không tìm thấy.",
-    "unauthorized": "❌ Truy cập không được phép.",
-    "validation": "❌ Lỗi xác thực: {error}"
+    "unauthorized": "❌ Không có quyền truy cập.",
+    "validation": "❌ Lỗi: {error}"
   },
   "buttons": {
     "next": "Tiếp ▶️",
     "prev": "◀️ Trước",
-    "back": "Quay lại",
-    "confirm": "Xác nhận",
-    "cancel": "Hủy",
-    "add_to_cart": "Thêm vào Giỏ",
-    "checkout": "Thanh toán",
-    "clear_cart": "Xóa Giỏ hàng",
-    "cancel_order": "Hủy Đơn hàng"
+    "back": "◀️ Quay lại",
+    "confirm": "✅ Xác nhận",
+    "cancel": "❌ Hủy",
+    "add_to_cart": "🛒 Thêm vào giỏ",
+    "checkout": "💳 Thanh toán",
+    "clear_cart": "🗑️ Xóa giỏ",
+    "cancel_order": "❌ Hủy đơn"
   },
   "languages": {
     "en": "🇬🇧 English",
     "vi": "🇻🇳 Tiếng Việt"
   }
 }
-

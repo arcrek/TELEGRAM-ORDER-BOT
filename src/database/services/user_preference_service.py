@@ -27,12 +27,12 @@ class UserPreferenceService:
             telegram_user_id: Telegram user ID
             
         Returns:
-            Language code ('en' or 'vi'), defaults to 'en'
+            Language code ('en' or 'vi'), defaults to 'vi'
         """
         preference = self.get_user_preference(telegram_user_id)
         if preference:
             return preference.language
-        return "en"  # Default language
+        return "vi"  # Default language - Vietnamese
 
     def set_user_language(self, telegram_user_id: int, language: str) -> UserPreference:
         """
@@ -47,7 +47,7 @@ class UserPreferenceService:
         """
         # Validate language
         if language not in ["en", "vi"]:
-            language = "en"
+            language = "vi"  # Default to Vietnamese
         
         preference = self.get_user_preference(telegram_user_id)
         

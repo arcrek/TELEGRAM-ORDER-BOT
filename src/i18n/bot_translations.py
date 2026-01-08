@@ -8,8 +8,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Default language
-DEFAULT_LANGUAGE = "en"
+# Default language - Vietnamese for Vietnam market
+DEFAULT_LANGUAGE = "vi"
 
 # Supported languages
 SUPPORTED_LANGUAGES = ["en", "vi"]
@@ -112,11 +112,12 @@ def detect_language_from_telegram_user(user) -> str:
     """
     if hasattr(user, 'language_code') and user.language_code:
         lang_code = user.language_code.lower()
-        # Check if Vietnamese (vi, vi-VN, etc.)
-        if lang_code.startswith('vi'):
-            return 'vi'
-        # Default to English for other languages
-        return 'en'
+        # Check if English (en, en-US, en-GB, etc.)
+        if lang_code.startswith('en'):
+            return 'en'
+        # Default to Vietnamese for all other languages (primary market)
+        return 'vi'
     
+    # Default to Vietnamese
     return DEFAULT_LANGUAGE
 

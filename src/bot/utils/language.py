@@ -19,7 +19,7 @@ def get_user_language(update: Update) -> str:
     """
     user = update.effective_user
     if not user:
-        return "en"
+        return "vi"  # Default to Vietnamese
     
     session_factory = get_session_factory()
     session = session_factory()
@@ -29,7 +29,7 @@ def get_user_language(update: Update) -> str:
         language = preference_service.get_user_language(user.id)
         
         # If no preference exists, detect from Telegram and save it
-        if language == "en" and not preference_service.get_user_preference(user.id):
+        if language == "vi" and not preference_service.get_user_preference(user.id):
             detected_lang = detect_language_from_telegram_user(user)
             preference_service.set_user_language(user.id, detected_lang)
             return detected_lang

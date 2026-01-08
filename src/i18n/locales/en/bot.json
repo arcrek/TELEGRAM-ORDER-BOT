@@ -1,20 +1,20 @@
 {
   "commands": {
     "start": {
-      "welcome": "Welcome, {name}! 👋",
-      "description": "I'm your order bot. Use /products to browse available products.",
-      "help_hint": "Use /help to see all available commands."
+      "welcome": "Hello, {name}! 👋",
+      "description": "🛒 Welcome to MUATAIKHOANPRO - Automated Account Store 24/7!\n\n✨ Here you can:\n• Browse available products\n• Place orders quickly\n• Pay via QR Code\n• Receive products automatically after payment",
+      "help_hint": "\n📌 Use /products to view products\n📌 Use /help for instructions\n📌 Use /lang to change language"
     },
     "help": {
-      "title": "📋 Available Commands:",
+      "title": "📋 How To Use:",
       "start": "/start - Start the bot",
-      "help": "/help - Show this help message",
-      "products": "/products - Browse available products",
-      "interaction_hint": "Use the buttons in messages to interact with products and place orders.",
-      "admin_title": "🔧 Admin Commands:",
-      "notify_all": "/notify_all <message> - Send notification to all users",
-      "notify_user": "/notify_user <user_id> <message> - Send notification to specific user",
-      "notify_active": "/notify_active <message> - Send notification to active users only"
+      "help": "/help - Show this guide",
+      "products": "/products - View product list",
+      "interaction_hint": "\n💡 Tip: Use the buttons in messages to select products and place orders quickly!",
+      "admin_title": "\n🔧 Admin Commands:",
+      "notify_all": "/notify_all <message> - Send to all users",
+      "notify_user": "/notify_user <user_id> <message> - Send to specific user",
+      "notify_active": "/notify_active <message> - Send to active users"
     },
     "products": {
       "error": "❌ Error loading products. Please try again later."
@@ -22,101 +22,100 @@
     "language": {
       "title": "🌐 Language Selection",
       "current": "Current language: {language}",
-      "select": "Please select your preferred language:",
+      "select": "Please select your language:",
       "changed": "✅ Language changed to {language}",
       "error": "❌ Error changing language. Please try again."
     }
   },
   "products": {
     "list": {
-      "title": "LIST PRODUCT",
-      "page": "page {current} / {total}"
+      "title": "🛍️ PRODUCT LIST",
+      "page": "📄 Page {current}/{total}"
     },
     "detail": {
       "not_found": "❌ Product not found.",
       "no_variations": "❌ No variations available for this product.",
-      "title": "PRODUCT DETAIL",
-      "name": "Name: {name}",
-      "description": "Description: {description}",
-      "variations": "Variations:",
-      "back": "Back to Products"
+      "title": "📦 PRODUCT DETAILS",
+      "name": "📌 Name: {name}",
+      "description": "📝 Description: {description}",
+      "variations": "🔸 Variations:",
+      "back": "◀️ Back"
     },
     "variation": {
-      "title": "VARIATION DETAIL",
-      "name": "Name: {name}",
-      "price": "Price: {price}",
-      "stock": "Stock: {stock}",
-      "description": "Description: {description}",
-      "back": "Back to Product",
-      "add_to_cart": "Add to Cart"
+      "title": "📦 VARIATION DETAILS",
+      "name": "📌 Name: {name}",
+      "price": "💰 Price: {price}",
+      "stock": "📊 In Stock: {stock}",
+      "description": "📝 Description: {description}",
+      "back": "◀️ Back",
+      "add_to_cart": "🛒 Add to Cart"
     }
   },
   "cart": {
-    "added": "✅ Added to cart: {product_name} - {variation_name}",
-    "empty": "Your cart is empty.",
-    "title": "YOUR CART",
+    "added": "✅ Added: {product_name} - {variation_name}",
+    "empty": "🛒 Your cart is empty.",
+    "title": "🛒 YOUR CART",
     "item": "{product_name} - {variation_name}",
     "quantity": "Quantity: {quantity}",
-    "total": "Total: {total}",
-    "checkout": "Checkout",
-    "clear": "Clear Cart"
+    "total": "💰 Total: {total}",
+    "checkout": "💳 Checkout",
+    "clear": "🗑️ Clear Cart"
   },
   "order": {
     "confirmation": {
-      "title": "ORDER CONFIRMATION",
-      "order_id": "Order ID: {order_id}",
-      "items": "Items:",
+      "title": "📋 ORDER CONFIRMATION",
+      "order_id": "🔖 Order ID: {order_id}",
+      "items": "📦 Products:",
       "item": "{product_name} - {variation_name} x {quantity}",
-      "total": "Total: {total}",
-      "confirm": "Confirm Order",
-      "cancel": "Cancel"
+      "total": "💰 Total: {total}",
+      "confirm": "✅ Confirm",
+      "cancel": "❌ Cancel"
     },
-    "created": "✅ Order created successfully! Order ID: {order_id}",
+    "created": "✅ Order created!\n🔖 Order ID: {order_id}",
     "error": "❌ Error creating order. Please try again.",
     "not_found": "❌ Order not found.",
-    "cancelled": "✅ Order cancelled successfully.",
+    "cancelled": "✅ Order cancelled.",
     "cancel_error": "❌ Error cancelling order. Please try again.",
-    "already_paid": "❌ This order has already been paid and cannot be cancelled.",
+    "already_paid": "❌ This order has been paid and cannot be cancelled.",
     "already_cancelled": "❌ This order has already been cancelled.",
     "not_pending": "❌ Only pending orders can be cancelled."
   },
   "payment": {
-    "title": "💳 Payment Information",
-    "order_id": "Order ID: {order_id}",
-    "amount": "Amount: {amount}",
-    "qr_code": "Please scan the QR code below to complete payment:",
-    "auto_cancel_notice": "⏰ Note: This order will be automatically cancelled if payment is not completed within 30 minutes.",
-    "cancel_button": "Cancel Order",
-    "success": "✅ Payment successful! Your order is being processed.",
-    "pending": "⏳ Payment pending. Please complete the payment.",
+    "title": "💳 PAYMENT",
+    "order_id": "🔖 Order ID: {order_id}",
+    "amount": "💰 Amount: {amount}",
+    "qr_code": "📱 Scan the QR code below to pay:",
+    "auto_cancel_notice": "⏰ This order will be automatically cancelled after 30 minutes if unpaid.",
+    "cancel_button": "❌ Cancel Order",
+    "success": "✅ Payment successful! Processing your order...",
+    "pending": "⏳ Awaiting payment...",
     "failed": "❌ Payment failed. Please try again.",
     "timeout": "⏰ Payment timeout. Order has been cancelled."
   },
   "delivery": {
     "ready": "✅ Your product is ready!",
     "order_id": "📦 Order ID: {order_id}",
-    "data": "Product Data:\n{data}"
+    "data": "📋 Product Data:\n{data}"
   },
   "errors": {
     "generic": "❌ An error occurred. Please try again.",
     "not_found": "❌ Not found.",
     "unauthorized": "❌ Unauthorized access.",
-    "validation": "❌ Validation error: {error}"
+    "validation": "❌ Error: {error}"
   },
   "buttons": {
     "next": "Next ▶️",
     "prev": "◀️ Prev",
-    "back": "Back",
-    "confirm": "Confirm",
-    "cancel": "Cancel",
-    "add_to_cart": "Add to Cart",
-    "checkout": "Checkout",
-    "clear_cart": "Clear Cart",
-    "cancel_order": "Cancel Order"
+    "back": "◀️ Back",
+    "confirm": "✅ Confirm",
+    "cancel": "❌ Cancel",
+    "add_to_cart": "🛒 Add to Cart",
+    "checkout": "💳 Checkout",
+    "clear_cart": "🗑️ Clear Cart",
+    "cancel_order": "❌ Cancel Order"
   },
   "languages": {
     "en": "🇬🇧 English",
     "vi": "🇻🇳 Tiếng Việt"
   }
 }
-

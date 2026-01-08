@@ -2,6 +2,16 @@
 
 A comprehensive Telegram bot order system that allows users to browse products, place orders, and receive deliveries through an interactive single-message interface. The system integrates with Pay2S payment service and supports two delivery types: pre-uploaded products (instant delivery) and supplier-based products (manual delivery).
 
+## Features
+
+- 🇻🇳 **Vietnamese as default language** (English also supported)
+- 🛍️ **Product browsing** with pagination
+- 💳 **QR Code payment** via Pay2S integration
+- 📦 **Automatic delivery** after payment confirmation
+- 🔄 **Auto-cancel** unpaid orders after 30 minutes
+- 👥 **Supplier system** for manual product delivery
+- 📊 **Admin dashboard** for management
+
 ## Project Structure
 
 ```
@@ -192,6 +202,26 @@ docker compose up -d --build
 - **Dashboard API Docs:** `http://localhost:8001/docs`
 - **Frontend Dashboard:** `http://localhost:8082`
 - **IPN Endpoint:** `http://localhost:5001/ipn`
+
+## Language Support
+
+The bot supports multi-language with **Vietnamese (🇻🇳) as the default language**.
+
+### Supported Languages
+- 🇻🇳 **Vietnamese** (Tiếng Việt) - Default
+- 🇬🇧 **English**
+
+### Changing Language
+Users can change their language preference anytime:
+```
+/lang - Show language selection menu
+/language - Same as /lang
+```
+
+### Translation Files
+Translations are stored in JSON format:
+- `src/i18n/locales/vi/bot.json` - Vietnamese translations
+- `src/i18n/locales/en/bot.json` - English translations
 
 ## Technology Stack
 

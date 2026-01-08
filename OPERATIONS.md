@@ -9,6 +9,7 @@ This guide provides instructions for operators to run, maintain, and backup the 
 - [System Overview](#system-overview)
 - [Starting the System](#starting-the-system)
 - [Stopping the System](#stopping-the-system)
+- [Language Configuration](#language-configuration)
 - [Monitoring](#monitoring)
 - [Database Backup & Restore](#database-backup--restore)
 - [User Management](#user-management)
@@ -132,6 +133,60 @@ Force stop all containers:
 ```bash
 docker compose kill
 ```
+
+---
+
+## Language Configuration
+
+### Default Language
+The bot uses **Vietnamese (vi)** as the default language. All new users will see Vietnamese interface unless they change it.
+
+### Supported Languages
+| Code | Language | Flag |
+|------|----------|------|
+| `vi` | Tiếng Việt | 🇻🇳 |
+| `en` | English | 🇬🇧 |
+
+### User Language Commands
+Users can change their language anytime using:
+```
+/lang    - Show language selection menu
+/language - Same as /lang
+```
+
+### Translation Files Location
+```
+src/i18n/locales/
+├── vi/
+│   └── bot.json    # Vietnamese translations (default)
+└── en/
+    └── bot.json    # English translations
+```
+
+### Modifying Translations
+
+1. **Edit the JSON files** directly:
+```bash
+# Vietnamese
+nano src/i18n/locales/vi/bot.json
+
+# English
+nano src/i18n/locales/en/bot.json
+```
+
+2. **Rebuild the bot container**:
+```bash
+docker compose up -d --build bot
+```
+
+### Key Translation Keys
+| Key | Description |
+|-----|-------------|
+| `commands.start.welcome` | Welcome message |
+| `commands.start.description` | Bot introduction |
+| `commands.help.title` | Help command header |
+| `payment.qr_code` | QR code instruction |
+| `delivery.ready` | Delivery confirmation |
 
 ---
 
