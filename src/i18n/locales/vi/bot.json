@@ -21,9 +21,9 @@
     },
     "language": {
       "title": "🌐 Chọn Ngôn Ngữ",
-      "current": "Ngôn ngữ hiện tại: {language}",
+      "current": "Ngôn ngữ hiện tại: {lang_name}",
       "select": "Vui lòng chọn ngôn ngữ:",
-      "changed": "✅ Đã đổi ngôn ngữ sang {language}",
+      "changed": "✅ Đã đổi ngôn ngữ sang {lang_name}",
       "error": "❌ Lỗi khi đổi ngôn ngữ. Vui lòng thử lại."
     }
   },

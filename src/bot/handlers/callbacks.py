@@ -846,7 +846,7 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         lang_display = t('languages.en', update) if language_code == 'en' else t('languages.vi', update)
         
         # Send confirmation message
-        confirmation = t('commands.language.changed', update, language=lang_display)
+        confirmation = t('commands.language.changed', update, lang_name=lang_display)
         await query.edit_message_text(confirmation)
     except Exception as e:
         import logging

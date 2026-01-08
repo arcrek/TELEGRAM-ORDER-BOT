@@ -195,7 +195,7 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         message = (
             f"{t('commands.language.title', update)}\n\n"
-            f"{t('commands.language.current', update, language=lang_display)}\n\n"
+            f"{t('commands.language.current', update, lang_name=lang_display)}\n\n"
             f"{t('commands.language.select', update)}"
         )
         

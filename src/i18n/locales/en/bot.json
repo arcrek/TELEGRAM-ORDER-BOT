@@ -21,9 +21,9 @@
     },
     "language": {
       "title": "🌐 Language Selection",
-      "current": "Current language: {language}",
+      "current": "Current language: {lang_name}",
       "select": "Please select your language:",
-      "changed": "✅ Language changed to {language}",
+      "changed": "✅ Language changed to {lang_name}",
       "error": "❌ Error changing language. Please try again."
     }
   },
