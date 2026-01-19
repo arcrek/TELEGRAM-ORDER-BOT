@@ -13,13 +13,15 @@ from src.bot.handlers.callbacks import (
     handle_product_selection,
     handle_variation_selection,
     handle_quantity_adjustment,
+    handle_custom_quantity_prompt,
+    handle_custom_quantity_input,
     handle_refresh_product,
     handle_back_to_list,
     handle_payment,
     handle_cancel_order,
     handle_language_selection,
 )
-from telegram.ext import CallbackQueryHandler
+from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.pay2s.ipn_order_processor import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
 from src.bot.utils.bot_instance import set_shared_bot_instance
@@ -66,12 +68,17 @@ def create_bot_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_page_navigation, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(handle_product_selection, pattern="^product_"))
     application.add_handler(CallbackQueryHandler(handle_variation_selection, pattern="^variation_"))
+    # Custom quantity handler must be registered BEFORE the general qty_ handler
+    application.add_handler(CallbackQueryHandler(handle_custom_quantity_prompt, pattern="^qty_custom_"))
     application.add_handler(CallbackQueryHandler(handle_quantity_adjustment, pattern="^qty_"))
     application.add_handler(CallbackQueryHandler(handle_refresh_product, pattern="^refresh_product$"))
     application.add_handler(CallbackQueryHandler(handle_back_to_list, pattern="^back_to_list$"))
     application.add_handler(CallbackQueryHandler(handle_payment, pattern="^payment_"))
     application.add_handler(CallbackQueryHandler(handle_cancel_order, pattern="^cancel_order_"))
     application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^lang_"))
+    
+    # Register message handler for custom quantity input
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
     
     return application
 

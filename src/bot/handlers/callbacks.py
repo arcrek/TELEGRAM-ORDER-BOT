@@ -75,8 +75,8 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
         total_pages = formatter.calculate_total_pages(total_count)
         
         # Format message and keyboard
-        message = formatter.format_product_list(products, page, total_pages)
-        keyboard = formatter.create_product_keyboard(products, page, total_pages)
+        message = formatter.format_product_list(products, page, total_pages, update)
+        keyboard = formatter.create_product_keyboard(products, page, total_pages, update)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -132,8 +132,8 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
         current_page = user_state.current_page if user_state else 1
         
         # Format message and keyboard
-        message = formatter.format_product_detail(product, variations, total_stock)
-        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations)
+        message = formatter.format_product_detail(product, variations, total_stock, update)
+        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -190,8 +190,8 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         
         # Format order confirmation
         quantity = 1
-        message = formatter.format_order_confirmation(product, variation, quantity)
-        keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock)
+        message = formatter.format_order_confirmation(product, variation, quantity, update)
+        keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock, update)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -259,11 +259,196 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
         state_manager.update_user_state(user_id, quantity=new_quantity)
         
         # Format updated order confirmation
-        message = formatter.format_order_confirmation(product, variation, new_quantity)
-        keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock)
+        message = formatter.format_order_confirmation(product, variation, new_quantity, update)
+        keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock, update)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
+    finally:
+        session.close()
+
+
+async def handle_custom_quantity_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle custom quantity button callback - send a prompt for user to input quantity.
+    
+    Args:
+        update: Telegram update object
+        context: Bot context
+    """
+    from src.bot.utils.language import t
+    
+    query = update.callback_query
+    await query.answer()
+    
+    # Parse variation ID from callback data (format: "qty_custom_var_1" or "qty_custom_alight_12m_1")
+    # Remove "qty_custom_" prefix to get variation_id
+    variation_id = query.data.replace("qty_custom_", "")
+    user_id = query.from_user.id
+    
+    # Get user state
+    user_state = state_manager.get_user_state(user_id)
+    if not user_state or not user_state.selected_variation_id:
+        await query.edit_message_text("❌ Please select a variation first.")
+        return
+    
+    # Get variation to get max stock
+    session_factory = get_session_factory()
+    session = session_factory()
+    
+    try:
+        variation_service = VariationService(session)
+        product_service = ProductService(session)
+        
+        variation = variation_service.get_variation_by_id(variation_id)
+        if not variation:
+            await query.edit_message_text("❌ Variation not found.")
+            return
+        
+        product = product_service.get_product_by_id(variation.product_id)
+        if not product:
+            await query.edit_message_text("❌ Product not found.")
+            return
+        
+        # Get actual stock based on delivery type
+        actual_stock = get_actual_stock(variation, product, variation_service)
+        
+        # Store the order message ID and set waiting flag
+        order_message_id = query.message.message_id
+        state_manager.update_user_state(
+            user_id,
+            waiting_for_custom_quantity=True,
+            order_message_id=order_message_id,
+        )
+        
+        # Send prompt message
+        prompt_text = t('products.order_confirmation.custom_prompt', update, max_stock=actual_stock)
+        prompt_message = await context.bot.send_message(
+            chat_id=user_id,
+            text=prompt_text
+        )
+        
+        # Store the prompt message ID for deletion later
+        state_manager.update_user_state(
+            user_id,
+            custom_quantity_prompt_message_id=prompt_message.message_id,
+        )
+        
+    finally:
+        session.close()
+
+
+async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle text input for custom quantity.
+    
+    Args:
+        update: Telegram update object
+        context: Bot context
+    """
+    from src.bot.utils.language import t
+    
+    user_id = update.effective_user.id
+    user_state = state_manager.get_user_state(user_id)
+    
+    # Check if user is waiting for custom quantity input
+    if not user_state or not user_state.waiting_for_custom_quantity:
+        return  # Not waiting for input, ignore
+    
+    if not user_state.selected_variation_id:
+        return  # No variation selected
+    
+    # Try to parse the quantity
+    text = update.message.text.strip()
+    
+    session_factory = get_session_factory()
+    session = session_factory()
+    
+    try:
+        variation_service = VariationService(session)
+        product_service = ProductService(session)
+        formatter = OrderConfirmationFormatter()
+        
+        variation = variation_service.get_variation_by_id(user_state.selected_variation_id)
+        if not variation:
+            await update.message.reply_text("❌ Variation not found.")
+            return
+        
+        product = product_service.get_product_by_id(variation.product_id)
+        if not product:
+            await update.message.reply_text("❌ Product not found.")
+            return
+        
+        # Get actual stock based on delivery type
+        actual_stock = get_actual_stock(variation, product, variation_service)
+        
+        # Try to parse the quantity
+        try:
+            quantity = int(text)
+        except ValueError:
+            # Invalid input - not a number
+            invalid_msg = t('products.order_confirmation.custom_invalid', update, max_stock=actual_stock)
+            await update.message.reply_text(invalid_msg)
+            return
+        
+        # Validate quantity range
+        if quantity < 1 or quantity > actual_stock:
+            invalid_msg = t('products.order_confirmation.custom_invalid', update, max_stock=actual_stock)
+            await update.message.reply_text(invalid_msg)
+            return
+        
+        # Valid quantity - update state
+        state_manager.update_user_state(
+            user_id,
+            quantity=quantity,
+            waiting_for_custom_quantity=False,
+        )
+        
+        # Delete the prompt message
+        if user_state.custom_quantity_prompt_message_id:
+            try:
+                await context.bot.delete_message(
+                    chat_id=user_id,
+                    message_id=user_state.custom_quantity_prompt_message_id
+                )
+            except Exception as e:
+                logger.warning(f"Could not delete prompt message: {str(e)}")
+        
+        # Delete the user's input message
+        try:
+            await update.message.delete()
+        except Exception as e:
+            logger.warning(f"Could not delete user input message: {str(e)}")
+        
+        # Update the order confirmation message
+        if user_state.order_message_id:
+            message = formatter.format_order_confirmation(product, variation, quantity, update)
+            keyboard = formatter.create_quantity_keyboard(
+                user_state.selected_variation_id, quantity, actual_stock, update
+            )
+            
+            try:
+                await context.bot.edit_message_text(
+                    chat_id=user_id,
+                    message_id=user_state.order_message_id,
+                    text=message,
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                logger.warning(f"Could not edit order message: {str(e)}")
+                # Fallback: send a new message
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=message,
+                    reply_markup=keyboard
+                )
+        
+        # Clear the prompt message ID from state
+        state_manager.update_user_state(
+            user_id,
+            custom_quantity_prompt_message_id=None,
+        )
+        
     finally:
         session.close()
 
@@ -318,8 +503,8 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
         current_page = user_state.current_page if user_state else 1
         
         # Format message and keyboard
-        message = formatter.format_product_detail(product, variations, total_stock)
-        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations)
+        message = formatter.format_product_detail(product, variations, total_stock, update)
+        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -356,8 +541,8 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
         total_count = product_service.get_total_count(only_active=True)
         total_pages = formatter.calculate_total_pages(total_count)
         
-        message = formatter.format_product_list(products, current_page, total_pages)
-        keyboard = formatter.create_product_keyboard(products, current_page, total_pages)
+        message = formatter.format_product_list(products, current_page, total_pages, update)
+        keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
         
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:

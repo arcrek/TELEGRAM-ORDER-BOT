@@ -157,8 +157,8 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         total_pages = formatter.calculate_total_pages(total_count)
         
         # Format message and keyboard
-        message = formatter.format_product_list(products, current_page, total_pages)
-        keyboard = formatter.create_product_keyboard(products, current_page, total_pages)
+        message = formatter.format_product_list(products, current_page, total_pages, update)
+        keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
         
         # Send message
         await update.message.reply_text(message, reply_markup=keyboard)

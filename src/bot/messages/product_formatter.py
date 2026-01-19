@@ -1,9 +1,10 @@
 """
 Product list formatter for Telegram messages.
 """
-from typing import List
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from typing import List, Optional
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from src.database.models import Product
+from src.bot.utils.language import t
 
 
 class ProductFormatter:
@@ -16,6 +17,7 @@ class ProductFormatter:
         products: List[Product],
         page: int,
         total_pages: int,
+        update: Optional[Update] = None,
     ) -> str:
         """
         Format product list message with box drawing.
@@ -24,16 +26,21 @@ class ProductFormatter:
             products: List of Product instances
             page: Current page number
             total_pages: Total number of pages
+            update: Telegram update object for translations
         
         Returns:
             Formatted message string
         """
         lines = []
         
+        # Get translations
+        title = t('products.list.title', update) if update else "LIST PRODUCT"
+        page_text = t('products.list.page', update, current=page, total=total_pages) if update else f"page {page} / {total_pages}"
+        
         # Header with box drawing
         lines.append("+" + "─" * 35 + "+")
-        lines.append("|  LIST PRODUCT")
-        lines.append(f"|  page {page} / {total_pages}")
+        lines.append(f"|  {title}")
+        lines.append(f"|  {page_text}")
         lines.append("|" + "─" * 35 + "|")
         
         # Product list
@@ -52,6 +59,7 @@ class ProductFormatter:
         products: List[Product],
         page: int,
         total_pages: int,
+        update: Optional[Update] = None,
     ) -> InlineKeyboardMarkup:
         """
         Create inline keyboard for product selection.
@@ -60,6 +68,7 @@ class ProductFormatter:
             products: List of Product instances
             page: Current page number
             total_pages: Total number of pages
+            update: Telegram update object for translations
         
         Returns:
             InlineKeyboardMarkup instance
@@ -88,12 +97,14 @@ class ProductFormatter:
         # Navigation buttons
         nav_row = []
         if page > 1:
+            prev_text = t('buttons.prev', update) if update else "◀ PREV PAGE"
             nav_row.append(
-                InlineKeyboardButton("◀ PREV PAGE", callback_data=f"page_{page - 1}")
+                InlineKeyboardButton(prev_text, callback_data=f"page_{page - 1}")
             )
         if page < total_pages:
+            next_text = t('buttons.next', update) if update else "NEXT PAGE ▶"
             nav_row.append(
-                InlineKeyboardButton("NEXT PAGE ▶", callback_data=f"page_{page + 1}")
+                InlineKeyboardButton(next_text, callback_data=f"page_{page + 1}")
             )
         
         if nav_row:

@@ -16,6 +16,9 @@ class UserState:
     pending_order_id: Optional[str] = None
     payment_message_id: Optional[int] = None  # Telegram message ID of QR code payment message
     payment_message_ids: Optional[list] = None  # List of all payment-related message IDs to delete
+    waiting_for_custom_quantity: bool = False  # Flag for custom quantity input mode
+    custom_quantity_prompt_message_id: Optional[int] = None  # Message ID of the prompt to delete
+    order_message_id: Optional[int] = None  # Message ID of the order confirmation message
 
 
 class StateManager:
@@ -57,6 +60,9 @@ class StateManager:
         pending_order_id: Optional[str] = None,
         payment_message_id: Optional[int] = None,
         payment_message_ids: Optional[list] = None,
+        waiting_for_custom_quantity: Optional[bool] = None,
+        custom_quantity_prompt_message_id: Optional[int] = None,
+        order_message_id: Optional[int] = None,
     ) -> None:
         """
         Update user state with new values.
@@ -70,6 +76,9 @@ class StateManager:
             pending_order_id: Pending order ID
             payment_message_id: Telegram message ID of QR code payment message
             payment_message_ids: List of all payment-related message IDs to delete
+            waiting_for_custom_quantity: Flag for custom quantity input mode
+            custom_quantity_prompt_message_id: Message ID of the prompt to delete
+            order_message_id: Message ID of the order confirmation message
         """
         state = self.get_user_state(user_id)
         if state is None:
@@ -89,6 +98,12 @@ class StateManager:
             state.payment_message_id = payment_message_id
         if payment_message_ids is not None:
             state.payment_message_ids = payment_message_ids
+        if waiting_for_custom_quantity is not None:
+            state.waiting_for_custom_quantity = waiting_for_custom_quantity
+        if custom_quantity_prompt_message_id is not None:
+            state.custom_quantity_prompt_message_id = custom_quantity_prompt_message_id
+        if order_message_id is not None:
+            state.order_message_id = order_message_id
         
         self.set_user_state(user_id, state)
     

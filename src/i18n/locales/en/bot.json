@@ -29,8 +29,31 @@
   },
   "products": {
     "list": {
-      "title": "🛍️ PRODUCT LIST",
-      "page": "📄 Page {current}/{total}"
+      "title": "LIST PRODUCT",
+      "page": "page {current} / {total}"
+    },
+    "detail": {
+      "product_label": "Product",
+      "stock_total": "Stock Total",
+      "detail_label": "Detail",
+      "variations_header": "Variations, Prices & Stock",
+      "variation_line": "{name}: {price} - Stock: {stock}",
+      "refresh": "🔄 Refresh",
+      "back_to_list": "◀ Back to list"
+    },
+    "order_confirmation": {
+      "title": "ORDER CONFIRMATION 🛒",
+      "product": "Product",
+      "variation": "Variation",
+      "unit_price": "Unit price",
+      "in_stock": "In stock",
+      "order_quantity": "Order Quantity",
+      "total_payment": "Total Payment",
+      "proceed_payment": "💳 Proceed payment",
+      "custom": "⚙️ Custom",
+      "custom_prompt": "📝 Please enter your desired quantity (1 - {max_stock}):",
+      "custom_invalid": "❌ Invalid quantity. Please enter a number between 1 and {max_stock}.",
+      "custom_success": "✅ Quantity updated to {quantity}"
     },
     "detail": {
       "not_found": "❌ Product not found.",

@@ -29,10 +29,17 @@
   },
   "products": {
     "list": {
-      "title": "🛍️ DANH SÁCH SẢN PHẨM",
-      "page": "📄 Trang {current}/{total}"
+      "title": "LIST PRODUCT",
+      "page": "page {current} / {total}"
     },
     "detail": {
+      "product_label": "・ Product",
+      "stock_total": "・ Stock Total",
+      "detail_label": "・ Detail",
+      "variations_header": "Variations, Prices & Stock",
+      "variation_line": "・ {name}: {price} - Stock: {stock}",
+      "refresh": "🔄 Làm mới",
+      "back_to_list": "◀ Quay lại danh sách",
       "not_found": "❌ Không tìm thấy sản phẩm.",
       "no_variations": "❌ Sản phẩm này chưa có phân loại nào.",
       "title": "📦 CHI TIẾT SẢN PHẨM",
@@ -40,6 +47,20 @@
       "description": "📝 Mô tả: {description}",
       "variations": "🔸 Các phân loại:",
       "back": "◀️ Quay lại"
+    },
+    "order_confirmation": {
+      "title": "ORDER CONFIRMATION 🛒",
+      "product": "・Product",
+      "variation": "・Variation",
+      "unit_price": "・Unit price",
+      "in_stock": "・In stock",
+      "order_quantity": "・Order Quantity",
+      "total_payment": "・Total Payment",
+      "proceed_payment": "💳 Tiến hành thanh toán",
+      "custom": "⚙️ Tuỳ chọn",
+      "custom_prompt": "📝 Vui lòng nhập số lượng bạn muốn (1 - {max_stock}):",
+      "custom_invalid": "❌ Số lượng không hợp lệ. Vui lòng nhập số từ 1 đến {max_stock}.",
+      "custom_success": "✅ Đã cập nhật số lượng thành {quantity}"
     },
     "variation": {
       "title": "📦 CHI TIẾT PHÂN LOẠI",
@@ -104,8 +125,8 @@
     "validation": "❌ Lỗi: {error}"
   },
   "buttons": {
-    "next": "Tiếp ▶️",
-    "prev": "◀️ Trước",
+    "next": "NEXT PAGE ▶",
+    "prev": "◀ PREV PAGE",
     "back": "◀️ Quay lại",
     "confirm": "✅ Xác nhận",
     "cancel": "❌ Hủy",
