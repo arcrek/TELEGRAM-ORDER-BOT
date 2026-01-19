@@ -58,6 +58,7 @@
       "total_payment": "・Total Payment",
       "proceed_payment": "💳 Tiến hành thanh toán",
       "custom": "⚙️ Tuỳ chọn",
+      "cancel": "❌ Huỷ",
       "custom_prompt": "📝 Vui lòng nhập số lượng bạn muốn (1 - {max_stock}):",
       "custom_invalid": "❌ Số lượng không hợp lệ. Vui lòng nhập số từ 1 đến {max_stock}.",
       "custom_success": "✅ Đã cập nhật số lượng thành {quantity}"

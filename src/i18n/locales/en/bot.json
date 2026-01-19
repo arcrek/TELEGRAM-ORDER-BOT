@@ -51,6 +51,7 @@
       "total_payment": "Total Payment",
       "proceed_payment": "💳 Proceed payment",
       "custom": "⚙️ Custom",
+      "cancel": "❌ Cancel",
       "custom_prompt": "📝 Please enter your desired quantity (1 - {max_stock}):",
       "custom_invalid": "❌ Invalid quantity. Please enter a number between 1 and {max_stock}.",
       "custom_success": "✅ Quantity updated to {quantity}"

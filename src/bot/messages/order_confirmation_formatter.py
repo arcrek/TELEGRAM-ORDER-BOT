@@ -133,14 +133,16 @@ class OrderConfirmationFormatter:
                 InlineKeyboardButton("-5", callback_data=f"qty_{variation_id}_-5")
             )
         
-        # Custom button - always show it
-        custom_text = t('products.order_confirmation.custom', update) if update else "⚙️ Custom"
-        adjustment_row.append(
-            InlineKeyboardButton(custom_text, callback_data=f"qty_custom_{variation_id}")
-        )
-        
         if adjustment_row:
             keyboard.append(adjustment_row)
+        
+        # Custom button + Cancel button row
+        custom_text = t('products.order_confirmation.custom', update) if update else "⚙️ Custom"
+        cancel_text = t('products.order_confirmation.cancel', update) if update else "❌ Cancel"
+        keyboard.append([
+            InlineKeyboardButton(custom_text, callback_data=f"qty_custom_{variation_id}"),
+            InlineKeyboardButton(cancel_text, callback_data="back_to_list")
+        ])
         
         # Proceed payment button
         proceed_text = t('products.order_confirmation.proceed_payment', update) if update else "💳 Proceed payment"

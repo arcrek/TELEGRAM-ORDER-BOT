@@ -381,6 +381,7 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
         
         # Get actual stock based on delivery type
         actual_stock = get_actual_stock(variation, product, variation_service)
+        variation.stock = actual_stock  # Override with actual stock for display
         
         # Try to parse the quantity
         try:
