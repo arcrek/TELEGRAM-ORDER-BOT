@@ -68,6 +68,10 @@ export function PreUploadedPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<PreUploadedProduct | null>(null)
 
+  // Bulk selection & delete state
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+
   useEffect(() => {
     fetchData()
     fetchStatistics()
@@ -99,6 +103,7 @@ export function PreUploadedPage() {
       setProducts(response.data.items)
       setTotalPages(response.data.total_pages)
       setTotal(response.data.total)
+      setSelectedProductIds([])
       setError(null)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load pre-uploaded products')
@@ -168,6 +173,25 @@ export function PreUploadedPage() {
     setShowDeleteModal(true)
   }
 
+  const handleToggleSelectAll = () => {
+    if (selectedProductIds.length === products.length) {
+      setSelectedProductIds([])
+    } else {
+      setSelectedProductIds(products.map((p) => p.id))
+    }
+  }
+
+  const handleToggleSelectOne = (productId: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
+    )
+  }
+
+  const handleBulkDelete = () => {
+    if (!selectedProductIds.length) return
+    setShowBulkDeleteModal(true)
+  }
+
   const handleConfirmDelete = async () => {
     if (!selectedProduct) return
     
@@ -180,6 +204,7 @@ export function PreUploadedPage() {
         }
       )
       setShowDeleteModal(false)
+      setSelectedProductIds((prev) => prev.filter((id) => id !== selectedProduct.id))
       await fetchData()
       await fetchStatistics()
     } catch (err: any) {
@@ -288,6 +313,21 @@ export function PreUploadedPage() {
       <Card className="products-card">
         <div className="products-header">
           <h2>Products ({total})</h2>
+          <div className="products-bulk-actions">
+            <span className="selected-count">
+              {selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : ''}
+            </span>
+            <Button
+              onClick={handleBulkDelete}
+              variant="secondary"
+              size="small"
+              disabled={selectedProductIds.length === 0}
+              title="Delete selected products"
+            >
+              <Trash2 size={14} />
+              Delete Selected
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -308,6 +348,14 @@ export function PreUploadedPage() {
               <table>
                 <thead>
                   <tr>
+                    <th className="select-column">
+                      <input
+                        type="checkbox"
+                        className="select-checkbox"
+                        checked={products.length > 0 && selectedProductIds.length === products.length}
+                        onChange={handleToggleSelectAll}
+                      />
+                    </th>
                     <th>Product</th>
                     <th>Variation</th>
                     <th>Product Data</th>
@@ -319,6 +367,14 @@ export function PreUploadedPage() {
                 <tbody>
                   {products.map((product) => (
                     <tr key={product.id}>
+                      <td className="select-column">
+                        <input
+                          type="checkbox"
+                          className="select-checkbox"
+                          checked={selectedProductIds.includes(product.id)}
+                          onChange={() => handleToggleSelectOne(product.id)}
+                        />
+                      </td>
                       <td>
                         <div className="product-info">
                           <strong>{product.product_name}</strong>
@@ -451,6 +507,61 @@ export function PreUploadedPage() {
               </Button>
               <Button type="button" onClick={handleConfirmDelete} style={{ background: '#EF4444', borderColor: '#EF4444' }}>
                 Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Modal */}
+      {showBulkDeleteModal && selectedProductIds.length > 0 && (
+        <div className="modal-overlay" onClick={() => setShowBulkDeleteModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <Trash2 size={20} />
+                Delete Selected Pre-uploaded Products
+              </h2>
+              <button onClick={() => setShowBulkDeleteModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p>
+                Are you sure you want to delete{' '}
+                <strong>{selectedProductIds.length}</strong> selected pre-uploaded products?
+              </p>
+              <p className="delete-warning" style={{ marginTop: '16px', color: '#EF4444', fontSize: '14px' }}>
+                This will permanently delete the selected products. This action cannot be undone.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <Button type="button" variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token')
+                    await axios.post(
+                      `${API_BASE_URL}/api/pre-uploaded-products/bulk-delete`,
+                      { ids: selectedProductIds },
+                      {
+                        headers: { Authorization: `Bearer ${token}` },
+                      }
+                    )
+                    setShowBulkDeleteModal(false)
+                    setSelectedProductIds([])
+                    await fetchData()
+                    await fetchStatistics()
+                  } catch (err: any) {
+                    setError(
+                      err.response?.data?.detail || 'Failed to bulk delete pre-uploaded products'
+                    )
+                  }
+                }}
+                style={{ background: '#EF4444', borderColor: '#EF4444' }}
+              >
+                Delete Selected
               </Button>
             </div>
           </div>

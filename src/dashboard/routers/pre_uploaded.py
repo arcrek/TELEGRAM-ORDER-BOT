@@ -32,6 +32,11 @@ class PreUploadedProductResponse(BaseModel):
         from_attributes = True
 
 
+class BulkDeleteRequest(BaseModel):
+    """Request schema for bulk deleting pre-uploaded products."""
+    ids: list[str]
+
+
 @router.get("/pre-uploaded-products")
 async def list_pre_uploaded_products(
     page: int = Query(1, ge=1),
@@ -242,3 +247,47 @@ async def delete_pre_uploaded_product(
     db.commit()
     
     return {"message": f"Pre-uploaded product {product_id} deleted successfully"}
+
+
+@router.post("/pre-uploaded-products/bulk-delete")
+async def bulk_delete_pre_uploaded_products(
+    request: BulkDeleteRequest,
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Bulk delete pre-uploaded products permanently.
+    
+    Args:
+        request: BulkDeleteRequest containing list of pre-uploaded product IDs.
+    
+    Returns:
+        Dictionary with number of deleted products.
+    """
+    if not request.ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No product IDs provided for deletion",
+        )
+
+    # Find all products matching the provided IDs
+    products = (
+        db.query(PreUploadedProduct)
+        .filter(PreUploadedProduct.id.in_(request.ids))
+        .all()
+    )
+
+    if not products:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No matching pre-uploaded products found for provided IDs",
+        )
+
+    deleted_count = 0
+    for product in products:
+        db.delete(product)
+        deleted_count += 1
+
+    db.commit()
+
+    return {"deleted": deleted_count}

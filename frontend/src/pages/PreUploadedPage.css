@@ -167,6 +167,10 @@
 
 .products-header {
   margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .products-header h2 {
@@ -174,6 +178,18 @@
   font-weight: 600;
   color: var(--text-primary, #EAEAEA);
   margin: 0;
+}
+
+.products-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.products-bulk-actions .selected-count {
+  font-size: 14px;
+  color: var(--text-muted, #8F8F8F);
+  min-width: 80px;
 }
 
 .error-banner {
@@ -212,6 +228,17 @@
 .products-table table {
   width: 100%;
   border-collapse: collapse;
+}
+
+.products-table .select-column {
+  width: 40px;
+  text-align: center;
+}
+
+.select-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .products-table thead {
