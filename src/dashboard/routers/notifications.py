@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 from src.dashboard.auth import get_current_admin, require_admin_role, get_db
 from src.database.services.notification_service import NotificationService
 from src.database.services.bot_user_service import BotUserService
+from src.database.services.notification_settings_service import (
+    NotificationSettingsService,
+)
 from src.pay2s.ipn_order_processor import get_global_customer_bot
 from src.bot.utils.bot_instance import get_shared_bot_instance
 
@@ -72,6 +75,24 @@ class NotificationResponse(BaseModel):
     successful: int
     failed: int
     details: Optional[List[dict]] = None
+
+
+class OrderNotificationSettingsResponse(BaseModel):
+    """Response schema for order notification settings."""
+
+    order_notify_enabled: bool
+    order_notify_on_created: bool
+    order_notify_on_paid: bool
+    whitelist_chat_ids: List[int]
+
+
+class OrderNotificationSettingsUpdate(BaseModel):
+    """Update payload for order notification settings."""
+
+    order_notify_enabled: bool
+    order_notify_on_created: bool
+    order_notify_on_paid: bool
+    whitelist_chat_ids: List[int]
 
 
 @router.post("/send", response_model=NotificationResponse)
@@ -196,4 +217,100 @@ async def list_bot_users(
         }
         for user in users
     ]
+
+
+@router.get("/order-settings", response_model=OrderNotificationSettingsResponse)
+async def get_order_notification_settings(
+    current_admin=Depends(require_admin_role),
+    db: Session = Depends(get_db),
+):
+    """
+    Get global order notification settings.
+
+    Admin role required.
+    """
+    settings_service = NotificationSettingsService(db)
+    settings = settings_service.get_settings()
+    whitelist_ids = settings_service.get_whitelist_chat_ids(settings)
+
+    return OrderNotificationSettingsResponse(
+        order_notify_enabled=settings.order_notify_enabled,
+        order_notify_on_created=settings.order_notify_on_created,
+        order_notify_on_paid=settings.order_notify_on_paid,
+        whitelist_chat_ids=whitelist_ids,
+    )
+
+
+@router.put("/order-settings", response_model=OrderNotificationSettingsResponse)
+async def update_order_notification_settings(
+    payload: OrderNotificationSettingsUpdate,
+    current_admin=Depends(require_admin_role),
+    db: Session = Depends(get_db),
+):
+    """
+    Update global order notification settings.
+
+    Admin role required.
+    """
+    settings_service = NotificationSettingsService(db)
+    settings = settings_service.update_settings(
+        order_notify_enabled=payload.order_notify_enabled,
+        order_notify_on_created=payload.order_notify_on_created,
+        order_notify_on_paid=payload.order_notify_on_paid,
+        whitelist_chat_ids=payload.whitelist_chat_ids,
+    )
+    whitelist_ids = settings_service.get_whitelist_chat_ids(settings)
+
+    return OrderNotificationSettingsResponse(
+        order_notify_enabled=settings.order_notify_enabled,
+        order_notify_on_created=settings.order_notify_on_created,
+        order_notify_on_paid=settings.order_notify_on_paid,
+        whitelist_chat_ids=whitelist_ids,
+    )
+
+
+@router.post("/order-settings/test", response_model=NotificationResponse)
+async def test_order_notification_settings(
+    current_admin=Depends(require_admin_role),
+    db: Session = Depends(get_db),
+):
+    """
+    Send a test notification using current order notification settings.
+
+    Admin role required.
+    """
+    settings_service = NotificationSettingsService(db)
+    settings = settings_service.get_settings()
+    whitelist_ids = settings_service.get_whitelist_chat_ids(settings)
+
+    if not settings.order_notify_enabled or not whitelist_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Order notifications are disabled or whitelist is empty. "
+                "Enable notifications and add at least one chat ID first."
+            ),
+        )
+
+    bot = get_bot_instance()
+    if not bot:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Bot instance not available. Please ensure TELEGRAM_BOT_TOKEN is set.",
+        )
+
+    notification_service = NotificationService(db, bot=bot)
+    test_message = "🔔 Test order notification.\nThis is a test from the dashboard settings."
+    results = await notification_service.send_notification_to_multiple_users_async(
+        telegram_user_ids=whitelist_ids,
+        message=test_message,
+    )
+
+    return NotificationResponse(
+        success=results["failed"] == 0,
+        total=results["total"],
+        successful=results["success"],
+        failed=results["failed"],
+        details=results.get("details"),
+    )
 

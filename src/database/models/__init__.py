@@ -13,6 +13,7 @@ from src.database.models.product_supplier_assignment import ProductSupplierAssig
 from src.database.models.admin import Admin, AdminRole
 from src.database.models.bot_user import BotUser
 from src.database.models.user_preference import UserPreference
+from src.database.models.notification_settings import NotificationSettings
 from src.database.models.enums import (
     DeliveryType,
     OrderStatus,
@@ -33,6 +34,7 @@ __all__ = [
     "AdminRole",
     "BotUser",
     "UserPreference",
+    "NotificationSettings",
     "DeliveryType",
     "OrderStatus",
     "SupplierOrderStatus",

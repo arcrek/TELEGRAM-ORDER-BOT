@@ -13,6 +13,7 @@ from src.database.services.order_service import OrderService
 from src.database.services.delivery_service import DeliveryService
 from src.database.services.pre_uploaded_service import PreUploadedService
 from src.database.services.supplier_order_service import SupplierOrderService
+from src.database.services.order_notification_service import OrderNotificationService
 from src.database.models.enums import OrderStatus, DeliveryType
 from telegram import Bot
 from telegram.error import TelegramError
@@ -132,6 +133,13 @@ class IPNOrderProcessor:
                 status=OrderStatus.PAID,
                 payment_transaction_id=transaction_id,
             )
+
+            # Fire order-paid notification (best effort, does not affect delivery)
+            try:
+                notify_service = OrderNotificationService(session, bot=self.bot)
+                notify_service.send_order_paid(order_id)
+            except Exception as e:
+                logger.warning(f"Order paid notification failed for {order_id}: {e}")
             
             # Process the order (determine delivery type and trigger delivery)
             if not delivery_service.process_paid_order(order_id):

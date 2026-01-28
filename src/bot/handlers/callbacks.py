@@ -10,6 +10,7 @@ from src.database.connection import get_session_factory
 from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService
 from src.database.services.order_service import OrderService
+from src.database.services.order_notification_service import OrderNotificationService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
@@ -612,6 +613,14 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         except ValueError as e:
             await query.edit_message_text(f"❌ {str(e)}")
             return
+
+        # Fire order-created notification (best effort, non-blocking for user flow)
+        try:
+            notify_service = OrderNotificationService(session, bot=context.bot)
+            # Do not await strictly; but since we are already async, we await and ignore errors.
+            await notify_service.send_order_created_async(order.id)
+        except Exception as e:
+            logger.warning(f"Order created notification failed for {order.id}: {e}")
         
         # Create payment URL
         try:
