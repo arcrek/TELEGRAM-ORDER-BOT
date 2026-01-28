@@ -242,9 +242,6 @@ export function StatisticsPage() {
         <Card className="stat-card stat-card--iotd">
           <div className="stat-card-content stat-card-content--iotd">
             <div className="stat-card-info">
-              <div className="stat-card-iotd-head">
-                <h3>Image of the Day</h3>
-              </div>
               <div className="stat-card-iotd-frame">
                 {iotdUrl ? (
                   <img src={iotdUrl} alt="Image of the Day" />
