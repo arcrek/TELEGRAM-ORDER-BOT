@@ -191,8 +191,19 @@
   margin-top: var(--space-4);
 }
 
+.statistics-iotd-card {
+  width: 100%;
+  max-width: 25%;
+}
+
 .statistics-iotd-card .chart-header {
   margin-bottom: var(--space-3);
+}
+
+@media (max-width: 768px) {
+  .statistics-iotd-card {
+    max-width: 100%;
+  }
 }
 
 .chart-card {
