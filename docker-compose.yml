@@ -7,8 +7,18 @@ services:
       - .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+      # Telegram Bot Tokens (needed for PayOS webhook fulfillment)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
+      # PayOS Configuration (needed for webhook verification)
+      PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
+      PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:-}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
     volumes:
       - database-data:/app/data
+      - delivery-data:/app/delivery_data
     ports:
       - "8001:8000"
     restart: unless-stopped
@@ -27,6 +37,16 @@ services:
       - .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+      # Payment provider selection
+      PAYMENT_PROVIDER_DEFAULT: ${PAYMENT_PROVIDER_DEFAULT:-payos}
+      # PayOS Configuration (needed for payment creation)
+      PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
+      PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:-}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
+      PAYOS_RETURN_URL: ${PAYOS_RETURN_URL:-https://t.me/your_bot}
+      PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL:-https://t.me/your_bot}
       # Pay2S Configuration (needed for payment creation)
       PAY2S_ENDPOINT: ${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
       PAY2S_PARTNER_CODE: ${PAY2S_PARTNER_CODE}

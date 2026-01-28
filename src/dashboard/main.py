@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from src.dashboard.routers import auth, statistics, products, orders, suppliers, product_upload, pre_uploaded, variations, product_supplier_assignments, notifications
+from src.dashboard.routers import auth, statistics, products, orders, suppliers, product_upload, pre_uploaded, variations, product_supplier_assignments, notifications, payos_webhook
 
 # Load environment variables from .env file
 load_dotenv()
@@ -50,6 +50,7 @@ app.include_router(pre_uploaded.router, prefix="/api", tags=["pre-uploaded"])
 app.include_router(variations.router, prefix="/api/variations", tags=["variations"])
 app.include_router(product_supplier_assignments.router, prefix="/api/suppliers", tags=["product-supplier-assignments"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(payos_webhook.router, prefix="/api/payos", tags=["payos"])
 
 
 @app.get("/")

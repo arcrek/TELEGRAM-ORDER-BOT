@@ -8,9 +8,9 @@
     "help": {
       "title": "📋 Hướng Dẫn Sử Dụng:",
       "start": "/start - Khởi động bot",
-      "help": "/help - Xem hướng dẫn này",
+      "help": "/help - Xem hướng dẫn",
       "products": "/products - Xem danh sách sản phẩm",
-      "interaction_hint": "\n💡 Mẹo: Sử dụng các nút bấm trong tin nhắn để chọn sản phẩm và đặt hàng nhanh chóng!",
+      "interaction_hint": "\n💡 Sử dụng các nút bấm trong tin nhắn để chọn sản phẩm và đặt hàng nhanh chóng!",
       "admin_title": "\n🔧 Lệnh Quản Trị:",
       "notify_all": "/notify_all <nội dung> - Gửi thông báo cho tất cả",
       "notify_user": "/notify_user <user_id> <nội dung> - Gửi cho người dùng cụ thể",

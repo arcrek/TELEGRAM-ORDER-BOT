@@ -2,6 +2,7 @@
 Auto-cancel service for cancelling unpaid orders after 30 minutes.
 """
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import List
 from sqlalchemy.orm import Session
@@ -72,6 +73,37 @@ class AutoCancelService:
                     f"Order {order.id} is no longer PENDING (status: {order.status.value}), skipping auto-cancel"
                 )
                 return False
+
+            # If this is a PayOS order, attempt to cancel the PayOS payment link too
+            if getattr(order, "payment_provider", None) == "payos" and getattr(order, "payos_payment_link_id", None):
+                try:
+                    from src.payos.client import PayOSClient, PayOSCredentials
+
+                    base_url = os.getenv("PAYOS_BASE_URL", "https://api-merchant.payos.vn")
+                    client_id = os.getenv("PAYOS_CLIENT_ID", "")
+                    api_key = os.getenv("PAYOS_API_KEY", "")
+                    checksum_key = os.getenv("PAYOS_CHECKSUM_KEY", "")
+                    partner_code = os.getenv("PAYOS_PARTNER_CODE", "")
+
+                    if client_id and api_key and checksum_key:
+                        payos = PayOSClient(
+                            base_url=base_url,
+                            credentials=PayOSCredentials(
+                                client_id=client_id,
+                                api_key=api_key,
+                                checksum_key=checksum_key,
+                                partner_code=partner_code,
+                            ),
+                        )
+                        payos.cancel_payment_link(
+                            payment_link_id=str(order.payos_payment_link_id),
+                            cancellation_reason="Auto-cancelled (timeout)",
+                        )
+                        logger.info(f"Cancelled PayOS payment link {order.payos_payment_link_id} for order {order.id}")
+                    else:
+                        logger.warning("PayOS credentials not configured; skipping PayOS cancel")
+                except Exception as e:
+                    logger.warning(f"Failed to cancel PayOS payment link for order {order.id}: {str(e)}")
             
             # Cancel the order
             cancelled_order = self.order_service.cancel_order(order.id)

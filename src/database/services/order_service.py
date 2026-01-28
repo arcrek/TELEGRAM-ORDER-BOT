@@ -1,6 +1,7 @@
 """
 Order service layer for business logic.
 """
+import secrets
 import uuid
 from typing import Optional, List, Dict
 from sqlalchemy.orm import Session
@@ -40,6 +41,25 @@ class OrderService:
             Order item ID string
         """
         return f"item_{uuid.uuid4().hex[:8]}"
+
+    def generate_payos_order_code(self) -> int:
+        """
+        Generate a PayOS-compatible orderCode (integer).
+
+        We keep this within signed 32-bit range to avoid any possible limitations,
+        and ensure uniqueness with a DB check + retry.
+        """
+        # 9-digit range (< 2^31) keeps it safe and still very low collision risk.
+        for _ in range(30):
+            candidate = 100_000_000 + secrets.randbelow(900_000_000)
+            exists = (
+                self.session.query(Order)
+                .filter(Order.payos_order_code == candidate)
+                .first()
+            )
+            if not exists:
+                return candidate
+        raise RuntimeError("Unable to generate unique PayOS orderCode after retries")
 
     def validate_stock(self, variation_id: str, quantity: int) -> bool:
         """

@@ -617,6 +617,196 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         try:
             import os
             import sys
+            import time
+            import json
+
+            # Determine payment provider (default: payos)
+            payment_provider = os.getenv("PAYMENT_PROVIDER_DEFAULT", "payos").lower()
+            try:
+                from config.config import PAYMENT_PROVIDER_DEFAULT as _PAYMENT_PROVIDER_DEFAULT
+
+                if _PAYMENT_PROVIDER_DEFAULT:
+                    payment_provider = str(_PAYMENT_PROVIDER_DEFAULT).lower()
+            except ModuleNotFoundError:
+                pass
+
+            # PayOS flow (default)
+            if payment_provider == "payos":
+                try:
+                    from config.config import (
+                        PAYOS_BASE_URL,
+                        PAYOS_PARTNER_CODE,
+                        PAYOS_CLIENT_ID,
+                        PAYOS_API_KEY,
+                        PAYOS_CHECKSUM_KEY,
+                        PAYOS_RETURN_URL,
+                        PAYOS_CANCEL_URL,
+                    )
+                except ModuleNotFoundError:
+                    PAYOS_BASE_URL = os.getenv("PAYOS_BASE_URL", "https://api-merchant.payos.vn")
+                    PAYOS_PARTNER_CODE = os.getenv("PAYOS_PARTNER_CODE", "")
+                    PAYOS_CLIENT_ID = os.getenv("PAYOS_CLIENT_ID", "")
+                    PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
+                    PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
+                    PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
+                    PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
+
+                if not PAYOS_CLIENT_ID or not PAYOS_API_KEY or not PAYOS_CHECKSUM_KEY:
+                    await query.answer("Payment configuration error", show_alert=True)
+                    await query.edit_message_text(
+                        "❌ Payment configuration error.\n\n"
+                        "PAYOS_CLIENT_ID / PAYOS_API_KEY / PAYOS_CHECKSUM_KEY is not configured.\n"
+                        "Please set environment variables or update config/config.py"
+                    )
+                    return
+
+                try:
+                    from src.payos.client import PayOSClient, PayOSCredentials
+                    from src.bot.utils.qr import make_qr_png_bytes
+                except Exception as e:
+                    logger.error(f"Failed to import PayOS modules: {e}", exc_info=True)
+                    await query.edit_message_text("❌ Payment module error. Please contact support.")
+                    return
+
+                # Assign PayOS identifiers on the order
+                try:
+                    payos_order_code = order_service.generate_payos_order_code()
+                    order.payment_provider = "payos"
+                    order.payos_order_code = payos_order_code
+                    session.commit()
+                except Exception as e:
+                    logger.error(f"Failed to set PayOS orderCode: {e}", exc_info=True)
+                    await query.edit_message_text("❌ Error preparing payment. Please try again.")
+                    return
+
+                payos = PayOSClient(
+                    base_url=PAYOS_BASE_URL,
+                    credentials=PayOSCredentials(
+                        client_id=PAYOS_CLIENT_ID,
+                        api_key=PAYOS_API_KEY,
+                        checksum_key=PAYOS_CHECKSUM_KEY,
+                        partner_code=PAYOS_PARTNER_CODE,
+                    ),
+                )
+
+                # PayOS description can be restrictive; keep it short.
+                description = f"MTK{order.id}"[:9]
+                expired_at = int(time.time()) + 30 * 60
+
+                try:
+                    payos_resp = payos.create_payment_link(
+                        order_code=int(payos_order_code),
+                        amount=int(order.total_amount),
+                        description=description,
+                        return_url=PAYOS_RETURN_URL,
+                        cancel_url=PAYOS_CANCEL_URL,
+                        expired_at=expired_at,
+                    )
+                except Exception as e:
+                    logger.error(f"PayOS create link failed: {e}", exc_info=True)
+                    await query.edit_message_text("❌ Payment creation failed. Please try again later.")
+                    return
+
+                pay_data = (payos_resp or {}).get("data") or {}
+                payment_link_id = pay_data.get("paymentLinkId")
+                checkout_url = pay_data.get("checkoutUrl")
+                qr_payload = pay_data.get("qrCode")
+
+                # Persist PayOS fields for webhook reconciliation / cancellation
+                try:
+                    order.payos_payment_link_id = str(payment_link_id) if payment_link_id else None
+                    order.payos_checkout_url = str(checkout_url) if checkout_url else None
+                    session.commit()
+                except Exception as e:
+                    logger.warning(f"Failed to store PayOS payment link fields: {e}")
+
+                state_manager.update_user_state(user_id, pending_order_id=order.id)
+
+                payment_message = (
+                    f"✅ Order created successfully!\n\n"
+                    f"📦 Order ID: {order.id}\n"
+                    f"💰 Total Amount: {order.total_amount:,} VND\n"
+                    f"📝 Items: {len(order.items)}\n\n"
+                    f"💳 Scan QR code below to complete payment\n\n"
+                    f"⏰ This order will be automatically cancelled if payment is not completed within 30 minutes."
+                )
+
+                cancel_keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
+                ])
+
+                # Keep original message ID so webhook can delete it too
+                text_message_id = query.message.message_id
+
+                # Edit the order confirmation message into payment message
+                await query.edit_message_text(payment_message)
+
+                if qr_payload:
+                    try:
+                        qr_image = make_qr_png_bytes(str(qr_payload))
+                        caption = (
+                            f"📦 Order ID: {order.id}\n"
+                            f"💰 Total: {order.total_amount:,} VND\n"
+                            f"📝 Items: {len(order.items)}\n\n"
+                            f"⏰ Auto-cancels in 30 minutes if unpaid"
+                        )
+                        if checkout_url:
+                            caption += f"\n\n🔗 Checkout:\n{checkout_url}"
+
+                        sent_message = await context.bot.send_photo(
+                            chat_id=user_id,
+                            photo=qr_image,
+                            caption=caption,
+                            reply_markup=cancel_keyboard,
+                        )
+
+                        message_ids = [text_message_id, sent_message.message_id]
+                        state_manager.update_user_state(
+                            user_id,
+                            payment_message_id=sent_message.message_id,
+                            payment_message_ids=message_ids,
+                        )
+                        order.payment_message_ids = json.dumps(message_ids)
+                        session.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to send PayOS QR image: {e}", exc_info=True)
+                        # Fallback: send checkout URL only
+                        fallback = payment_message
+                        if checkout_url:
+                            fallback += f"\n\n🔗 Checkout:\n{checkout_url}"
+                        edited = await context.bot.send_message(
+                            chat_id=user_id,
+                            text=fallback,
+                            reply_markup=cancel_keyboard,
+                        )
+                        message_ids = [text_message_id, edited.message_id]
+                        state_manager.update_user_state(
+                            user_id,
+                            payment_message_id=edited.message_id,
+                            payment_message_ids=message_ids,
+                        )
+                        order.payment_message_ids = json.dumps(message_ids)
+                        session.commit()
+                else:
+                    # No QR payload - fallback to checkout URL
+                    fallback = payment_message
+                    if checkout_url:
+                        fallback += f"\n\n🔗 Checkout:\n{checkout_url}"
+                    edited = await context.bot.send_message(
+                        chat_id=user_id,
+                        text=fallback,
+                        reply_markup=cancel_keyboard,
+                    )
+                    message_ids = [text_message_id, edited.message_id]
+                    state_manager.update_user_state(
+                        user_id,
+                        payment_message_id=edited.message_id,
+                        payment_message_ids=message_ids,
+                    )
+                    order.payment_message_ids = json.dumps(message_ids)
+                    session.commit()
+
+                return
             
             # Try to import config - handle both direct and Docker execution
             try:

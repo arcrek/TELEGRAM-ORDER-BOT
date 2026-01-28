@@ -74,6 +74,29 @@ class TestOrderService:
         assert isinstance(item_id, str)
         assert item_id.startswith("item_")
 
+    def test_generate_payos_order_code_unique(self, order_service, db_session):
+        """Test PayOS orderCode generation is int and unique (DB-checked)."""
+        codes = set()
+        for i in range(10):
+            code = order_service.generate_payos_order_code()
+            assert isinstance(code, int)
+            assert 100_000_000 <= code <= 999_999_999
+            assert code not in codes
+            codes.add(code)
+
+            # Persist to DB so next generation must avoid it
+            from src.database.models import Order
+            order = Order(
+                id=f"order_{i}",
+                user_id=123,
+                status=OrderStatus.PENDING,
+                total_amount=1000,
+                payos_order_code=code,
+                payment_provider="payos",
+            )
+            db_session.add(order)
+            db_session.commit()
+
     def test_validate_stock_sufficient(self, order_service, sample_variation):
         """Test stock validation with sufficient stock."""
         assert order_service.validate_stock("var_1", 50) is True
