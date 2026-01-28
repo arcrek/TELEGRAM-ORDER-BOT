@@ -552,20 +552,11 @@ docker compose exec bot curl -v https://<your_pay2s_endpoint>
 
 ### Database Errors
 
-**Symptom:** `sqlite3.OperationalError: no such table`
+**Symptom:** Missing table or relation errors (e.g. `relation "orders" does not exist`)
 
 **Solution:**
 ```bash
 # Run migrations
-docker compose exec api alembic upgrade head
-```
-
-**Symptom:** `attempt to write a readonly database`
-
-**Solution:** Already fixed with Docker volumes, but if it persists:
-```bash
-docker compose down -v
-docker compose up -d
 docker compose exec api alembic upgrade head
 ```
 

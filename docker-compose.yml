@@ -19,8 +19,7 @@ services:
       PAYOS_API_KEY: ${PAYOS_API_KEY:-}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
     volumes:
-      - database-data:/app/data
-      - delivery-data:/app/delivery_data
+      - ./data/delivery_data:/app/delivery_data
     ports:
       - "8001:8000"
     restart: unless-stopped
@@ -59,8 +58,7 @@ services:
       IPN_URL: ${IPN_URL}
       REDIRECT_URL: ${REDIRECT_URL:-https://t.me/your_bot}
     volumes:
-      - database-data:/app/data
-      - delivery-data:/app/delivery_data
+      - ./data/delivery_data:/app/delivery_data
     depends_on:
       api:
         condition: service_healthy
@@ -77,7 +75,7 @@ services:
       # Telegram configuration
       SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
     volumes:
-      - database-data:/app/data
+      - ./data/delivery_data:/app/delivery_data
     depends_on:
       api:
         condition: service_healthy
@@ -119,7 +117,6 @@ services:
   #     - IPN_HOST=0.0.0.0
   #     - IPN_PORT=5001
   #   volumes:
-  #     - database-data:/app/data
   #     - delivery-data:/app/delivery_data
   #   restart: unless-stopped
   #   healthcheck:
@@ -157,8 +154,6 @@ networks:
     driver: bridge
 
 volumes:
-  database-data:
-  delivery-data:
   postgres_dev_data:
   postgres_prod_data:
 

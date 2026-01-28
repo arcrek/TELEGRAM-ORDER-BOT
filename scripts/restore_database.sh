@@ -1,80 +1,55 @@
 #!/bin/bash
 #
-# Database Restore Script for MTK Bot Order System
-# Usage: ./scripts/restore_database.sh <backup_file>
+# PostgreSQL Database Restore Script for MTK Bot Order System
+# Usage: ./scripts/restore_database.sh [dev|prod] <backup_file.sql>
 #
 set -e
 
-# Configuration
-VOLUME_NAME="database-data"
+ENVIRONMENT="${1:-dev}"
+BACKUP_FILE="$2"
 
-# Colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo -e "${GREEN}=== MTK Bot Order System - Database Restore ===${NC}"
-echo ""
-
-# Check if backup file is provided
-if [ -z "$1" ]; then
-    echo -e "${RED}Error: Backup file not specified${NC}"
-    echo "Usage: $0 <backup_file>"
-    echo ""
-    echo "Available backups:"
-    ls -lh ./backups/*.db 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}'
+if [ -z "$BACKUP_FILE" ]; then
+    echo "Error: Backup file not specified"
+    echo "Usage: $0 [dev|prod] <backup_file.sql>"
     exit 1
 fi
 
-BACKUP_FILE="$1"
-
-# Check if backup file exists
 if [ ! -f "$BACKUP_FILE" ]; then
-    echo -e "${RED}Error: Backup file '$BACKUP_FILE' not found${NC}"
+    echo "Error: Backup file '$BACKUP_FILE' not found"
     exit 1
 fi
 
-# Check if docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo -e "${RED}Error: Docker is not running${NC}"
-    exit 1
+if [ "$ENVIRONMENT" = "prod" ]; then
+    SERVICE="postgres-prod"
+    DB_NAME="${PROD_DB_NAME:-mtkbot_prod}"
+    DB_USER="${PROD_DB_USER:-mtkbot_prod}"
+else
+    SERVICE="postgres-dev"
+    DB_NAME="${DEV_DB_NAME:-mtkbot_dev}"
+    DB_USER="${DEV_DB_USER:-mtkbot_dev}"
 fi
 
-echo -e "${YELLOW}WARNING: This will replace the current database!${NC}"
+echo "=== MTK Bot Order System - PostgreSQL Restore ($ENVIRONMENT) ==="
+echo "Service: $SERVICE"
+echo "Database: $DB_NAME"
 echo "Backup file: $BACKUP_FILE"
-echo ""
+echo "WARNING: This will replace the current database!"
 read -p "Are you sure you want to continue? (yes/no): " CONFIRM
 
 if [ "$CONFIRM" != "yes" ]; then
-    echo -e "${YELLOW}Restore cancelled${NC}"
+    echo "Restore cancelled"
     exit 0
 fi
 
-echo ""
-echo -e "${YELLOW}Stopping services...${NC}"
-docker compose stop bot bot_supplier api
+echo "Stopping application services..."
+docker compose stop bot bot_supplier api || true
 
-echo -e "${YELLOW}Restoring database...${NC}"
-
-# Get absolute path of backup file
+echo "Restoring database..."
 BACKUP_ABS_PATH=$(realpath "$BACKUP_FILE")
 BACKUP_DIR=$(dirname "$BACKUP_ABS_PATH")
 BACKUP_NAME=$(basename "$BACKUP_ABS_PATH")
 
-# Restore backup using a temporary container
-docker run --rm \
-    -v ${VOLUME_NAME}:/data \
-    -v "${BACKUP_DIR}:/backup" \
-    busybox \
-    cp /backup/${BACKUP_NAME} /data/database.db
+docker compose exec -T "$SERVICE" bash -c "psql -U \"$DB_USER\" -d \"$DB_NAME\" -f \"/backup/$BACKUP_NAME\"" \
+  -v "${BACKUP_DIR}:/backup"
 
-echo -e "${GREEN}✓ Database restored successfully!${NC}"
-echo ""
-echo -e "${YELLOW}Starting services...${NC}"
-docker compose up -d
-
-echo ""
-echo -e "${GREEN}Done! Services are starting up...${NC}"
-echo "Wait a few seconds for services to be ready."
-
+echo "Restore completed."

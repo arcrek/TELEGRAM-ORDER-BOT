@@ -1,36 +1,49 @@
 @echo off
-REM Database Restore Script for MTK Bot Order System (Windows)
-REM Usage: scripts\restore_database.bat <backup_file>
+REM PostgreSQL Database Restore Script for MTK Bot Order System (Windows)
+REM Usage: scripts\restore_database.bat [dev|prod] <backup_file.sql>
 
 setlocal
 
-set VOLUME_NAME=database-data
+set ENVIRONMENT=%1
+set BACKUP_FILE=%2
 
-echo === MTK Bot Order System - Database Restore ===
+if "%ENVIRONMENT%"=="" set ENVIRONMENT=dev
+
+echo === MTK Bot Order System - PostgreSQL Restore (%ENVIRONMENT%) ===
 echo.
 
-if "%1"=="" (
+if "%BACKUP_FILE%"=="" (
     echo [ERROR] Backup file not specified
-    echo Usage: %0 ^<backup_file^>
-    echo.
-    echo Available backups:
-    dir /b "backups\*.db" 2>nul
+    echo Usage: %0 [dev^|prod] ^<backup_file.sql^>
     exit /b 1
 )
-
-set BACKUP_FILE=%1
 
 if not exist "%BACKUP_FILE%" (
     echo [ERROR] Backup file '%BACKUP_FILE%' not found
     exit /b 1
 )
 
-echo WARNING: This will replace the current database!
+if "%ENVIRONMENT%"=="prod" (
+    set SERVICE=postgres-prod
+    if "%PROD_DB_NAME%"=="" set PROD_DB_NAME=mtkbot_prod
+    if "%PROD_DB_USER%"=="" set PROD_DB_USER=mtkbot_prod
+    set DB_NAME=%PROD_DB_NAME%
+    set DB_USER=%PROD_DB_USER%
+) else (
+    set SERVICE=postgres-dev
+    if "%DEV_DB_NAME%"=="" set DEV_DB_NAME=mtkbot_dev
+    if "%DEV_DB_USER%"=="" set DEV_DB_USER=mtkbot_dev
+    set DB_NAME=%DEV_DB_NAME%
+    set DB_USER=%DEV_DB_USER%
+)
+
+echo Service: %SERVICE%
+echo Database: %DB_NAME%
 echo Backup file: %BACKUP_FILE%
-echo.
+echo WARNING: This will replace the current database!
 set /p CONFIRM=Are you sure you want to continue? (yes/no): 
 
-if not "%CONFIRM%"=="yes" (
+if /I not "%CONFIRM%"=="yes" (
     echo Restore cancelled
     exit /b 0
 )
@@ -41,14 +54,12 @@ docker compose stop bot bot_supplier api
 
 echo Restoring database...
 
-REM Get backup directory and filename
 for %%F in ("%BACKUP_FILE%") do (
     set BACKUP_DIR=%%~dpF
     set BACKUP_NAME=%%~nxF
 )
 
-REM Restore backup
-docker run --rm -v %VOLUME_NAME%:/data -v "%BACKUP_DIR%:/backup" busybox cp /backup/%BACKUP_NAME% /data/database.db
+docker compose exec %SERVICE% bash -c "psql -U \"%DB_USER%\" -d \"%DB_NAME%\" -f \"/backup/%BACKUP_NAME%\"" -v "%BACKUP_DIR%:/backup"
 
 echo [SUCCESS] Database restored successfully!
 echo.

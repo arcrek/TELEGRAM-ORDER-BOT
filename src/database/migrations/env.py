@@ -23,7 +23,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Get database URL from environment or use default (mounted DB path in Docker)
+# Get database URL from environment.
 # Prefer the same logic as the main application (DATABASE_URL, then DEV/PROD_*).
 database_url = os.getenv("DATABASE_URL")
 
@@ -47,7 +47,10 @@ if not database_url:
         database_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
 if not database_url:
-    database_url = "sqlite:///data/database.db"
+    raise RuntimeError(
+        "Database configuration is missing for Alembic. "
+        "Set DATABASE_URL or DEV_DB_*/PROD_DB_* environment variables for PostgreSQL."
+    )
 
 config.set_main_option("sqlalchemy.url", database_url)
 

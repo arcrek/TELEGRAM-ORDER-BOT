@@ -50,8 +50,7 @@ RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app &&
 
 # Default envs (override in compose/.env)
 ENV HOST=0.0.0.0 \
-    PORT=8000 \
-    DATABASE_URL=sqlite:///data/database.db
+    PORT=8000
 
 USER appuser
 

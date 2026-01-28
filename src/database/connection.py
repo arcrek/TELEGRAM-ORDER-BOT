@@ -9,12 +9,11 @@ from src.database.models.base import Base
 
 
 def get_database_url() -> str:
-    """Get database URL from environment variable.
+    """Get database URL for PostgreSQL.
 
     Priority:
-    1. DATABASE_URL (explicit, can point to PostgreSQL or SQLite)
+    1. DATABASE_URL (explicit, should point to PostgreSQL)
     2. DEV/PROD PostgreSQL settings (if DATABASE_URL not set)
-    3. Fallback to mounted SQLite DB path used in Docker.
     """
     database_url = os.getenv("DATABASE_URL")
     if database_url:
@@ -39,8 +38,10 @@ def get_database_url() -> str:
     if host and name and user and password:
         return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
-    # Fallback to SQLite so existing setups keep working
-    return "sqlite:///data/database.db"
+    raise RuntimeError(
+        "Database configuration is missing. "
+        "Set DATABASE_URL or DEV_DB_*/PROD_DB_* environment variables for PostgreSQL."
+    )
 
 
 def create_engine_instance(database_url: str | None = None):
@@ -55,18 +56,8 @@ def create_engine_instance(database_url: str | None = None):
     """
     if database_url is None:
         database_url = get_database_url()
-    
-    # For SQLite, use StaticPool to allow multiple threads
-    if database_url.startswith("sqlite"):
-        engine = create_engine(
-            database_url,
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-            echo=False,
-        )
-    else:
-        engine = create_engine(database_url, echo=False)
-    
+
+    engine = create_engine(database_url, echo=False)
     return engine
 
 
