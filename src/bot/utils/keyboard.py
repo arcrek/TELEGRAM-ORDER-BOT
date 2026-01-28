@@ -24,6 +24,5 @@ def get_persistent_keyboard(update: Update) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,
-        persistent=True,
         one_time_keyboard=False
     )
