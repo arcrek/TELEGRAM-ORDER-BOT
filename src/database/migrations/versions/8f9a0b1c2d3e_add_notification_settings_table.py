@@ -29,19 +29,19 @@ def upgrade() -> None:
                 "order_notify_enabled",
                 sa.Boolean(),
                 nullable=False,
-                server_default=sa.text("0"),
+                server_default=sa.text("false"),
             ),
             sa.Column(
                 "order_notify_on_created",
                 sa.Boolean(),
                 nullable=False,
-                server_default=sa.text("0"),
+                server_default=sa.text("false"),
             ),
             sa.Column(
                 "order_notify_on_paid",
                 sa.Boolean(),
                 nullable=False,
-                server_default=sa.text("0"),
+                server_default=sa.text("false"),
             ),
             sa.Column("order_notify_whitelist_chat_ids", sa.Text(), nullable=True),
             sa.Column(
