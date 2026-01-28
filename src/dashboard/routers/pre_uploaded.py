@@ -146,7 +146,7 @@ async def mark_product_as_used(
     db: Session = Depends(get_db)
 ):
     """
-    Mark a pre-uploaded product as used.
+    Mark a pre-uploaded product as used (sold).
     
     Args:
         product_id: Pre-uploaded product ID
@@ -165,7 +165,11 @@ async def mark_product_as_used(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Pre-uploaded product {product_id} not found"
             )
+        # Manual override: mark as sold without linking to an order
+        from datetime import datetime, timezone
         product.is_used = True
+        if not product.used_at:
+            product.used_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(product)
     else:
@@ -204,6 +208,14 @@ async def mark_product_as_unused(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pre-uploaded product {product_id} not found"
+        )
+
+    # Prevent making a sold item available again.
+    # Once it has been consumed by an order, it must remain sold.
+    if product.used_by_order_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot mark product {product_id} as available because it was sold in order {product.used_by_order_id}"
         )
     
     product.is_used = False

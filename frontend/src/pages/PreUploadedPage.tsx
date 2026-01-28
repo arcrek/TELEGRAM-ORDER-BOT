@@ -147,7 +147,7 @@ export function PreUploadedPage() {
       await fetchData()
       await fetchStatistics()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to mark product as used')
+      setError(err.response?.data?.detail || 'Failed to mark product as sold')
     }
   }
 
@@ -164,7 +164,7 @@ export function PreUploadedPage() {
       await fetchData()
       await fetchStatistics()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to mark product as unused')
+      setError(err.response?.data?.detail || 'Failed to mark product as available')
     }
   }
 
@@ -259,11 +259,11 @@ export function PreUploadedPage() {
 
           <Card className="stat-card">
             <div className="stat-content">
-              <div className="stat-icon used">
+              <div className="stat-icon sold">
                 <XCircle size={24} />
               </div>
               <div className="stat-info">
-                <h3>Used</h3>
+                <h3>Sold</h3>
                 <p className="stat-value">{statistics.used}</p>
               </div>
             </div>
@@ -296,7 +296,7 @@ export function PreUploadedPage() {
               options={[
                 { value: null, label: 'All Status' },
                 { value: false, label: 'Available' },
-                { value: true, label: 'Used' },
+                { value: true, label: 'Sold' },
               ]}
               value={statusFilter}
               onChange={(value) => {
@@ -395,11 +395,11 @@ export function PreUploadedPage() {
                         </div>
                       </td>
                       <td>
-                        <span className={`status-badge ${product.is_used ? 'used' : 'available'}`}>
+                        <span className={`status-badge ${product.is_used ? 'sold' : 'available'}`}>
                           {product.is_used ? (
                             <>
                               <XCircle size={14} />
-                              Used
+                              Sold
                             </>
                           ) : (
                             <>
@@ -415,14 +415,16 @@ export function PreUploadedPage() {
                       <td>
                         <div className="action-buttons">
                           {product.is_used ? (
-                            <Button
-                              onClick={() => handleMarkUnused(product.id)}
-                              variant="secondary"
-                              size="small"
-                            >
-                              <CheckCircle size={14} />
-                              Mark Available
-                            </Button>
+                            product.used_by_order_id ? null : (
+                              <Button
+                                onClick={() => handleMarkUnused(product.id)}
+                                variant="secondary"
+                                size="small"
+                              >
+                                <CheckCircle size={14} />
+                                Mark Available
+                              </Button>
+                            )
                           ) : (
                             <Button
                               onClick={() => handleMarkUsed(product.id)}
@@ -430,7 +432,7 @@ export function PreUploadedPage() {
                               size="small"
                             >
                               <XCircle size={14} />
-                              Mark Used
+                              Mark Sold
                             </Button>
                           )}
                           <Button
