@@ -10,6 +10,7 @@ from src.database.services.user_preference_service import UserPreferenceService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.language import get_user_language, t
+from src.bot.utils.keyboard import get_persistent_keyboard
 
 
 # Global state manager instance
@@ -54,7 +55,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         f"{t('commands.start.description', update)}\n"
         f"{t('commands.start.help_hint', update)}"
     )
-    await update.message.reply_text(welcome_message)
+    # Show persistent keyboard with Products button
+    keyboard = get_persistent_keyboard(update)
+    await update.message.reply_text(welcome_message, reply_markup=keyboard)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -108,7 +111,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             f"{t('commands.help.notify_active', update)}"
         )
     
-    await update.message.reply_text(help_message)
+    # Show persistent keyboard
+    keyboard = get_persistent_keyboard(update)
+    await update.message.reply_text(help_message, reply_markup=keyboard)
 
 
 async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -158,10 +163,13 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         
         # Format message and keyboard
         message = formatter.format_product_list(products, current_page, total_pages, update)
-        keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
+        inline_keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
         
-        # Send message
-        await update.message.reply_text(message, reply_markup=keyboard)
+        # Send message with both inline keyboard (for product selection) and persistent keyboard (for Products button)
+        persistent_keyboard = get_persistent_keyboard(update)
+        await update.message.reply_text(message, reply_markup=inline_keyboard)
+        # Note: We can't combine inline and reply keyboards, so we send the persistent keyboard separately
+        # The inline keyboard takes precedence for this message, but the persistent keyboard remains visible
     except Exception as e:
         # Log error but don't fail the command
         import logging
@@ -170,6 +178,39 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(t('commands.products.error', update))
     finally:
         session.close()
+
+
+async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle Products button press from persistent keyboard.
+    
+    Args:
+        update: Telegram update object
+        context: Bot context
+    """
+    # Check if the message text matches the Products button text in any language
+    if not update.message or not update.message.text:
+        return  # Not a text message, ignore
+    
+    message_text = update.message.text.strip()
+    
+    # Get button text in current user's language
+    products_text = t('buttons.products', update)
+    
+    # Also check common variations (in case of language mismatch)
+    products_variations = [
+        products_text,
+        "🛒 Products",
+        "🛒 Sản phẩm",
+        "Products",
+        "Sản phẩm"
+    ]
+    
+    if message_text in products_variations:
+        # Call the products command handler
+        await products_command(update, context)
+        # Handler processed the message, other handlers will still be called but handle_custom_quantity_input
+        # will return early if user is not waiting for quantity input
 
 
 async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
