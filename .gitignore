@@ -51,4 +51,4 @@ Thumbs.db
 .claude/
 
 database.db
-
+data/*
