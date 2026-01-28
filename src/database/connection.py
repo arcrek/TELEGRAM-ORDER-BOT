@@ -9,10 +9,38 @@ from src.database.models.base import Base
 
 
 def get_database_url() -> str:
-    """Get database URL from environment variable."""
-    # Default to the mounted SQLite DB path used in Docker (/app/data/database.db)
-    # so local runs and containers stay in sync.
-    return os.getenv("DATABASE_URL", "sqlite:///data/database.db")
+    """Get database URL from environment variable.
+
+    Priority:
+    1. DATABASE_URL (explicit, can point to PostgreSQL or SQLite)
+    2. DEV/PROD PostgreSQL settings (if DATABASE_URL not set)
+    3. Fallback to mounted SQLite DB path used in Docker.
+    """
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return database_url
+
+    # Infer environment (default to dev if not explicitly set)
+    app_env = os.getenv("APP_ENV", "dev").lower()
+
+    if app_env == "prod":
+        host = os.getenv("PROD_DB_HOST")
+        port = os.getenv("PROD_DB_PORT", "5432")
+        name = os.getenv("PROD_DB_NAME")
+        user = os.getenv("PROD_DB_USER")
+        password = os.getenv("PROD_DB_PASSWORD")
+    else:
+        host = os.getenv("DEV_DB_HOST")
+        port = os.getenv("DEV_DB_PORT", "5432")
+        name = os.getenv("DEV_DB_NAME")
+        user = os.getenv("DEV_DB_USER")
+        password = os.getenv("DEV_DB_PASSWORD")
+
+    if host and name and user and password:
+        return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+
+    # Fallback to SQLite so existing setups keep working
+    return "sqlite:///data/database.db"
 
 
 def create_engine_instance(database_url: str | None = None):

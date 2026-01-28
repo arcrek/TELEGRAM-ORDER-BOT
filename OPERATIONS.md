@@ -35,9 +35,13 @@ The system consists of 5 Docker containers:
 
 ### Data Storage
 
-- **Database**: SQLite stored in Docker volume `database-data`
-- **Type**: Single file database (`database.db`)
-- **Shared**: All services access the same database volume
+- **Database (dev)**: PostgreSQL running in `postgres-dev` container
+  - Volume: `postgres_dev_data` mounted at `/var/lib/postgresql/data`
+  - Default connection: `DEV_DB_*` variables in `.env` (resolved automatically if `APP_ENV=dev`)
+- **Database (prod)**: PostgreSQL running in `postgres-prod` container
+  - Volume: `postgres_prod_data` mounted at `/var/lib/postgresql/data`
+  - Default connection: `PROD_DB_*` variables in `.env` / production env
+  - SQLite volume `database-data` is still present for legacy data but no longer used once PostgreSQL is enabled
 
 ---
 
@@ -101,6 +105,8 @@ docker compose exec api python scripts/create_admin.py \
   --full-name "Administrator"
 ```
 
+
+docker compose exec api python scripts/create_admin.py --username arcrek --password REDACTED_PASSWORD --full-name "arcrek"
 ### Regular Startup
 
 If the system is already configured:
@@ -255,9 +261,9 @@ Expected: HTML content
 
 ## Database Backup & Restore
 
-### Automated Backup
+### Automated Backup (PostgreSQL)
 
-**Linux/Mac:**
+**Linux/Mac (SQLite legacy):**
 ```bash
 # Make script executable (first time only)
 chmod +x scripts/backup_database.sh
@@ -269,7 +275,7 @@ chmod +x scripts/backup_database.sh
 ./scripts/backup_database.sh my_backup_20240106
 ```
 
-**Windows:**
+**Windows (SQLite legacy):**
 ```cmd
 scripts\backup_database.bat
 
@@ -288,6 +294,22 @@ backups/
 ```
 
 ### Manual Backup
+
+#### PostgreSQL (preferred)
+
+**Linux/Mac:**
+```bash
+mkdir -p backups
+docker compose exec postgres-dev pg_dump -U "$DEV_DB_USER" "$DEV_DB_NAME" > backups/dev_$(date +%Y%m%d_%H%M%S).sql
+```
+
+**Windows (PowerShell):**
+```powershell
+mkdir backups
+docker compose exec postgres-dev pg_dump -U "$env:DEV_DB_USER" "$env:DEV_DB_NAME" > backups/dev_manual_backup.sql
+```
+
+#### SQLite (legacy)
 
 **Linux/Mac:**
 ```bash

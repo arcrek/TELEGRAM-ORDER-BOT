@@ -6,7 +6,9 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+      # DATABASE_URL can still be used to override everything.
+      # By default, APP_ENV=dev and the app will connect to postgres-dev using DEV_DB_*.
+      APP_ENV: ${APP_ENV:-dev}
       # Telegram Bot Tokens (needed for PayOS webhook fulfillment)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
@@ -36,7 +38,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+      APP_ENV: ${APP_ENV:-dev}
       # Payment provider selection
       PAYMENT_PROVIDER_DEFAULT: ${PAYMENT_PROVIDER_DEFAULT:-payos}
       # PayOS Configuration (needed for payment creation)
@@ -71,7 +73,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-sqlite:///data/database.db}
+      APP_ENV: ${APP_ENV:-dev}
       # Telegram configuration
       SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
     volumes:
@@ -93,39 +95,62 @@ services:
     depends_on:
       - api
 
-  ipn-server:
-    build:
-      context: .
-      dockerfile: Dockerfile.ipn
-    container_name: pay2s-ipn-server
-    env_file:
-      - .env
-    ports:
-      - "${IPN_PORT:-5001}:5001"
+  # ipn-server:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.ipn
+  #   container_name: pay2s-ipn-server
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "${IPN_PORT:-5001}:5001"
+  #   environment:
+  #     # Database Configuration (same as other services)
+  #     - APP_ENV=${APP_ENV:-dev}
+  #     # Telegram Bot Tokens (for sending messages after payment)
+  #     - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+  #     - SUPPLIER_TELEGRAM_BOT_TOKEN=${SUPPLIER_TELEGRAM_BOT_TOKEN}
+  #     # Pay2S Configuration
+  #     - PAY2S_ENDPOINT=${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
+  #     - PAY2S_PARTNER_CODE=${PAY2S_PARTNER_CODE:-PAY2S7EPF0SB1ZP27W71}
+  #     - PAY2S_ACCESS_KEY=${PAY2S_ACCESS_KEY:-REDACTED_PAY2S_ACCESS_KEY}
+  #     - PAY2S_SECRET_KEY=${PAY2S_SECRET_KEY:-REDACTED_PAY2S_SECRET_KEY}
+  #     # IPN Server Configuration
+  #     - IPN_HOST=0.0.0.0
+  #     - IPN_PORT=5001
+  #   volumes:
+  #     - database-data:/app/data
+  #     - delivery-data:/app/delivery_data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 5s
+
+  postgres-dev:
+    image: postgres:16
     environment:
-      # Database Configuration (same as other services)
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///data/database.db}
-      # Telegram Bot Tokens (for sending messages after payment)
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - SUPPLIER_TELEGRAM_BOT_TOKEN=${SUPPLIER_TELEGRAM_BOT_TOKEN}
-      # Pay2S Configuration
-      - PAY2S_ENDPOINT=${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
-      - PAY2S_PARTNER_CODE=${PAY2S_PARTNER_CODE:-PAY2S7EPF0SB1ZP27W71}
-      - PAY2S_ACCESS_KEY=${PAY2S_ACCESS_KEY:-REDACTED_PAY2S_ACCESS_KEY}
-      - PAY2S_SECRET_KEY=${PAY2S_SECRET_KEY:-REDACTED_PAY2S_SECRET_KEY}
-      # IPN Server Configuration
-      - IPN_HOST=0.0.0.0
-      - IPN_PORT=5001
+      POSTGRES_DB: ${DEV_DB_NAME:-mtkbot_dev}
+      POSTGRES_USER: ${DEV_DB_USER:-mtkbot_dev}
+      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD:-dev_password_change_me}
+    ports:
+      # Expose for local tools; change or remove in production compose if needed.
+      - "5432:5432"
     volumes:
-      - database-data:/app/data
-      - delivery-data:/app/delivery_data
+      - ./data/postgres_dev_data:/var/lib/postgresql/data
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
+
+  postgres-prod:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${PROD_DB_NAME:-mtkbot_prod}
+      POSTGRES_USER: ${PROD_DB_USER:-mtkbot_prod}
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:-prod_password_change_me}
+    volumes:
+      - ./data/postgres_prod_data:/var/lib/postgresql/data
+    restart: unless-stopped
 
 networks:
   pay2s-network:
@@ -134,4 +159,6 @@ networks:
 volumes:
   database-data:
   delivery-data:
+  postgres_dev_data:
+  postgres_prod_data:
 

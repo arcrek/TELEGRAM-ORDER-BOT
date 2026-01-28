@@ -24,7 +24,31 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Get database URL from environment or use default (mounted DB path in Docker)
-database_url = os.getenv("DATABASE_URL", "sqlite:///data/database.db")
+# Prefer the same logic as the main application (DATABASE_URL, then DEV/PROD_*).
+database_url = os.getenv("DATABASE_URL")
+
+if not database_url:
+    app_env = os.getenv("APP_ENV", "dev").lower()
+
+    if app_env == "prod":
+        host = os.getenv("PROD_DB_HOST")
+        port = os.getenv("PROD_DB_PORT", "5432")
+        name = os.getenv("PROD_DB_NAME")
+        user = os.getenv("PROD_DB_USER")
+        password = os.getenv("PROD_DB_PASSWORD")
+    else:
+        host = os.getenv("DEV_DB_HOST")
+        port = os.getenv("DEV_DB_PORT", "5432")
+        name = os.getenv("DEV_DB_NAME")
+        user = os.getenv("DEV_DB_USER")
+        password = os.getenv("DEV_DB_PASSWORD")
+
+    if host and name and user and password:
+        database_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+
+if not database_url:
+    database_url = "sqlite:///data/database.db"
+
 config.set_main_option("sqlalchemy.url", database_url)
 
 # add your model's MetaData object here

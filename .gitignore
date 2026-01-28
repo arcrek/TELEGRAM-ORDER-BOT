@@ -50,5 +50,4 @@ Thumbs.db
 .cursor/
 .claude/
 
-database.db
 data/*
