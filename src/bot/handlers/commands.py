@@ -161,15 +161,25 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         total_count = product_service.get_total_count(only_active=True)
         total_pages = formatter.calculate_total_pages(total_count)
         
-        # Format message and keyboard
+        # Format message and inline keyboard (for product selection / pagination)
         message = formatter.format_product_list(products, current_page, total_pages, update)
         inline_keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
-        
-        # Send message with both inline keyboard (for product selection) and persistent keyboard (for Products button)
-        persistent_keyboard = get_persistent_keyboard(update)
+
+        # Send main message with inline keyboard
         await update.message.reply_text(message, reply_markup=inline_keyboard)
-        # Note: We can't combine inline and reply keyboards, so we send the persistent keyboard separately
-        # The inline keyboard takes precedence for this message, but the persistent keyboard remains visible
+
+        # Re-attach the reply keyboard in a lightweight follow-up message so that
+        # the bottom custom keyboard (e.g. "🛒 Sản phẩm") stays visible after /products.
+        #
+        # Telegram only allows one type of keyboard per message (inline OR reply),
+        # so we send a second small message that only carries the reply keyboard.
+        try:
+            hints_text = t("commands.help.interaction_hint", update)
+            keyboard = get_persistent_keyboard(update)
+            await update.message.reply_text(hints_text, reply_markup=keyboard)
+        except Exception:
+            # If anything goes wrong, we don't want to break the products flow
+            pass
     except Exception as e:
         # Log error but don't fail the command
         import logging
@@ -255,7 +265,20 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        # Send language selection message with inline keyboard
         await update.message.reply_text(message, reply_markup=reply_markup)
+
+        # Then re-send the persistent reply keyboard in a small follow-up message,
+        # so the bottom custom keyboard (e.g. "🛒 Sản phẩm") comes back after /lang.
+        try:
+            keyboard_reply = get_persistent_keyboard(update)
+            await update.message.reply_text(
+                t("commands.start.help_hint", update),
+                reply_markup=keyboard_reply,
+            )
+        except Exception:
+            # Don't break /lang flow if keyboard restore fails
+            pass
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
