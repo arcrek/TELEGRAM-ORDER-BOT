@@ -28,21 +28,36 @@ DELIVERY_FILES_DIR.mkdir(exist_ok=True)
 def run_async(coro):
     """
     Run an async coroutine in a synchronous context.
-    Used for calling telegram-bot async methods from Flask (sync).
+    Used for calling telegram-bot async methods from Flask (sync) or FastAPI (async).
     """
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If loop is already running, create a new one
+            # If loop is already running (e.g., in FastAPI async context), 
+            # we need to schedule it on the existing loop
             import concurrent.futures
+            import threading
+            
+            # Create a new event loop in a separate thread
+            def run_in_thread():
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    return new_loop.run_until_complete(coro)
+                finally:
+                    new_loop.close()
+            
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(asyncio.run, coro)
+                future = executor.submit(run_in_thread)
                 return future.result(timeout=30)
         else:
             return loop.run_until_complete(coro)
     except RuntimeError:
         # No event loop, create a new one
         return asyncio.run(coro)
+    except Exception as e:
+        logger.error(f"Error in run_async: {str(e)}", exc_info=True)
+        raise
 
 # Global state manager instance
 state_manager = StateManager()
@@ -164,19 +179,32 @@ class IPNOrderProcessor:
             
             logger.info(f"Delivery type: {delivery_type}")
             
-            if delivery_type == DeliveryType.PRE_UPLOADED:
-                # Handle pre-uploaded product delivery
-                logger.info(f"Processing PRE_UPLOADED delivery for order {order_id}")
-                self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
-            elif delivery_type == DeliveryType.SUPPLIER_BASED:
-                # Handle supplier-based delivery
-                logger.info(f"Processing SUPPLIER_BASED delivery for order {order_id}")
-                self._handle_supplier_delivery(session, order_id, order.user_id)
+            delivery_success = False
+            try:
+                if delivery_type == DeliveryType.PRE_UPLOADED:
+                    # Handle pre-uploaded product delivery
+                    logger.info(f"Processing PRE_UPLOADED delivery for order {order_id}")
+                    self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
+                    delivery_success = True
+                elif delivery_type == DeliveryType.SUPPLIER_BASED:
+                    # Handle supplier-based delivery
+                    logger.info(f"Processing SUPPLIER_BASED delivery for order {order_id}")
+                    self._handle_supplier_delivery(session, order_id, order.user_id)
+                    delivery_success = True
+                else:
+                    logger.error(f"Unknown delivery type: {delivery_type} for order {order_id}")
+                    return False
+            except Exception as e:
+                logger.error(f"Error during delivery processing for order {order_id}: {str(e)}", exc_info=True)
+                return False
+            
+            if delivery_success:
+                logger.info(f"✓ Delivery completed successfully for order {order_id}")
             else:
-                logger.warning(f"Unknown delivery type: {delivery_type}")
+                logger.error(f"✗ Delivery failed for order {order_id}")
             
             logger.info(f"=== Payment Processing Complete for order {order_id} ===")
-            return True
+            return delivery_success
             
         except Exception as e:
             logger.error(f"Error processing payment success: {str(e)}", exc_info=True)
@@ -245,27 +273,43 @@ class IPNOrderProcessor:
             session: Database session
             order_id: Order ID
             user_id: Telegram user ID
+            
+        Raises:
+            Exception: If delivery fails critically
         """
         try:
             pre_uploaded_service = PreUploadedService(session)
             order_service = OrderService(session)
             
             # Deliver products
+            logger.info(f"Calling deliver_order for order {order_id}")
             delivery_result = pre_uploaded_service.deliver_order(order_id)
             
             if not delivery_result:
-                logger.error(f"Failed to deliver pre-uploaded products for order {order_id}")
-                return
+                logger.error(f"deliver_order returned None/False for order {order_id}")
+                raise Exception(f"deliver_order failed for order {order_id}")
             
             if delivery_result["success"]:
-                # Update order status to DELIVERED
-                order_service.update_order_status(order_id, OrderStatus.DELIVERED)
-                
-                # Send products to user
+                # Send products to user BEFORE marking as DELIVERED
                 if self.bot:
-                    self._send_pre_uploaded_products(
-                        user_id, order_id, delivery_result["products"]
-                    )
+                    logger.info(f"Bot available, sending products to user {user_id} for order {order_id}")
+                    try:
+                        self._send_pre_uploaded_products(
+                            user_id, order_id, delivery_result["products"]
+                        )
+                        # Only update status to DELIVERED after successful send
+                        order_service.update_order_status(order_id, OrderStatus.DELIVERED)
+                        logger.info(f"✓ Order {order_id} marked as DELIVERED after successful product send")
+                    except Exception as e:
+                        logger.error(f"Failed to send products to user {user_id} for order {order_id}: {str(e)}", exc_info=True)
+                        # Keep status as PROCESSING so we can retry
+                        raise Exception(f"Failed to send products to user: {str(e)}")
+                else:
+                    logger.error(f"Cannot send products: bot is None for order {order_id}")
+                    raise Exception("Bot instance is None, cannot deliver products")
+                else:
+                    logger.error(f"Bot instance is None! Cannot send products to user {user_id} for order {order_id}")
+                    logger.error("This means delivery will fail. Check that TELEGRAM_BOT_TOKEN is set and bot is initialized.")
             else:
                 # Some items failed
                 logger.warning(
@@ -321,10 +365,10 @@ class IPNOrderProcessor:
                     supplier = supplier_order.supplier
                     try:
                         # Send notification to supplier
-                        sent_message = bot_to_use.send_message(
+                        sent_message = run_async(bot_to_use.send_message(
                             chat_id=supplier.telegram_user_id,
                             text=notification_message,
-                        )
+                        ))
                         # Update supplier order with message ID
                         supplier_order_service.update_notification_message_id(
                             supplier_order.id, sent_message.message_id
@@ -332,6 +376,10 @@ class IPNOrderProcessor:
                     except TelegramError as e:
                         logger.error(
                             f"Failed to send notification to supplier {supplier.id}: {str(e)}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Error sending notification to supplier {supplier.id}: {str(e)}", exc_info=True
                         )
             
             # Send confirmation to user
@@ -360,9 +408,14 @@ class IPNOrderProcessor:
             order_id: Order ID
             products: List of product data dictionaries
         """
+        if not self.bot:
+            logger.error(f"Cannot send products: bot instance is None for order {order_id}")
+            return
+            
         try:
             logger.info(f"=== Sending pre-uploaded products for order {order_id} ===")
-            logger.info(f"Total products to deliver: {len(products)}")
+            logger.info(f"User ID: {user_id}, Total products to deliver: {len(products)}")
+            logger.info(f"Bot instance available: {self.bot is not None}")
             
             # Create file content with timestamp and header
             delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -422,22 +475,29 @@ class IPNOrderProcessor:
             # Send delivery file as document to user
             try:
                 if file_path.exists():
-                    logger.info(f"Sending delivery file to user {user_id}")
+                    logger.info(f"Sending delivery file to user {user_id} for order {order_id}")
+                    logger.info(f"File path: {file_path}, File size: {file_path.stat().st_size} bytes")
+                    
                     with open(file_path, 'rb') as f:
                         file_data = f.read()
                     
                     file_obj = BytesIO(file_data)
                     file_obj.name = f"Order_{order_id}.txt"
                     
-                    run_async(self.bot.send_document(
+                    logger.info(f"Calling bot.send_document for user {user_id}")
+                    result = run_async(self.bot.send_document(
                         chat_id=user_id,
                         document=file_obj,
                         filename=f"Order_{order_id}.txt",
                         caption=f"📄 Delivery details for order {order_id}"
                     ))
-                    logger.info(f"Delivery file sent successfully to user {user_id}")
+                    logger.info(f"✓ Delivery file sent successfully to user {user_id}. Message ID: {result.message_id if result else 'N/A'}")
+                else:
+                    logger.error(f"Delivery file does not exist at {file_path}. Cannot send to user.")
+            except TelegramError as e:
+                logger.error(f"Telegram error sending delivery file to user {user_id}: {str(e)}", exc_info=True)
             except Exception as e:
-                logger.error(f"Failed to send delivery file to user: {str(e)}")
+                logger.error(f"Failed to send delivery file to user {user_id}: {str(e)}", exc_info=True)
             
             # Delete the delivery file after successful delivery
             try:
@@ -541,10 +601,21 @@ def get_ipn_processor() -> IPNOrderProcessor:
     
     # If bot not set, try to create from env (for IPN server container)
     if _global_bot is None:
+        logger.info("Global customer bot not set, attempting to create from environment variables...")
         _global_bot = _create_bot_from_env()
+        if _global_bot:
+            logger.info("✓ Customer bot created successfully from environment")
+        else:
+            logger.warning("⚠ Failed to create customer bot from environment. Delivery may fail.")
     
     if _global_supplier_bot is None:
+        logger.info("Global supplier bot not set, attempting to create from environment variables...")
         _global_supplier_bot = _create_supplier_bot_from_env()
+        if _global_supplier_bot:
+            logger.info("✓ Supplier bot created successfully from environment")
+        else:
+            logger.warning("⚠ Failed to create supplier bot from environment. Supplier notifications may fail.")
     
+    logger.info(f"IPN processor created: customer_bot={'available' if _global_bot else 'None'}, supplier_bot={'available' if _global_supplier_bot else 'None'}")
     return IPNOrderProcessor(bot=_global_bot, supplier_bot=_global_supplier_bot)
 

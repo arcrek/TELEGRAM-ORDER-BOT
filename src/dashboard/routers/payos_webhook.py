@@ -79,13 +79,21 @@ async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> Dict
     # Use reference (bank ref) as transaction id, fallback to paymentLinkId
     transaction_id = str(data.get("reference") or data.get("paymentLinkId") or f"payos_{order_code_int}")
 
+    logger.info(f"Processing PayOS webhook for order_id={order.id}, orderCode={order_code_int}, amount={amount_int}")
+    
     processor = get_ipn_processor()
+    logger.info(f"IPN processor created. Bot available: {processor.bot is not None}, Supplier bot available: {processor.supplier_bot is not None}")
+    
     processed = processor.process_payment_success(
         order_id=order.id,
         transaction_id=transaction_id,
         amount=amount_int,
     )
 
-    logger.info(f"PayOS webhook processed={processed} for order_id={order.id}, orderCode={order_code_int}")
+    if processed:
+        logger.info(f"✓ PayOS webhook processed successfully for order_id={order.id}, orderCode={order_code_int}")
+    else:
+        logger.error(f"✗ PayOS webhook processing FAILED for order_id={order.id}, orderCode={order_code_int}")
+    
     return {"success": True}
 
