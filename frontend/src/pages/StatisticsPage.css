@@ -111,23 +111,9 @@
   margin-bottom: 10px;
 }
 
-.stat-card-iotd-link {
-  font-size: 0.85rem;
-  color: rgba(110, 168, 255, 1);
-  text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(110, 168, 255, 0.25);
-  background: rgba(15, 23, 42, 0.35);
-}
-
-.stat-card-iotd-link:hover {
-  opacity: 0.92;
-}
-
 .stat-card-iotd-frame {
   width: 100%;
-  height: 108px;
+  height: auto;
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.25);
@@ -139,8 +125,8 @@
 
 .stat-card-iotd-frame img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   display: block;
 }
 

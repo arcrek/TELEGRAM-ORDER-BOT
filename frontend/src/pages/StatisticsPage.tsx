@@ -15,7 +15,6 @@ import {
 } from 'lucide-react'
 import { Button } from '../components/Button'
 import axios from 'axios'
-import { Link } from 'react-router-dom'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -245,9 +244,6 @@ export function StatisticsPage() {
             <div className="stat-card-info">
               <div className="stat-card-iotd-head">
                 <h3>Image of the Day</h3>
-                <Link to="/iotd" className="stat-card-iotd-link" title="Configure Image of the Day">
-                  Configure
-                </Link>
               </div>
               <div className="stat-card-iotd-frame">
                 {iotdUrl ? (
