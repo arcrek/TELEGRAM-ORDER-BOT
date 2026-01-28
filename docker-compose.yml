@@ -6,9 +6,12 @@ services:
     env_file:
       - .env
     environment:
-      # DATABASE_URL can still be used to override everything.
-      # By default, APP_ENV=dev and the app will connect to postgres-dev using DEV_DB_*.
       APP_ENV: ${APP_ENV:-dev}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-mtkbot}
+      DB_USER: ${DB_USER:-mtkbot}
+      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
       # Telegram Bot Tokens (needed for PayOS webhook fulfillment)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
@@ -38,6 +41,11 @@ services:
       - .env
     environment:
       APP_ENV: ${APP_ENV:-dev}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-mtkbot}
+      DB_USER: ${DB_USER:-mtkbot}
+      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
       # Payment provider selection
       PAYMENT_PROVIDER_DEFAULT: ${PAYMENT_PROVIDER_DEFAULT:-payos}
       # PayOS Configuration (needed for payment creation)
@@ -72,6 +80,11 @@ services:
       - .env
     environment:
       APP_ENV: ${APP_ENV:-dev}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-mtkbot}
+      DB_USER: ${DB_USER:-mtkbot}
+      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
       # Telegram configuration
       SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
     volumes:
@@ -126,27 +139,16 @@ services:
   #     retries: 3
   #     start_period: 5s
 
-  postgres-dev:
+  postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${DEV_DB_NAME:-mtkbot_dev}
-      POSTGRES_USER: ${DEV_DB_USER:-mtkbot_dev}
-      POSTGRES_PASSWORD: ${DEV_DB_PASSWORD:-dev_password_change_me}
+      POSTGRES_DB: ${DB_NAME:-mtkbot}
+      POSTGRES_USER: ${DB_USER:-mtkbot}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
     ports:
-      # Expose for local tools; change or remove in production compose if needed.
       - "5432:5432"
     volumes:
-      - ./data/postgres_dev_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  postgres-prod:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: ${PROD_DB_NAME:-mtkbot_prod}
-      POSTGRES_USER: ${PROD_DB_USER:-mtkbot_prod}
-      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:-prod_password_change_me}
-    volumes:
-      - ./data/postgres_prod_data:/var/lib/postgresql/data
+      - ./data/postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
 networks:
@@ -154,6 +156,5 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_dev_data:
-  postgres_prod_data:
+  postgres_data:
 

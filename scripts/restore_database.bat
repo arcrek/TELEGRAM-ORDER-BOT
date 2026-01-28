@@ -1,20 +1,17 @@
 @echo off
 REM PostgreSQL Database Restore Script for MTK Bot Order System (Windows)
-REM Usage: scripts\restore_database.bat [dev|prod] <backup_file.sql>
+REM Usage: scripts\restore_database.bat <backup_file.sql>
 
 setlocal
 
-set ENVIRONMENT=%1
-set BACKUP_FILE=%2
+set BACKUP_FILE=%1
 
-if "%ENVIRONMENT%"=="" set ENVIRONMENT=dev
-
-echo === MTK Bot Order System - PostgreSQL Restore (%ENVIRONMENT%) ===
+echo === MTK Bot Order System - PostgreSQL Restore ===
 echo.
 
 if "%BACKUP_FILE%"=="" (
     echo [ERROR] Backup file not specified
-    echo Usage: %0 [dev^|prod] ^<backup_file.sql^>
+    echo Usage: %0 ^<backup_file.sql^>
     exit /b 1
 )
 
@@ -23,19 +20,9 @@ if not exist "%BACKUP_FILE%" (
     exit /b 1
 )
 
-if "%ENVIRONMENT%"=="prod" (
-    set SERVICE=postgres-prod
-    if "%PROD_DB_NAME%"=="" set PROD_DB_NAME=mtkbot_prod
-    if "%PROD_DB_USER%"=="" set PROD_DB_USER=mtkbot_prod
-    set DB_NAME=%PROD_DB_NAME%
-    set DB_USER=%PROD_DB_USER%
-) else (
-    set SERVICE=postgres-dev
-    if "%DEV_DB_NAME%"=="" set DEV_DB_NAME=mtkbot_dev
-    if "%DEV_DB_USER%"=="" set DEV_DB_USER=mtkbot_dev
-    set DB_NAME=%DEV_DB_NAME%
-    set DB_USER=%DEV_DB_USER%
-)
+set SERVICE=postgres
+if "%DB_NAME%"=="" set DB_NAME=mtkbot
+if "%DB_USER%"=="" set DB_USER=mtkbot
 
 echo Service: %SERVICE%
 echo Database: %DB_NAME%

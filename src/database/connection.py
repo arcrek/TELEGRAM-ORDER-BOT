@@ -13,34 +13,24 @@ def get_database_url() -> str:
 
     Priority:
     1. DATABASE_URL (explicit, should point to PostgreSQL)
-    2. DEV/PROD PostgreSQL settings (if DATABASE_URL not set)
+    2. DB_* PostgreSQL settings (if DATABASE_URL not set)
     """
     database_url = os.getenv("DATABASE_URL")
     if database_url:
         return database_url
 
-    # Infer environment (default to dev if not explicitly set)
-    app_env = os.getenv("APP_ENV", "dev").lower()
-
-    if app_env == "prod":
-        host = os.getenv("PROD_DB_HOST")
-        port = os.getenv("PROD_DB_PORT", "5432")
-        name = os.getenv("PROD_DB_NAME")
-        user = os.getenv("PROD_DB_USER")
-        password = os.getenv("PROD_DB_PASSWORD")
-    else:
-        host = os.getenv("DEV_DB_HOST")
-        port = os.getenv("DEV_DB_PORT", "5432")
-        name = os.getenv("DEV_DB_NAME")
-        user = os.getenv("DEV_DB_USER")
-        password = os.getenv("DEV_DB_PASSWORD")
+    host = os.getenv("DB_HOST")
+    port = os.getenv("DB_PORT", "5432")
+    name = os.getenv("DB_NAME")
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
 
     if host and name and user and password:
         return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
     raise RuntimeError(
         "Database configuration is missing. "
-        "Set DATABASE_URL or DEV_DB_*/PROD_DB_* environment variables for PostgreSQL."
+        "Set DATABASE_URL or DB_* environment variables for PostgreSQL."
     )
 
 

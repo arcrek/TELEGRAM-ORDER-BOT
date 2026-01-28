@@ -1,16 +1,16 @@
 #!/bin/bash
 #
+#
 # PostgreSQL Database Restore Script for MTK Bot Order System
-# Usage: ./scripts/restore_database.sh [dev|prod] <backup_file.sql>
+# Usage: ./scripts/restore_database.sh <backup_file.sql>
 #
 set -e
 
-ENVIRONMENT="${1:-dev}"
-BACKUP_FILE="$2"
+BACKUP_FILE="$1"
 
 if [ -z "$BACKUP_FILE" ]; then
     echo "Error: Backup file not specified"
-    echo "Usage: $0 [dev|prod] <backup_file.sql>"
+    echo "Usage: $0 <backup_file.sql>"
     exit 1
 fi
 
@@ -19,17 +19,11 @@ if [ ! -f "$BACKUP_FILE" ]; then
     exit 1
 fi
 
-if [ "$ENVIRONMENT" = "prod" ]; then
-    SERVICE="postgres-prod"
-    DB_NAME="${PROD_DB_NAME:-mtkbot_prod}"
-    DB_USER="${PROD_DB_USER:-mtkbot_prod}"
-else
-    SERVICE="postgres-dev"
-    DB_NAME="${DEV_DB_NAME:-mtkbot_dev}"
-    DB_USER="${DEV_DB_USER:-mtkbot_dev}"
-fi
+SERVICE="postgres"
+DB_NAME="${DB_NAME:-mtkbot}"
+DB_USER="${DB_USER:-mtkbot}"
 
-echo "=== MTK Bot Order System - PostgreSQL Restore ($ENVIRONMENT) ==="
+echo "=== MTK Bot Order System - PostgreSQL Restore ==="
 echo "Service: $SERVICE"
 echo "Database: $DB_NAME"
 echo "Backup file: $BACKUP_FILE"

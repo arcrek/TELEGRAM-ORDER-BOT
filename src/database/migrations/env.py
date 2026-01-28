@@ -24,24 +24,15 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Get database URL from environment.
-# Prefer the same logic as the main application (DATABASE_URL, then DEV/PROD_*).
+# Prefer the same logic as the main application (DATABASE_URL, then DB_*).
 database_url = os.getenv("DATABASE_URL")
 
 if not database_url:
-    app_env = os.getenv("APP_ENV", "dev").lower()
-
-    if app_env == "prod":
-        host = os.getenv("PROD_DB_HOST")
-        port = os.getenv("PROD_DB_PORT", "5432")
-        name = os.getenv("PROD_DB_NAME")
-        user = os.getenv("PROD_DB_USER")
-        password = os.getenv("PROD_DB_PASSWORD")
-    else:
-        host = os.getenv("DEV_DB_HOST")
-        port = os.getenv("DEV_DB_PORT", "5432")
-        name = os.getenv("DEV_DB_NAME")
-        user = os.getenv("DEV_DB_USER")
-        password = os.getenv("DEV_DB_PASSWORD")
+    host = os.getenv("DB_HOST")
+    port = os.getenv("DB_PORT", "5432")
+    name = os.getenv("DB_NAME")
+    user = os.getenv("DB_USER")
+    password = os.getenv("DB_PASSWORD")
 
     if host and name and user and password:
         database_url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
@@ -49,7 +40,7 @@ if not database_url:
 if not database_url:
     raise RuntimeError(
         "Database configuration is missing for Alembic. "
-        "Set DATABASE_URL or DEV_DB_*/PROD_DB_* environment variables for PostgreSQL."
+        "Set DATABASE_URL or DB_* environment variables for PostgreSQL."
     )
 
 config.set_main_option("sqlalchemy.url", database_url)

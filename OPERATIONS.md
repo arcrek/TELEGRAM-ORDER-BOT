@@ -35,13 +35,9 @@ The system consists of 5 Docker containers:
 
 ### Data Storage
 
-- **Database (dev)**: PostgreSQL running in `postgres-dev` container
-  - Volume: `postgres_dev_data` mounted at `/var/lib/postgresql/data`
-  - Default connection: `DEV_DB_*` variables in `.env` (resolved automatically if `APP_ENV=dev`)
-- **Database (prod)**: PostgreSQL running in `postgres-prod` container
-  - Volume: `postgres_prod_data` mounted at `/var/lib/postgresql/data`
-  - Default connection: `PROD_DB_*` variables in `.env` / production env
-  - SQLite volume `database-data` is still present for legacy data but no longer used once PostgreSQL is enabled
+- **Database**: PostgreSQL running in `postgres` container
+  - Volume: `postgres_data` mounted at `/var/lib/postgresql/data`
+  - Default connection: `DB_*` variables in `.env` (overridden inside containers so they use `postgres` as host)
 
 ---
 
@@ -263,7 +259,7 @@ Expected: HTML content
 
 ### Automated Backup (PostgreSQL)
 
-**Linux/Mac (SQLite legacy):**
+**Linux/Mac:**
 ```bash
 # Make script executable (first time only)
 chmod +x scripts/backup_database.sh
@@ -275,7 +271,7 @@ chmod +x scripts/backup_database.sh
 ./scripts/backup_database.sh my_backup_20240106
 ```
 
-**Windows (SQLite legacy):**
+**Windows:**
 ```cmd
 scripts\backup_database.bat
 
@@ -295,36 +291,16 @@ backups/
 
 ### Manual Backup
 
-#### PostgreSQL (preferred)
-
 **Linux/Mac:**
 ```bash
 mkdir -p backups
-docker compose exec postgres-dev pg_dump -U "$DEV_DB_USER" "$DEV_DB_NAME" > backups/dev_$(date +%Y%m%d_%H%M%S).sql
+docker compose exec postgres pg_dump -U "$DB_USER" "$DB_NAME" > backups/manual_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 **Windows (PowerShell):**
 ```powershell
 mkdir backups
-docker compose exec postgres-dev pg_dump -U "$env:DEV_DB_USER" "$env:DEV_DB_NAME" > backups/dev_manual_backup.sql
-```
-
-#### SQLite (legacy)
-
-**Linux/Mac:**
-```bash
-mkdir -p backups
-docker run --rm \
-  -v database-data:/data \
-  -v "$(pwd)/backups:/backup" \
-  busybox \
-  cp /data/database.db /backup/manual_$(date +%Y%m%d_%H%M%S).db
-```
-
-**Windows:**
-```cmd
-mkdir backups
-docker run --rm -v database-data:/data -v "%CD%\backups:/backup" busybox cp /data/database.db /backup/manual_backup.db
+docker compose exec postgres pg_dump -U "$env:DB_USER" "$env:DB_NAME" > backups\manual_backup.sql
 ```
 
 ### Restore Database
@@ -337,12 +313,12 @@ docker run --rm -v database-data:/data -v "%CD%\backups:/backup" busybox cp /dat
 chmod +x scripts/restore_database.sh
 
 # Restore from backup
-./scripts/restore_database.sh backups/backup_20240106_143022.db
+./scripts/restore_database.sh backups/backup_20240106_143022.sql
 ```
 
 **Windows:**
 ```cmd
-scripts\restore_database.bat backups\backup_20240106_143022.db
+scripts\restore_database.bat backups\backup_20240106_143022.sql
 ```
 
 The script will:
