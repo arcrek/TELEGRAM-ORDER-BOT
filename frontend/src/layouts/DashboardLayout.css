@@ -35,6 +35,8 @@
   display: flex;
   gap: var(--space-1);
   flex: 1;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .nav-link {
@@ -80,6 +82,11 @@
   gap: var(--space-2);
   color: var(--text-primary);
   font-size: 0.875rem;
+  min-width: 0;
+}
+
+.user-info span {
+  min-width: 0;
 }
 
 .button-icon {
@@ -114,6 +121,21 @@
   .nav-actions {
     width: 100%;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .user-info {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .user-info span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .dashboard-main {

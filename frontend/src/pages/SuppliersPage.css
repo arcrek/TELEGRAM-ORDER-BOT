@@ -532,6 +532,32 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .suppliers-page {
+    padding: 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .filters-content {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .filter-group {
+    max-width: 100%;
+    flex: 1;
+    min-width: 180px;
+  }
+
   .suppliers-grid {
     grid-template-columns: 1fr;
   }
@@ -546,6 +572,15 @@
   
   .supplier-actions button {
     width: 100%;
+  }
+
+  .supplier-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .detail-item .label {
+    min-width: auto;
   }
 }
 
