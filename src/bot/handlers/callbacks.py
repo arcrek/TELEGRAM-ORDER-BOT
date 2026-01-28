@@ -691,7 +691,11 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 # PayOS description can be restrictive; keep it short.
                 description = f"MTK{order.id}"[:9]
+                
+                # Set PayOS payment link expiration to 30 minutes (same as Pay2S timeout)
+                # PayOS will automatically expire the payment link after this time
                 expired_at = int(time.time()) + 30 * 60
+                logger.info(f"Creating PayOS payment link for order {order.id} with 30-minute expiration (expires at timestamp {expired_at})")
 
                 try:
                     payos_resp = payos.create_payment_link(
@@ -700,7 +704,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         description=description,
                         return_url=PAYOS_RETURN_URL,
                         cancel_url=PAYOS_CANCEL_URL,
-                        expired_at=expired_at,
+                        expired_at=expired_at,  # 30 minutes from now
                     )
                 except Exception as e:
                     logger.error(f"PayOS create link failed: {e}", exc_info=True)

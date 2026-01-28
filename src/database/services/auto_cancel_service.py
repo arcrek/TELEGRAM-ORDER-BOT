@@ -75,6 +75,8 @@ class AutoCancelService:
                 return False
 
             # If this is a PayOS order, attempt to cancel the PayOS payment link too
+            # Note: PayOS payment links are created with a 30-minute expiration (same as Pay2S timeout),
+            # but we also explicitly cancel them here to ensure consistency
             if getattr(order, "payment_provider", None) == "payos" and getattr(order, "payos_payment_link_id", None):
                 try:
                     from src.payos.client import PayOSClient, PayOSCredentials

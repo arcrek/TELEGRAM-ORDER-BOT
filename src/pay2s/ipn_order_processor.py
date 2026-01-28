@@ -305,11 +305,9 @@ class IPNOrderProcessor:
                         # Keep status as PROCESSING so we can retry
                         raise Exception(f"Failed to send products to user: {str(e)}")
                 else:
-                    logger.error(f"Cannot send products: bot is None for order {order_id}")
-                    raise Exception("Bot instance is None, cannot deliver products")
-                else:
                     logger.error(f"Bot instance is None! Cannot send products to user {user_id} for order {order_id}")
                     logger.error("This means delivery will fail. Check that TELEGRAM_BOT_TOKEN is set and bot is initialized.")
+                    raise Exception("Bot instance is None, cannot deliver products")
             else:
                 # Some items failed
                 logger.warning(
