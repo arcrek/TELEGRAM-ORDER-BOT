@@ -16,6 +16,43 @@ from src.bot.utils.keyboard import get_persistent_keyboard
 # Global state manager instance
 state_manager = StateManager()
 
+async def _restore_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Restore the reply-keyboard without leaving an extra message in chat.
+
+    Telegram clients keep showing the latest reply keyboard until it is replaced/removed.
+    We exploit that by sending a tiny message that sets the keyboard, then deleting it.
+    """
+    if not update.effective_chat:
+        return
+
+    chat_id = update.effective_chat.id
+    keyboard = get_persistent_keyboard(update)
+
+    try:
+        # Use a zero-width space so the message is "non-empty" but visually blank.
+        sent = await context.bot.send_message(chat_id=chat_id, text="\u200B", reply_markup=keyboard)
+        try:
+            await context.bot.delete_message(chat_id=chat_id, message_id=sent.message_id)
+        except Exception:
+            # If deletion fails (permissions, timing), it's harmless.
+            pass
+    except Exception:
+        # Never break the main flow just because keyboard restore failed.
+        pass
+
+async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """
+    Handle any unknown "/" command.
+
+    This is mainly used to re-attach the reply keyboard if the client hides it
+    after the user sends an unrecognized command (e.g. sending just "/").
+    """
+    if not update.message:
+        return
+
+    await _restore_reply_keyboard(update, context)
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -168,15 +205,8 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Send main message with inline keyboard
         await update.message.reply_text(message, reply_markup=inline_keyboard)
 
-        # Re-attach the reply keyboard in a minimal follow-up message so that
-        # the bottom custom keyboard (e.g. "🛒 Sản phẩm") stays visible after /products
-        # without showing extra hint text.
-        try:
-            keyboard = get_persistent_keyboard(update)
-            await update.message.reply_text(" ", reply_markup=keyboard)
-        except Exception:
-            # If anything goes wrong, we don't want to break the products flow
-            pass
+        # Restore reply keyboard without leaving a message
+        await _restore_reply_keyboard(update, context)
     except Exception as e:
         # Log error but don't fail the command
         import logging
@@ -263,14 +293,8 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Send language selection message with inline keyboard
         await update.message.reply_text(message, reply_markup=reply_markup)
 
-        # Then re-send the persistent reply keyboard in a small follow-up message
-        # without any extra hint text, so the bottom custom keyboard comes back.
-        try:
-            keyboard_reply = get_persistent_keyboard(update)
-            await update.message.reply_text(" ", reply_markup=keyboard_reply)
-        except Exception:
-            # Don't break /lang flow if keyboard restore fails
-            pass
+        # Restore reply keyboard without leaving a message
+        await _restore_reply_keyboard(update, context)
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)

@@ -6,7 +6,14 @@ import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler
 from dotenv import load_dotenv
-from src.bot.handlers.commands import start, help_command, products_command, language_command, handle_products_button
+from src.bot.handlers.commands import (
+    start,
+    help_command,
+    products_command,
+    language_command,
+    handle_products_button,
+    unknown_command,
+)
 from src.bot.handlers.notification_commands import notify_all, notify_user, notify_active
 from src.bot.handlers.callbacks import (
     handle_page_navigation,
@@ -82,6 +89,9 @@ def create_bot_application() -> Application:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button))
     # Custom quantity input handler (will only process if products button handler returns False)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
+
+    # Catch-all for unknown slash commands (including sending just "/")
+    application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
     
     return application
 
