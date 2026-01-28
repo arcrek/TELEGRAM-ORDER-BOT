@@ -429,6 +429,50 @@ class OrderService:
         order = self.get_order_by_id(order_id)
         if not order:
             return None
+
+        # If this is a PRE_UPLOADED order, delivery data is stored in pre_uploaded_products
+        # rows linked to the order via used_by_order_id. We attach that data per item.
+        delivered_by_variation: Dict[str, list] = {}
+        try:
+            from src.database.models.pre_uploaded_product import PreUploadedProduct
+            from src.database.services.pre_uploaded_service import PreUploadedService
+
+            pre_uploaded_service = PreUploadedService(self.session)
+            delivered_rows = (
+                self.session.query(PreUploadedProduct)
+                .filter_by(used_by_order_id=order_id, is_used=True)
+                .all()
+            )
+
+            def _format_delivered_data(data) -> str:
+                # The PreUploadedService parser normalizes to a dict; convert to readable text.
+                if not isinstance(data, dict) or not data:
+                    return ""
+                if "delivery_data" in data and len(data) == 1:
+                    return str(data["delivery_data"])
+                if "value" in data and len(data) == 1:
+                    return str(data["value"])
+                # Multi-key dict: show key/value pairs line-by-line
+                lines = []
+                for k, v in data.items():
+                    lines.append(f"{k}: {v}")
+                return "\n".join(lines)
+
+            for row in delivered_rows:
+                vid = getattr(row, "variation_id", None)
+                if not vid:
+                    continue
+                parsed = pre_uploaded_service.get_product_data(row)
+                delivered_by_variation.setdefault(vid, []).append(
+                    {
+                        "id": row.id,
+                        "used_at": row.used_at.isoformat() if row.used_at else None,
+                        "display": _format_delivered_data(parsed),
+                    }
+                )
+        except Exception:
+            # Best-effort: do not break order details if delivery rows cannot be loaded
+            delivered_by_variation = {}
         
         # Get order items with product and variation info
         items = []
@@ -459,6 +503,15 @@ class OrderService:
                 }
             else:
                 item_data["variation"] = None
+
+            # Attach delivered data (pre-uploaded products) when present
+            if item.variation_id:
+                delivered_products = delivered_by_variation.get(item.variation_id, [])
+                item_data["delivered_products"] = delivered_products
+                item_data["delivered_count"] = len(delivered_products)
+            else:
+                item_data["delivered_products"] = []
+                item_data["delivered_count"] = 0
             
             items.append(item_data)
         

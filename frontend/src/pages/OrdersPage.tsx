@@ -52,6 +52,12 @@ interface OrderItem {
     name: string
     price: number
   } | null
+  delivered_count?: number
+  delivered_products?: Array<{
+    id: string
+    used_at: string | null
+    display: string
+  }>
 }
 
 interface OrderDetail extends Order {
@@ -594,6 +600,7 @@ export function OrdersPage() {
                             <th>Product</th>
                             <th>Variation</th>
                             <th>Quantity</th>
+                            <th>Delivered Data</th>
                             <th>Unit Price</th>
                             <th>Subtotal</th>
                           </tr>
@@ -624,6 +631,29 @@ export function OrdersPage() {
                                 )}
                               </td>
                               <td>{item.quantity}</td>
+                              <td>
+                                {item.delivered_products && item.delivered_products.length > 0 ? (
+                                  <details className="delivered-details">
+                                    <summary>
+                                      View ({item.delivered_products.length})
+                                    </summary>
+                                    <div className="delivered-list">
+                                      {item.delivered_products.map((dp) => (
+                                        <div key={dp.id} className="delivered-entry">
+                                          {dp.used_at && (
+                                            <div className="delivered-meta">
+                                              Delivered at: {formatDate(dp.used_at)}
+                                            </div>
+                                          )}
+                                          <pre className="delivered-pre">{dp.display || '-'}</pre>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </details>
+                                ) : (
+                                  <span className="deleted-item">-</span>
+                                )}
+                              </td>
                               <td>{formatPrice(item.unit_price)}</td>
                               <td className="amount">{formatPrice(item.subtotal)}</td>
                             </tr>

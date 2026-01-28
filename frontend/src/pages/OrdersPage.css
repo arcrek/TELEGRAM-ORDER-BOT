@@ -415,6 +415,46 @@
   font-style: italic;
 }
 
+.delivered-details summary {
+  cursor: pointer;
+  color: var(--accent-blue, #6EA8FF);
+  font-weight: 600;
+  user-select: none;
+}
+
+.delivered-details summary:hover {
+  color: var(--text-primary, #EAEAEA);
+}
+
+.delivered-list {
+  margin-top: 10px;
+  display: grid;
+  gap: 12px;
+}
+
+.delivered-entry {
+  border: 1px solid var(--border-color, #2A2A26);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.delivered-meta {
+  color: var(--text-muted, #8F8F8F);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.delivered-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary, #EAEAEA);
+}
+
 .empty-message {
   color: var(--text-muted, #8F8F8F);
   text-align: center;
