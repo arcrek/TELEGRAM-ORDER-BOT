@@ -750,8 +750,6 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                             f"📝 Items: {len(order.items)}\n\n"
                             f"⏰ Auto-cancels in 30 minutes if unpaid"
                         )
-                        if checkout_url:
-                            caption += f"\n\n🔗 Checkout:\n{checkout_url}"
 
                         sent_message = await context.bot.send_photo(
                             chat_id=user_id,
@@ -770,10 +768,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         session.commit()
                     except Exception as e:
                         logger.error(f"Failed to send PayOS QR image: {e}", exc_info=True)
-                        # Fallback: send checkout URL only
+                        # Fallback: send payment message only (no URL)
                         fallback = payment_message
-                        if checkout_url:
-                            fallback += f"\n\n🔗 Checkout:\n{checkout_url}"
                         edited = await context.bot.send_message(
                             chat_id=user_id,
                             text=fallback,
@@ -788,10 +784,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                         order.payment_message_ids = json.dumps(message_ids)
                         session.commit()
                 else:
-                    # No QR payload - fallback to checkout URL
+                    # No QR payload - fallback to payment message only (no URL)
                     fallback = payment_message
-                    if checkout_url:
-                        fallback += f"\n\n🔗 Checkout:\n{checkout_url}"
                     edited = await context.bot.send_message(
                         chat_id=user_id,
                         text=fallback,

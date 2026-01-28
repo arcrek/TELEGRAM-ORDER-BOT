@@ -59,4 +59,3 @@ PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
 # URLs used when creating payment links
 PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
 PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
-
