@@ -95,6 +95,60 @@
   background: radial-gradient(circle at top left, rgba(245, 158, 11, 0.5), transparent 55%);
 }
 
+.stat-card--iotd::before {
+  background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.35), transparent 60%);
+}
+
+.stat-card-content--iotd {
+  align-items: stretch;
+}
+
+.stat-card-iotd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.stat-card-iotd-link {
+  font-size: 0.85rem;
+  color: rgba(110, 168, 255, 1);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(110, 168, 255, 0.25);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.stat-card-iotd-link:hover {
+  opacity: 0.92;
+}
+
+.stat-card-iotd-frame {
+  width: 100%;
+  height: 108px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-card-iotd-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.stat-card-iotd-empty {
+  font-size: 0.875rem;
+  color: var(--text-muted, #8F8F8F);
+}
+
 .stat-card-content {
   display: flex;
   align-items: flex-start;

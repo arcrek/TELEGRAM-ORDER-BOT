@@ -14,6 +14,7 @@ import { PreUploadedPage } from './pages/PreUploadedPage'
 import { VariationsPage } from './pages/VariationsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 import { NotificationsPage } from './pages/NotificationsPage'
+import { IotdPage } from './pages/IotdPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import './App.css'
 
@@ -38,6 +39,7 @@ export function AppRoutes() {
         <Route path="variations" element={<VariationsPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="iotd" element={<IotdPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

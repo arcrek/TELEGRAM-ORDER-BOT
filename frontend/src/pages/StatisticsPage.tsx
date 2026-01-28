@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../components/Button'
 import axios from 'axios'
+import { Link } from 'react-router-dom'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -81,13 +82,19 @@ interface StatisticsOverview {
   }>
 }
 
+interface IotdResponse {
+  image_url: string | null
+}
+
 export function StatisticsPage() {
   const [loading, setLoading] = useState(true)
   const [statistics, setStatistics] = useState<StatisticsOverview | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [iotdUrl, setIotdUrl] = useState<string | null>(null)
 
   useEffect(() => {
     fetchStatistics()
+    fetchIotd()
   }, [])
 
   const fetchStatistics = async () => {
@@ -106,6 +113,21 @@ export function StatisticsPage() {
       console.error('Error fetching statistics:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchIotd = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await axios.get<IotdResponse>(`${API_BASE_URL}/api/iotd`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+      setIotdUrl(response.data.image_url || null)
+    } catch (err: any) {
+      console.error('Error fetching IOTD:', err)
+      setIotdUrl(null)
     }
   }
 
@@ -202,7 +224,10 @@ export function StatisticsPage() {
       <div className="statistics-header">
         <h1>Statistics Dashboard</h1>
         <Button
-          onClick={fetchStatistics}
+          onClick={() => {
+            fetchStatistics()
+            fetchIotd()
+          }}
           variant="secondary"
           size="small"
           className="refresh-button"
@@ -215,6 +240,26 @@ export function StatisticsPage() {
 
       {/* Summary Cards */}
       <div className="statistics-cards">
+        <Card className="stat-card stat-card--iotd">
+          <div className="stat-card-content stat-card-content--iotd">
+            <div className="stat-card-info">
+              <div className="stat-card-iotd-head">
+                <h3>Image of the Day</h3>
+                <Link to="/iotd" className="stat-card-iotd-link" title="Configure Image of the Day">
+                  Configure
+                </Link>
+              </div>
+              <div className="stat-card-iotd-frame">
+                {iotdUrl ? (
+                  <img src={iotdUrl} alt="Image of the Day" />
+                ) : (
+                  <div className="stat-card-iotd-empty">No image configured</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+
         <Card className="stat-card stat-card--orders">
           <div className="stat-card-content">
             <div className="stat-card-icon">

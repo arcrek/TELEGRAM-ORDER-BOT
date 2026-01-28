@@ -1,0 +1,95 @@
+ .iotd-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.iotd-header h1 {
+  margin: 0;
+}
+
+.iotd-header p {
+  margin: 6px 0 0;
+  opacity: 0.85;
+}
+
+.iotd-card {
+  padding: 16px;
+}
+
+.iotd-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.9;
+}
+
+.iotd-error {
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.iotd-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.iotd-label {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.iotd-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.35);
+  color: inherit;
+  outline: none;
+}
+
+.iotd-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.iotd-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+.iotd-preview-frame {
+  width: 100%;
+  max-width: 520px;
+  height: 240px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iotd-preview-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.iotd-preview-empty {
+  opacity: 0.7;
+  font-size: 13px;
+}
+
