@@ -1,13 +1,11 @@
 /**
- * Premium Dark SaaS Input styles.
- * NO glassmorphism, NO shadows - use borders.
- * Rounded corners: 12px
- * Spacing: 8px base system
+ * Industrial utilitarian input styles.
+ * Clear, compact form controls with strong focus states.
  */
 .input-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
   width: 100%;
 }
 
@@ -18,13 +16,13 @@
 }
 
 .input {
-  padding: 12px 16px;
+  padding: var(--space-3) var(--space-3);
   font-size: 1rem;
   font-family: inherit;
   color: var(--text-primary, #EAEAEA);
   background: var(--card-bg, #181816);
   border: 1px solid var(--border-color, #2A2A26);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   transition: border-color 0.2s ease, background-color 0.2s ease;
   width: 100%;
 }

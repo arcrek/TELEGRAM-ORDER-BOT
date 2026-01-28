@@ -1,6 +1,6 @@
 /**
  * Statistics page with order and revenue analytics.
- * Premium Dark SaaS Design System.
+ * Modern industrial dark analytics with subtle gradients.
  */
 import { useState, useEffect } from 'react'
 import { Card } from '../components/Card'
@@ -10,8 +10,10 @@ import {
   DollarSign, 
   Package,
   BarChart3,
-  PieChart
+  PieChart,
+  RefreshCw,
 } from 'lucide-react'
+import { Button } from '../components/Button'
 import axios from 'axios'
 import {
   Chart as ChartJS,
@@ -157,9 +159,11 @@ export function StatisticsPage() {
       {
         label: 'Revenue (VND)',
         data: statistics.revenue_over_time_daily.map((item) => item.revenue),
-        borderColor: '#6EA8FF',
-        backgroundColor: 'rgba(110, 168, 255, 0.1)',
-        tension: 0.4,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37, 99, 235, 0.18)',
+        tension: 0.3,
+        pointRadius: 0,
+        pointHitRadius: 8,
       },
     ],
   }
@@ -171,11 +175,11 @@ export function StatisticsPage() {
         label: 'Orders',
         data: Object.values(statistics.orders_by_status),
         backgroundColor: [
-          '#6EA8FF',
-          '#8F8F8F',
-          '#B5B5B5',
-          '#EAEAEA',
-          '#2A2A26',
+          '#22c55e', // delivered / success
+          '#2563eb', // active / paid
+          '#f59e0b', // pending / warning
+          '#ef4444', // cancelled / error
+          '#6b7280', // other
         ],
       },
     ],
@@ -187,7 +191,8 @@ export function StatisticsPage() {
       {
         label: 'Quantity Sold',
         data: statistics.top_selling_products.slice(0, 5).map((p) => p.quantity_sold),
-        backgroundColor: '#6EA8FF',
+        backgroundColor: 'rgba(75, 130, 255, 0.9)',
+        borderRadius: 4,
       },
     ],
   }
@@ -196,14 +201,21 @@ export function StatisticsPage() {
     <div className="statistics-page">
       <div className="statistics-header">
         <h1>Statistics Dashboard</h1>
-        <button onClick={fetchStatistics} className="refresh-button">
-          Refresh
-        </button>
+        <Button
+          onClick={fetchStatistics}
+          variant="secondary"
+          size="small"
+          className="refresh-button"
+          title="Reload statistics data"
+        >
+          <RefreshCw size={16} />
+          <span>Refresh</span>
+        </Button>
       </div>
 
       {/* Summary Cards */}
       <div className="statistics-cards">
-        <Card className="stat-card">
+        <Card className="stat-card stat-card--orders">
           <div className="stat-card-content">
             <div className="stat-card-icon">
               <ShoppingCart size={24} />
@@ -218,7 +230,7 @@ export function StatisticsPage() {
           </div>
         </Card>
 
-        <Card className="stat-card">
+        <Card className="stat-card stat-card--revenue">
           <div className="stat-card-content">
             <div className="stat-card-icon">
               <DollarSign size={24} />
@@ -233,7 +245,7 @@ export function StatisticsPage() {
           </div>
         </Card>
 
-        <Card className="stat-card">
+        <Card className="stat-card stat-card--sold">
           <div className="stat-card-content">
             <div className="stat-card-icon">
               <Package size={24} />
@@ -248,7 +260,7 @@ export function StatisticsPage() {
           </div>
         </Card>
 
-        <Card className="stat-card">
+        <Card className="stat-card stat-card--week">
           <div className="stat-card-content">
             <div className="stat-card-icon">
               <TrendingUp size={24} />
@@ -274,27 +286,38 @@ export function StatisticsPage() {
             <h2>Revenue Over Time</h2>
           </div>
           <div className="chart-container">
-            <Line data={revenueChartData} options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  labels: {
-                    color: '#EAEAEA',
+            <Line
+              data={revenueChartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#e5e7eb',
+                    },
+                  },
+                  tooltip: {
+                    mode: 'index',
+                    intersect: false,
                   },
                 },
-              },
-              scales: {
-                x: {
-                  ticks: { color: '#B5B5B5' },
-                  grid: { color: '#2A2A26' },
+                interaction: {
+                  mode: 'nearest',
+                  intersect: false,
                 },
-                y: {
-                  ticks: { color: '#B5B5B5' },
-                  grid: { color: '#2A2A26' },
+                scales: {
+                  x: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(148, 163, 184, 0.25)' },
+                  },
+                  y: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(148, 163, 184, 0.22)' },
+                  },
                 },
-              },
-            }} />
+              }}
+            />
           </div>
         </Card>
 
@@ -304,17 +327,21 @@ export function StatisticsPage() {
             <h2>Orders by Status</h2>
           </div>
           <div className="chart-container">
-            <Pie data={statusChartData} options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  labels: {
-                    color: '#EAEAEA',
+            <Pie
+              data={statusChartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      color: '#e5e7eb',
+                    },
                   },
                 },
-              },
-            }} />
+              }}
+            />
           </div>
         </Card>
 
@@ -324,28 +351,31 @@ export function StatisticsPage() {
             <h2>Top Selling Products</h2>
           </div>
           <div className="chart-container">
-            <Bar data={topProductsData} options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              indexAxis: 'y',
-              plugins: {
-                legend: {
-                  labels: {
-                    color: '#EAEAEA',
+            <Bar
+              data={topProductsData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: '#e5e7eb',
+                    },
                   },
                 },
-              },
-              scales: {
-                x: {
-                  ticks: { color: '#B5B5B5' },
-                  grid: { color: '#2A2A26' },
+                scales: {
+                  x: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(148, 163, 184, 0.25)' },
+                  },
+                  y: {
+                    ticks: { color: '#9ca3af' },
+                    grid: { color: 'rgba(148, 163, 184, 0.18)' },
+                  },
                 },
-                y: {
-                  ticks: { color: '#B5B5B5' },
-                  grid: { color: '#2A2A26' },
-                },
-              },
-            }} />
+              }}
+            />
           </div>
         </Card>
       </div>

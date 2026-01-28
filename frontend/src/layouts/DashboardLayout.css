@@ -1,49 +1,54 @@
 /**
- * Premium Dark SaaS Dashboard Layout styles.
- * Minimalist, enterprise-grade design with borders instead of shadows.
- * Spacing: 8px base system
+ * Industrial utilitarian dashboard layout.
+ * Control-panel style top nav with strong grid and compact density.
  */
 .dashboard-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary, #0F0F0D);
+  background: var(--bg-primary);
 }
 
 .dashboard-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
-  background: var(--bg-secondary, #141412);
-  border-bottom: 1px solid var(--border-color, #2A2A26);
-  gap: 24px;
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  gap: var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
 }
 
 .nav-brand h2 {
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
-  color: var(--text-primary, #EAEAEA);
+  color: var(--text-primary);
   margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .nav-links {
   display: flex;
-  gap: 8px;
+  gap: var(--space-1);
   flex: 1;
 }
 
 .nav-link {
-  padding: 12px 16px;
+  padding: var(--space-2) var(--space-3);
   text-decoration: none;
-  color: var(--text-secondary, #B5B5B5);
-  border-radius: 12px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   transition: all 0.2s ease;
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   border: 1px solid transparent;
+  font-size: 0.85rem;
 }
 
 .nav-icon {
@@ -52,28 +57,29 @@
 }
 
 .nav-link:hover {
-  color: var(--text-primary, #EAEAEA);
-  background: var(--card-bg, #181816);
-  border-color: var(--border-color, #2A2A26);
+  color: var(--text-primary);
+  background: var(--card-bg);
+  border-color: var(--border-color);
 }
 
 .nav-link.active {
-  color: var(--accent-blue, #6EA8FF);
-  background: var(--card-bg, #181816);
-  border: 1px solid var(--border-color, #2A2A26);
+  color: var(--accent-blue);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
 }
 
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-3);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 16px;
-  color: var(--text-primary, #EAEAEA);
+  gap: var(--space-2);
+  color: var(--text-primary);
+  font-size: 0.875rem;
 }
 
 .button-icon {
@@ -82,22 +88,22 @@
 
 .dashboard-main {
   flex: 1;
-  padding: 32px;
+  padding: var(--space-5);
   overflow-y: auto;
-  background: var(--bg-primary, #0F0F0D);
+  background: var(--bg-primary);
 }
 
 @media (max-width: 768px) {
   .dashboard-nav {
     flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    gap: var(--space-2);
+    padding: var(--space-3);
   }
 
   .nav-links {
     flex-direction: column;
     width: 100%;
-    gap: 8px;
+    gap: var(--space-1);
   }
 
   .nav-link {
@@ -111,6 +117,6 @@
   }
 
   .dashboard-main {
-    padding: 16px;
+    padding: var(--space-3);
   }
 }

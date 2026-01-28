@@ -155,21 +155,22 @@ class StatisticsService:
         """
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
         
-        # SQLite uses date() function, PostgreSQL uses DATE() or CAST
-        # Use func.date() which works for both
+        # Use the moment an order was last updated (e.g., when it became PAID/DELIVERED)
+        # rather than its creation time, so revenue aligns with the actual payment date.
+        # func.date() works across SQLite/PostgreSQL.
         query = (
             self.session.query(
-                func.date(Order.created_at).label('date'),
+                func.date(Order.updated_at).label('date'),
                 func.sum(Order.total_amount).label('revenue')
             )
             .filter(
                 and_(
-                    Order.created_at >= start_date,
+                    Order.updated_at >= start_date,
                     Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED])
                 )
             )
-            .group_by(func.date(Order.created_at))
-            .order_by(func.date(Order.created_at))
+            .group_by(func.date(Order.updated_at))
+            .order_by(func.date(Order.updated_at))
         )
         
         results = query.all()

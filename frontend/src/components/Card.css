@@ -1,14 +1,12 @@
 /**
- * Premium Dark SaaS Card styles.
- * Card-based layout with subtle borders (no shadows).
- * Rounded corners: 12-16px
- * Spacing: 8px base system
+ * Industrial utilitarian card styles.
+ * Panels with crisp borders and compact density.
  */
 .card {
   background: var(--card-bg, #181816);
   border: 1px solid var(--border-color, #2A2A26);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
   transition: border-color 0.2s ease, background-color 0.2s ease;
   cursor: default;
 }
@@ -45,17 +43,17 @@
 
 /* Spacing variations using 8px base */
 .card--spacing-small {
-  padding: 8px;
+  padding: var(--space-2);
 }
 
 .card--spacing-medium {
-  padding: 16px;
+  padding: var(--space-4);
 }
 
 .card--spacing-large {
-  padding: 24px;
+  padding: var(--space-5);
 }
 
 .card--spacing-xl {
-  padding: 32px;
+  padding: calc(var(--space-5) + var(--space-2));
 }

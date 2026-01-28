@@ -54,8 +54,6 @@ PAYOS_BASE_URL = os.getenv("PAYOS_BASE_URL", "https://api-merchant.payos.vn")
 PAYOS_PARTNER_CODE = os.getenv("PAYOS_PARTNER_CODE", "")
 PAYOS_CLIENT_ID = os.getenv("PAYOS_CLIENT_ID", "")
 PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
-PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
-
-# URLs used when creating payment links
+PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")# URLs used when creating payment links
 PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
 PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))

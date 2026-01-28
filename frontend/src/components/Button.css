@@ -1,66 +1,69 @@
 /**
- * Premium Dark SaaS Button styles.
- * NO gradients, NO shadows - use borders instead.
- * Rounded corners: 12px
- * Spacing: 8px base system
+ * Industrial utilitarian button styles.
+ * Strong edges, clear hierarchy, no decorative shadows.
  */
 .button {
-  padding: 12px 24px;
+  padding: var(--space-3) var(--space-4);
   font-weight: 600;
   font-size: 1rem;
   font-family: inherit;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-md);
+  letter-spacing: 0.01em;
+  text-transform: none;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.08s ease;
   border: 1px solid transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   background: transparent;
   color: var(--text-primary, #EAEAEA);
+  cursor: pointer;
 }
 
 .button svg {
   flex-shrink: 0;
 }
 
-/* Size variants - using 8px base spacing */
+/* Size variants */
 .button--small {
-  padding: 8px 16px;
+  padding: var(--space-2) var(--space-3);
   font-size: 0.875rem;
-  gap: 6px;
 }
 
 .button--medium {
-  padding: 12px 24px;
+  padding: var(--space-3) var(--space-4);
   font-size: 1rem;
-  gap: 8px;
 }
 
 .button--large {
-  padding: 16px 32px;
+  padding: var(--space-4) var(--space-5);
   font-size: 1.125rem;
-  gap: 10px;
 }
 
-/* Primary button - accent blue background */
+/* Primary button - strong accent rail */
 .button--primary {
   background: var(--accent-blue, #6EA8FF);
-  color: #0F0F0D;
+  color: #050609;
   border: 1px solid var(--accent-blue, #6EA8FF);
 }
 
 .button--primary:hover:not(.button--disabled) {
   background: var(--accent-blue, #6EA8FF);
-  opacity: 0.9;
+  opacity: 0.92;
   border-color: var(--accent-blue, #6EA8FF);
 }
 
 .button--primary:active:not(.button--disabled) {
-  opacity: 0.8;
+  opacity: 0.86;
+  transform: translateY(1px);
 }
 
-/* Secondary button - border with transparent background */
+/* Secondary button - control surface */
 .button--secondary {
   background: var(--card-bg, #181816);
   color: var(--text-primary, #EAEAEA);
@@ -74,9 +77,10 @@
 
 .button--secondary:active:not(.button--disabled) {
   background: var(--card-bg, #181816);
+  transform: translateY(1px);
 }
 
-/* Outline button - border only */
+/* Outline button - quiet control */
 .button--outline {
   background: transparent;
   border: 1px solid var(--border-color, #2A2A26);
@@ -90,6 +94,7 @@
 
 .button--outline:active:not(.button--disabled) {
   background: transparent;
+  transform: translateY(1px);
 }
 
 /* Disabled state */

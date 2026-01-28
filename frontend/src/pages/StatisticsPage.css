@@ -1,9 +1,9 @@
 /**
  * Statistics page styles.
- * Premium Dark SaaS Design System.
+ * Industrial dark analytics with subtle gradients and light glassmorphism.
  */
 .statistics-page {
-  padding: 32px;
+  padding: var(--space-5);
   background: var(--bg-primary, #0F0F0D);
   min-height: 100vh;
 }
@@ -12,31 +12,30 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 32px;
+  margin-bottom: var(--space-4);
 }
 
 .statistics-header h1 {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary, #EAEAEA);
   margin: 0;
 }
 
-.refresh-button,
+/* Legacy retry button (error state) */
 .retry-button {
-  padding: 12px 24px;
-  background: var(--accent-blue, #6EA8FF);
-  color: #0F0F0D;
-  border: 1px solid var(--accent-blue, #6EA8FF);
-  border-radius: 12px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--accent-blue, #4b82ff);
+  color: #020617;
+  border: 1px solid var(--accent-blue, #4b82ff);
+  border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.18s ease;
 }
 
-.refresh-button:hover,
 .retry-button:hover {
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .statistics-loading,
@@ -53,32 +52,68 @@
 /* Summary Cards */
 .statistics-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
 .stat-card {
-  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.95)),
+    var(--card-bg, #101319);
+  backdrop-filter: blur(6px);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background: radial-gradient(circle at top left, rgba(148, 163, 253, 0.45), transparent 55%);
+}
+
+/* Per-metric accent wash */
+.stat-card--orders::before {
+  background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.5), transparent 55%);
+}
+
+.stat-card--revenue::before {
+  background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.55), transparent 55%);
+}
+
+.stat-card--sold::before {
+  background: radial-gradient(circle at top left, rgba(45, 212, 191, 0.5), transparent 55%);
+}
+
+.stat-card--week::before {
+  background: radial-gradient(circle at top left, rgba(245, 158, 11, 0.5), transparent 55%);
 }
 
 .stat-card-content {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: var(--space-3);
+  position: relative;
+  z-index: 1;
 }
 
 .stat-card-icon {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--card-bg, #181816);
-  border: 1px solid var(--border-color, #2A2A26);
-  border-radius: 12px;
-  color: var(--accent-blue, #6EA8FF);
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: var(--accent-blue, #4b82ff);
 }
 
 .stat-card-info {
@@ -93,7 +128,7 @@
 }
 
 .stat-value {
-  font-size: 1.75rem;
+  font-size: 1.9rem;
   font-weight: 700;
   color: var(--text-primary, #EAEAEA);
   margin: 0 0 4px 0;
@@ -108,19 +143,38 @@
 /* Charts */
 .statistics-charts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: var(--space-4);
 }
 
 .chart-card {
-  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.98)),
+    var(--card-bg, #101319);
+  backdrop-filter: blur(4px);
+}
+
+.chart-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background: linear-gradient(135deg, rgba(75, 130, 255, 0.22), transparent 55%);
 }
 
 .chart-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  position: relative;
+  z-index: 1;
 }
 
 .chart-header h2 {
@@ -137,22 +191,23 @@
 .chart-container {
   height: 300px;
   position: relative;
+  z-index: 1;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .statistics-page {
-    padding: 16px;
+    padding: var(--space-3);
   }
 
   .statistics-cards {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: var(--space-3);
   }
 
   .statistics-charts {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: var(--space-3);
   }
 
   .chart-container {

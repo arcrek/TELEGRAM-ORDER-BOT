@@ -1,17 +1,17 @@
 /**
  * Select/Dropdown component styles.
- * Premium Dark SaaS Design System.
+ * Industrial dark control with compact density.
  */
 
 .select-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .select-label {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--text-primary, #EAEAEA);
 }
 
@@ -20,12 +20,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: var(--space-2) var(--space-3);
   background-color: var(--card-bg, #181816);
   border: 1px solid var(--border-color, #2A2A26);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   color: var(--text-primary, #EAEAEA);
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
   min-width: 120px;
