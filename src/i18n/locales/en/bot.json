@@ -137,7 +137,8 @@
     "checkout": "💳 Checkout",
     "clear_cart": "🗑️ Clear Cart",
     "cancel_order": "❌ Cancel Order",
-    "products": "🛒 Products"
+    "products": "🛒 Products",
+    "language": "🌐 Language"
   },
   "languages": {
     "en": "🇬🇧 English",

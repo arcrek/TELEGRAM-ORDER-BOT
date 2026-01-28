@@ -135,7 +135,8 @@
     "checkout": "💳 Thanh toán",
     "clear_cart": "🗑️ Xóa giỏ",
     "cancel_order": "❌ Hủy đơn",
-    "products": "🛒 Sản phẩm"
+    "products": "🛒 Sản phẩm",
+    "language": "🌐 Ngôn ngữ"
   },
   "languages": {
     "en": "🇬🇧 English",

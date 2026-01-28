@@ -168,15 +168,12 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Send main message with inline keyboard
         await update.message.reply_text(message, reply_markup=inline_keyboard)
 
-        # Re-attach the reply keyboard in a lightweight follow-up message so that
-        # the bottom custom keyboard (e.g. "🛒 Sản phẩm") stays visible after /products.
-        #
-        # Telegram only allows one type of keyboard per message (inline OR reply),
-        # so we send a second small message that only carries the reply keyboard.
+        # Re-attach the reply keyboard in a minimal follow-up message so that
+        # the bottom custom keyboard (e.g. "🛒 Sản phẩm") stays visible after /products
+        # without showing extra hint text.
         try:
-            hints_text = t("commands.help.interaction_hint", update)
             keyboard = get_persistent_keyboard(update)
-            await update.message.reply_text(hints_text, reply_markup=keyboard)
+            await update.message.reply_text(" ", reply_markup=keyboard)
         except Exception:
             # If anything goes wrong, we don't want to break the products flow
             pass
@@ -204,23 +201,21 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     
     message_text = update.message.text.strip()
     
-    # Get button text in current user's language
-    products_text = t('buttons.products', update)
-    
-    # Also check common variations (in case of language mismatch)
-    products_variations = [
-        products_text,
-        "🛒 Products",
-        "🛒 Sản phẩm",
-        "Products",
-        "Sản phẩm"
-    ]
-    
+    # Reply-keyboard buttons
+    products_text = t("buttons.products", update)
+    language_text = t("buttons.language", update)
+
+    # Also check common variations (in case user switched language)
+    products_variations = {products_text, "🛒 Products", "🛒 Sản phẩm", "Products", "Sản phẩm"}
+    language_variations = {language_text, "🌐 Language", "🌐 Ngôn ngữ", "Language", "Ngôn ngữ"}
+
     if message_text in products_variations:
-        # Call the products command handler
         await products_command(update, context)
-        # Handler processed the message, other handlers will still be called but handle_custom_quantity_input
-        # will return early if user is not waiting for quantity input
+        return
+
+    if message_text in language_variations:
+        await language_command(update, context)
+        return
 
 
 async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -268,14 +263,11 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Send language selection message with inline keyboard
         await update.message.reply_text(message, reply_markup=reply_markup)
 
-        # Then re-send the persistent reply keyboard in a small follow-up message,
-        # so the bottom custom keyboard (e.g. "🛒 Sản phẩm") comes back after /lang.
+        # Then re-send the persistent reply keyboard in a small follow-up message
+        # without any extra hint text, so the bottom custom keyboard comes back.
         try:
             keyboard_reply = get_persistent_keyboard(update)
-            await update.message.reply_text(
-                t("commands.start.help_hint", update),
-                reply_markup=keyboard_reply,
-            )
+            await update.message.reply_text(" ", reply_markup=keyboard_reply)
         except Exception:
             # Don't break /lang flow if keyboard restore fails
             pass
