@@ -187,6 +187,14 @@
   gap: var(--space-4);
 }
 
+.statistics-iotd-bottom {
+  margin-top: var(--space-4);
+}
+
+.statistics-iotd-card .chart-header {
+  margin-bottom: var(--space-3);
+}
+
 .chart-card {
   position: relative;
   overflow: hidden;

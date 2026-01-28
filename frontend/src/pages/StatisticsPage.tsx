@@ -239,20 +239,6 @@ export function StatisticsPage() {
 
       {/* Summary Cards */}
       <div className="statistics-cards">
-        <Card className="stat-card stat-card--iotd">
-          <div className="stat-card-content stat-card-content--iotd">
-            <div className="stat-card-info">
-              <div className="stat-card-iotd-frame">
-                {iotdUrl ? (
-                  <img src={iotdUrl} alt="Image of the Day" />
-                ) : (
-                  <div className="stat-card-iotd-empty">No image configured</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
-
         <Card className="stat-card stat-card--orders">
           <div className="stat-card-content">
             <div className="stat-card-icon">
@@ -414,6 +400,22 @@ export function StatisticsPage() {
                 },
               }}
             />
+          </div>
+        </Card>
+      </div>
+
+      {/* Image of the Day (bottom) */}
+      <div className="statistics-iotd-bottom">
+        <Card className="chart-card statistics-iotd-card">
+          <div className="chart-header">
+            <h2>Image of the Day</h2>
+          </div>
+          <div className="stat-card-iotd-frame">
+            {iotdUrl ? (
+              <img src={iotdUrl} alt="Image of the Day" />
+            ) : (
+              <div className="stat-card-iotd-empty">No image configured</div>
+            )}
           </div>
         </Card>
       </div>
