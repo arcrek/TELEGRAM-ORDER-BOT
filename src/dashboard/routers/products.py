@@ -172,6 +172,7 @@ async def get_product(
     }
 
 
+@router.post("", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: ProductCreate,

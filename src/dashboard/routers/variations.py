@@ -159,6 +159,7 @@ async def get_variation(
     }
 
 
+@router.post("", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_variation(
     variation_data: VariationCreate,
