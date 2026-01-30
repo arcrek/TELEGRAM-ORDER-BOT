@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 import json
 import logging
 from .signature import verify_ipn_signature
-from .ipn_order_processor import get_ipn_processor
+from src.ipn import get_ipn_processor
 
 
 def create_ipn_app(secret_key, process_transaction_callback=None):

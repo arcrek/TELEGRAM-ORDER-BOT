@@ -12,7 +12,7 @@ from src.database.services.supplier_order_service import SupplierOrderService
 from src.database.services.order_service import OrderService
 from src.database.models.supplier_order import SupplierOrder
 from src.database.models.enums import SupplierOrderStatus, OrderStatus
-from src.pay2s.ipn_order_processor import get_global_customer_bot
+from src.ipn import get_global_customer_bot
 from telegram.error import TelegramError
 
 logger = logging.getLogger(__name__)

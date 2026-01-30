@@ -1,5 +1,8 @@
 """
-IPN order processor for handling payment confirmations and order fulfillment.
+Order processor for IPN (Instant Payment Notification) from any payment provider.
+
+Used by both PayOS (dashboard webhook) and Pay2S (IPN server). Receives payment
+confirmations, updates order status, and fulfills delivery (pre-uploaded or supplier-based).
 """
 import asyncio
 import logging
@@ -22,7 +25,7 @@ from src.bot.states.state_manager import StateManager
 logger = logging.getLogger(__name__)
 
 # Directory for storing delivery files
-DELIVERY_FILES_DIR = Path(__file__).parent.parent.parent / "delivery_data"
+DELIVERY_FILES_DIR = Path(__file__).resolve().parent.parent.parent / "delivery_data"
 DELIVERY_FILES_DIR.mkdir(exist_ok=True)
 
 
@@ -34,12 +37,10 @@ def run_async(coro):
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If loop is already running (e.g., in FastAPI async context), 
+            # If loop is already running (e.g., in FastAPI async context),
             # we need to schedule it on the existing loop
             import concurrent.futures
-            import threading
-            
-            # Create a new event loop in a separate thread
+
             def run_in_thread():
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
@@ -47,7 +48,7 @@ def run_async(coro):
                     return new_loop.run_until_complete(coro)
                 finally:
                     new_loop.close()
-            
+
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(run_in_thread)
                 return future.result(timeout=30)
@@ -60,17 +61,22 @@ def run_async(coro):
         logger.error(f"Error in run_async: {str(e)}", exc_info=True)
         raise
 
+
 # Global state manager instance
 state_manager = StateManager()
 
 
 class IPNOrderProcessor:
-    """Processes IPN notifications and fulfills orders."""
+    """
+    Processes payment success/failure and fulfills orders.
+
+    Used by PayOS webhook and Pay2S IPN; payment-agnostic (order_id, transaction_id, amount).
+    """
 
     def __init__(self, bot: Optional[Bot] = None, supplier_bot: Optional[Bot] = None):
         """
         Initialize IPN order processor.
-        
+
         Args:
             bot: Optional Telegram bot instance for sending messages to customers
             supplier_bot: Optional Telegram bot instance for sending messages to suppliers
@@ -84,12 +90,12 @@ class IPNOrderProcessor:
     ) -> bool:
         """
         Process a successful payment.
-        
+
         Args:
             order_id: Order ID
             transaction_id: Payment transaction ID
             amount: Payment amount
-            
+
         Returns:
             True if processing successful, False otherwise
         """
@@ -97,36 +103,36 @@ class IPNOrderProcessor:
         logger.info(f"Order ID: {order_id}, Transaction ID: {transaction_id}, Amount: {amount}")
         logger.info(f"Bot instance available: {self.bot is not None}")
         logger.info(f"Supplier bot instance available: {self.supplier_bot is not None}")
-        
+
         session = self.session_factory()
         try:
             order_service = OrderService(session)
             delivery_service = DeliveryService(session)
-            
+
             # Get order
             order = order_service.get_order_by_id(order_id)
             if not order:
                 logger.error(f"Order {order_id} not found in database")
                 return False
-            
+
             logger.info(f"Found order: user_id={order.user_id}, status={order.status}, total={order.total_amount}")
-            
+
             # Check if order is already delivered to prevent duplicate deliveries
             if order.status == OrderStatus.DELIVERED:
                 logger.warning(f"Order {order_id} is already DELIVERED. Skipping duplicate delivery.")
                 return True  # Return True because order was already processed successfully
-            
+
             # Validate amount: IPN amount must match order total
             if amount != order.total_amount:
                 logger.error(f"Amount mismatch! IPN amount: {amount}, Order total: {order.total_amount}. Skipping delivery.")
                 return False
-            
+
             logger.info(f"Amount validated: IPN amount ({amount}) matches order total ({order.total_amount})")
-            
+
             # Check if order is already paid (duplicate IPN)
             if order.status == OrderStatus.PAID:
                 logger.warning(f"Order {order_id} is already PAID but not delivered. Will attempt delivery.")
-            
+
             # Update order status to PAID
             order_service.update_order_status(
                 order_id=order_id,
@@ -140,29 +146,29 @@ class IPNOrderProcessor:
                 notify_service.send_order_paid(order_id)
             except Exception as e:
                 logger.warning(f"Order paid notification failed for {order_id}: {e}")
-            
+
             # Process the order (determine delivery type and trigger delivery)
             if not delivery_service.process_paid_order(order_id):
                 logger.error(f"Failed to process order {order_id}")
                 return False
-            
+
             # Get delivery type and trigger appropriate delivery
             delivery_type = delivery_service.get_order_delivery_type(order_id)
             if not delivery_type:
                 logger.error(f"Could not determine delivery type for order {order_id}")
                 return False
-            
+
             # Delete all payment-related messages from database
             if self.bot:
                 import json
                 messages_deleted = 0
-                
+
                 # Read message IDs from database
                 if order.payment_message_ids:
                     try:
                         message_ids = json.loads(order.payment_message_ids)
                         logger.info(f"Found {len(message_ids)} payment message IDs in database: {message_ids}")
-                        
+
                         for msg_id in message_ids:
                             try:
                                 run_async(self.bot.delete_message(
@@ -173,7 +179,7 @@ class IPNOrderProcessor:
                                 logger.info(f"✓ Deleted message {msg_id}")
                             except Exception as e:
                                 logger.warning(f"Could not delete message {msg_id}: {str(e)}")
-                        
+
                         # Clear payment message IDs from database
                         order.payment_message_ids = None
                         session.commit()
@@ -184,9 +190,9 @@ class IPNOrderProcessor:
                     logger.info(f"No payment message IDs in database for order {order_id}")
             else:
                 logger.warning(f"Bot instance not available to delete payment messages for order {order_id}")
-            
+
             logger.info(f"Delivery type: {delivery_type}")
-            
+
             delivery_success = False
             try:
                 if delivery_type == DeliveryType.PRE_UPLOADED:
@@ -205,15 +211,15 @@ class IPNOrderProcessor:
             except Exception as e:
                 logger.error(f"Error during delivery processing for order {order_id}: {str(e)}", exc_info=True)
                 return False
-            
+
             if delivery_success:
                 logger.info(f"✓ Delivery completed successfully for order {order_id}")
             else:
                 logger.error(f"✗ Delivery failed for order {order_id}")
-            
+
             logger.info(f"=== Payment Processing Complete for order {order_id} ===")
             return delivery_success
-            
+
         except Exception as e:
             logger.error(f"Error processing payment success: {str(e)}", exc_info=True)
             session.rollback()
@@ -226,25 +232,25 @@ class IPNOrderProcessor:
     ) -> bool:
         """
         Process a failed payment.
-        
+
         Args:
             order_id: Order ID
             result_code: Payment result code
             message: Error message
-            
+
         Returns:
             True if processing successful, False otherwise
         """
         session = self.session_factory()
         try:
             order_service = OrderService(session)
-            
+
             # Update order status to CANCELLED
             order_service.update_order_status(
                 order_id=order_id,
                 status=OrderStatus.CANCELLED,
             )
-            
+
             # Send notification to user
             order = order_service.get_order_by_id(order_id)
             if order and self.bot:
@@ -261,9 +267,9 @@ class IPNOrderProcessor:
                     ))
                 except TelegramError as e:
                     logger.error(f"Failed to send failure notification: {str(e)}")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Error processing payment failure: {str(e)}", exc_info=True)
             session.rollback()
@@ -276,12 +282,12 @@ class IPNOrderProcessor:
     ) -> None:
         """
         Handle pre-uploaded product delivery.
-        
+
         Args:
             session: Database session
             order_id: Order ID
             user_id: Telegram user ID
-            
+
         Raises:
             Exception: If delivery fails critically
         """
@@ -305,11 +311,16 @@ class IPNOrderProcessor:
                 raise RuntimeError("Bot instance is None, cannot deliver products")
 
             logger.info(f"Bot available, sending products to user {user_id} for order {order_id}")
-            self._send_pre_uploaded_products(user_id, order_id, delivery_result["products"])
-
-            # Only update status to DELIVERED after successful send
-            order_service.update_order_status(order_id, OrderStatus.DELIVERED)
-            logger.info(f"✓ Order {order_id} marked as DELIVERED after successful product send")
+            delivery_sent = False
+            try:
+                self._send_pre_uploaded_products(user_id, order_id, delivery_result["products"])
+                delivery_sent = True
+            finally:
+                # Always mark DELIVERED once send completed, so status is correct even if
+                # something raises after send (e.g. cleanup). Prevents "delivered but still processing".
+                if delivery_sent:
+                    order_service.update_order_status(order_id, OrderStatus.DELIVERED)
+                    logger.info(f"✓ Order {order_id} marked as DELIVERED after successful product send")
             return
 
         # Some items failed
@@ -339,7 +350,7 @@ class IPNOrderProcessor:
     ) -> None:
         """
         Handle supplier-based delivery.
-        
+
         Args:
             session: Database session
             order_id: Order ID
@@ -347,20 +358,20 @@ class IPNOrderProcessor:
         """
         try:
             supplier_order_service = SupplierOrderService(session)
-            
+
             # Create supplier orders
             supplier_orders = supplier_order_service.create_supplier_orders_for_order(order_id)
-            
+
             if not supplier_orders:
                 logger.error(f"No supplier orders created for order {order_id}")
                 raise RuntimeError(f"No supplier orders created for order {order_id}")
-            
+
             # Format and send notifications to suppliers
             notification_message = supplier_order_service.format_order_notification(order_id)
-            
+
             # Use supplier bot if available, otherwise fall back to customer bot
             bot_to_use = self.supplier_bot or self.bot
-            
+
             if notification_message and bot_to_use:
                 for supplier_order in supplier_orders:
                     supplier = supplier_order.supplier
@@ -384,7 +395,7 @@ class IPNOrderProcessor:
                             f"Error sending notification to supplier {supplier.id}: {str(e)}", exc_info=True
                         )
                         raise
-            
+
             # Send confirmation to user
             if self.bot:
                 try:
@@ -397,7 +408,7 @@ class IPNOrderProcessor:
                 except TelegramError as e:
                     logger.error(f"Failed to send supplier delivery confirmation: {str(e)}")
                     raise
-                    
+
         except Exception as e:
             logger.error(f"Error handling supplier delivery: {str(e)}", exc_info=True)
             raise
@@ -407,7 +418,7 @@ class IPNOrderProcessor:
     ) -> None:
         """
         Send pre-uploaded products to user via Telegram and save to file.
-        
+
         Args:
             user_id: Telegram user ID
             order_id: Order ID
@@ -415,12 +426,12 @@ class IPNOrderProcessor:
         """
         if not self.bot:
             raise RuntimeError(f"Cannot send products: bot instance is None for order {order_id}")
-            
+
         try:
             logger.info(f"=== Sending pre-uploaded products for order {order_id} ===")
             logger.info(f"User ID: {user_id}, Total products to deliver: {len(products)}")
             logger.info(f"Bot instance available: {self.bot is not None}")
-            
+
             # Create file content with timestamp and header
             delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             file_content = (
@@ -431,12 +442,12 @@ class IPNOrderProcessor:
                 f"User ID: {user_id}\n"
                 f"================\n\n"
             )
-            
+
             for product in products:
                 logger.info(f"Product: {product}")
                 product_data = product.get("data", {})
                 logger.info(f"Product data: {product_data}")
-                
+
                 # Format product data (could be account credentials, codes, etc.)
                 if isinstance(product_data, dict) and product_data:
                     # Check if it's our wrapper dict for plain text
@@ -458,9 +469,9 @@ class IPNOrderProcessor:
                 else:
                     # product_data is not a dict
                     file_content += f"{str(product_data)}\n"
-            
+
             logger.info(f"File content:\n{file_content}")
-            
+
             # Save to file
             file_path = DELIVERY_FILES_DIR / f"{order_id}.txt"
             try:
@@ -473,22 +484,20 @@ class IPNOrderProcessor:
                 logger.warning(f"Could not save delivery data to file: {str(e)}")
             except Exception as e:
                 logger.error(f"Error saving delivery data to file: {str(e)}")
-            
-            # Skip sending telegram message - only send file
-            
+
             # Send delivery file as document to user
             sent_ok = False
             try:
                 if file_path.exists():
                     logger.info(f"Sending delivery file to user {user_id} for order {order_id}")
                     logger.info(f"File path: {file_path}, File size: {file_path.stat().st_size} bytes")
-                    
+
                     with open(file_path, 'rb') as f:
                         file_data = f.read()
-                    
+
                     file_obj = BytesIO(file_data)
                     file_obj.name = f"Order_{order_id}.txt"
-                    
+
                     logger.info(f"Calling bot.send_document for user {user_id}")
                     result = run_async(self.bot.send_document(
                         chat_id=user_id,
@@ -509,7 +518,7 @@ class IPNOrderProcessor:
             except Exception as e:
                 logger.error(f"Failed to send delivery file to user {user_id}: {str(e)}", exc_info=True)
                 raise
-            
+
             # Delete the delivery file only after successful delivery
             if sent_ok:
                 try:
@@ -518,7 +527,7 @@ class IPNOrderProcessor:
                         logger.info(f"✓ Delivery file deleted after successful delivery: {file_path}")
                 except Exception as e:
                     logger.warning(f"Could not delete delivery file: {str(e)}")
-            
+
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")
             raise
@@ -535,7 +544,7 @@ _global_supplier_bot: Optional[Bot] = None
 def set_global_bot(bot: Bot) -> None:
     """
     Set the global customer bot instance for IPN processing.
-    
+
     Args:
         bot: Telegram bot instance
     """
@@ -546,7 +555,7 @@ def set_global_bot(bot: Bot) -> None:
 def set_global_supplier_bot(bot: Bot) -> None:
     """
     Set the global supplier bot instance for IPN processing.
-    
+
     Args:
         bot: Telegram bot instance
     """
@@ -557,7 +566,7 @@ def set_global_supplier_bot(bot: Bot) -> None:
 def get_global_customer_bot() -> Optional[Bot]:
     """
     Get the global customer bot instance.
-    
+
     Returns:
         Customer bot instance or None
     """
@@ -568,11 +577,10 @@ def _create_bot_from_env() -> Optional[Bot]:
     """
     Create a Bot instance from environment variable if available.
     Used when running in IPN server container.
-    
+
     Returns:
         Bot instance or None
     """
-    import os
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if token:
         try:
@@ -587,11 +595,10 @@ def _create_bot_from_env() -> Optional[Bot]:
 def _create_supplier_bot_from_env() -> Optional[Bot]:
     """
     Create a supplier Bot instance from environment variable if available.
-    
+
     Returns:
         Bot instance or None
     """
-    import os
     token = os.getenv("SUPPLIER_TELEGRAM_BOT_TOKEN")
     if token:
         try:
@@ -607,12 +614,12 @@ def get_ipn_processor() -> IPNOrderProcessor:
     """
     Get IPN order processor instance with bots.
     If global bots are not set, tries to create them from environment variables.
-    
+
     Returns:
         IPNOrderProcessor instance
     """
     global _global_bot, _global_supplier_bot
-    
+
     # If bot not set, try to create from env (for IPN server container)
     if _global_bot is None:
         logger.info("Global customer bot not set, attempting to create from environment variables...")
@@ -621,7 +628,7 @@ def get_ipn_processor() -> IPNOrderProcessor:
             logger.info("✓ Customer bot created successfully from environment")
         else:
             logger.warning("⚠ Failed to create customer bot from environment. Delivery may fail.")
-    
+
     if _global_supplier_bot is None:
         logger.info("Global supplier bot not set, attempting to create from environment variables...")
         _global_supplier_bot = _create_supplier_bot_from_env()
@@ -629,7 +636,6 @@ def get_ipn_processor() -> IPNOrderProcessor:
             logger.info("✓ Supplier bot created successfully from environment")
         else:
             logger.warning("⚠ Failed to create supplier bot from environment. Supplier notifications may fail.")
-    
+
     logger.info(f"IPN processor created: customer_bot={'available' if _global_bot else 'None'}, supplier_bot={'available' if _global_supplier_bot else 'None'}")
     return IPNOrderProcessor(bot=_global_bot, supplier_bot=_global_supplier_bot)
-

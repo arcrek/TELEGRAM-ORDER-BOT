@@ -29,7 +29,7 @@ from src.bot.handlers.callbacks import (
     handle_language_selection,
 )
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
-from src.pay2s.ipn_order_processor import set_global_bot
+from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
 from src.bot.utils.bot_instance import set_shared_bot_instance
 

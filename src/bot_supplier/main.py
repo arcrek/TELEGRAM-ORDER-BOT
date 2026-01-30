@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from dotenv import load_dotenv
 from src.bot_supplier.handlers.commands import start, register, help_command
 from src.bot_supplier.handlers.messages import handle_supplier_reply
-from src.pay2s.ipn_order_processor import set_global_supplier_bot
+from src.ipn import set_global_supplier_bot
 
 # Load environment variables
 load_dotenv()

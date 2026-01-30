@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from src.dashboard.auth import get_db
 from src.database.models import Order
-from src.pay2s.ipn_order_processor import get_ipn_processor
+from src.ipn import get_ipn_processor
 from src.payos.signature import verify_webhook_signature
 
 logger = logging.getLogger(__name__)

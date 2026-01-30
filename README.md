@@ -30,10 +30,11 @@ MTK_BOT_ORDER/
 │   │   ├── models/              # SQLAlchemy models
 │   │   ├── services/            # Business logic services
 │   │   └── migrations/          # Alembic migrations
+│   ├── ipn/                     # Shared order fulfillment (PayOS + Pay2S)
+│   │   └── processor.py         # IPN order processor (payment-agnostic)
 │   └── pay2s/                   # Pay2S payment integration
 │       ├── payment.py           # Payment creation
-│       ├── ipn.py               # IPN server
-│       └── ipn_order_processor.py  # Order processing after payment
+│       └── ipn.py               # Pay2S IPN server
 ├── frontend/                    # React + TypeScript dashboard UI
 │   └── src/
 │       ├── components/          # Reusable UI components

@@ -15,7 +15,7 @@ from src.database.services.bot_user_service import BotUserService
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
-from src.pay2s.ipn_order_processor import get_global_customer_bot
+from src.ipn import get_global_customer_bot
 from src.bot.utils.bot_instance import get_shared_bot_instance
 
 # Load environment variables
