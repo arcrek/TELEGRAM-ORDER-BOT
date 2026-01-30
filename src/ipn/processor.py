@@ -7,6 +7,7 @@ confirmations, updates order status, and fulfills delivery (pre-uploaded or supp
 import asyncio
 import logging
 import os
+import threading
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -29,18 +30,47 @@ DELIVERY_FILES_DIR = Path(__file__).resolve().parent.parent.parent / "delivery_d
 DELIVERY_FILES_DIR.mkdir(exist_ok=True)
 
 
+# Thread-local storage for the "request" event loop when processing payment in a
+# worker thread (e.g. FastAPI webhook runs processor in executor). run_async then
+# schedules Telegram coroutines on this loop instead of creating a new one
+# (which can cause "Event loop is closed" with telegram/httpx/anyio).
+_request_loop_local: threading.local = threading.local()
+
+
+def _get_request_loop():
+    """Get the request loop set by process_payment_success when run from FastAPI."""
+    return getattr(_request_loop_local, "loop", None)
+
+
+def _set_request_loop(loop):
+    _request_loop_local.loop = loop
+
+
+def _clear_request_loop():
+    if hasattr(_request_loop_local, "loop"):
+        del _request_loop_local.loop
+
+
 def run_async(coro):
     """
-    Run an async coroutine in a synchronous context.
-    Used for calling telegram-bot async methods from Flask (sync) or FastAPI (async).
+    Run an async coroutine from a synchronous context.
+
+    - When a request loop was set (e.g. PayOS webhook runs processor in executor):
+      schedules the coroutine on that loop via run_coroutine_threadsafe and waits.
+    - Otherwise (e.g. Pay2S Flask IPN): runs the coroutine on the current or a
+      new event loop in this thread.
     """
+    request_loop = _get_request_loop()
+    if request_loop is not None and request_loop.is_running():
+        # We're in a worker thread; schedule on the main loop to avoid
+        # creating/closing a second loop (telegram/httpx/anyio break otherwise)
+        future = asyncio.run_coroutine_threadsafe(coro, request_loop)
+        return future.result(timeout=30)
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            # If loop is already running (e.g., in FastAPI async context),
-            # we need to schedule it on the existing loop
+            # Caller is on the loop thread; must not block. Use a new loop in a thread.
             import concurrent.futures
-
             def run_in_thread():
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
@@ -48,14 +78,10 @@ def run_async(coro):
                     return new_loop.run_until_complete(coro)
                 finally:
                     new_loop.close()
-
             with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(run_in_thread)
-                return future.result(timeout=30)
-        else:
-            return loop.run_until_complete(coro)
+                return executor.submit(run_in_thread).result(timeout=30)
+        return loop.run_until_complete(coro)
     except RuntimeError:
-        # No event loop, create a new one
         return asyncio.run(coro)
     except Exception as e:
         logger.error(f"Error in run_async: {str(e)}", exc_info=True)
@@ -86,7 +112,12 @@ class IPNOrderProcessor:
         self.session_factory = get_session_factory()
 
     def process_payment_success(
-        self, order_id: str, transaction_id: str, amount: int
+        self,
+        order_id: str,
+        transaction_id: str,
+        amount: int,
+        *,
+        request_loop=None,
     ) -> bool:
         """
         Process a successful payment.
@@ -95,10 +126,24 @@ class IPNOrderProcessor:
             order_id: Order ID
             transaction_id: Payment transaction ID
             amount: Payment amount
+            request_loop: When called from an async context (e.g. FastAPI webhook),
+                pass the running event loop so Telegram calls are scheduled on it
+                instead of creating a second loop (avoids "Event loop is closed").
 
         Returns:
             True if processing successful, False otherwise
         """
+        if request_loop is not None:
+            _set_request_loop(request_loop)
+        try:
+            return self._process_payment_success_impl(order_id, transaction_id, amount)
+        finally:
+            if request_loop is not None:
+                _clear_request_loop()
+
+    def _process_payment_success_impl(
+        self, order_id: str, transaction_id: str, amount: int
+    ) -> bool:
         logger.info(f"=== Processing Payment Success ===")
         logger.info(f"Order ID: {order_id}, Transaction ID: {transaction_id}, Amount: {amount}")
         logger.info(f"Bot instance available: {self.bot is not None}")

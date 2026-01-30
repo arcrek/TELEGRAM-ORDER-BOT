@@ -89,6 +89,9 @@ def test_payos_webhook_success_calls_processor(client, monkeypatch):
     calls = {}
 
     class FakeProcessor:
+        bot = None
+        supplier_bot = None
+
         def process_payment_success(self, order_id: str, transaction_id: str, amount: int) -> bool:
             calls["order_id"] = order_id
             calls["transaction_id"] = transaction_id
@@ -148,6 +151,9 @@ def test_payos_webhook_invalid_signature_skips_processing(client, monkeypatch):
     called = {"hit": False}
 
     class FakeProcessor:
+        bot = None
+        supplier_bot = None
+
         def process_payment_success(self, order_id: str, transaction_id: str, amount: int) -> bool:
             called["hit"] = True
             return True

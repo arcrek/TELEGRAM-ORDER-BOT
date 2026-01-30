@@ -6,6 +6,7 @@ Receives payment notifications from PayOS and triggers order fulfillment.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any, Dict
@@ -80,14 +81,21 @@ async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> Dict
     transaction_id = str(data.get("reference") or data.get("paymentLinkId") or f"payos_{order_code_int}")
 
     logger.info(f"Processing PayOS webhook for order_id={order.id}, orderCode={order_code_int}, amount={amount_int}")
-    
+
     processor = get_ipn_processor()
     logger.info(f"IPN processor created. Bot available: {processor.bot is not None}, Supplier bot available: {processor.supplier_bot is not None}")
-    
-    processed = processor.process_payment_success(
-        order_id=order.id,
-        transaction_id=transaction_id,
-        amount=amount_int,
+
+    # Run sync processor in executor and pass the running loop so Telegram calls
+    # are scheduled on it instead of creating a second loop (avoids "Event loop is closed")
+    loop = asyncio.get_running_loop()
+    processed = await loop.run_in_executor(
+        None,
+        lambda: processor.process_payment_success(
+            order_id=order.id,
+            transaction_id=transaction_id,
+            amount=amount_int,
+            request_loop=loop,
+        ),
     )
 
     if processed:
