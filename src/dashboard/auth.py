@@ -26,7 +26,7 @@ def get_db():
 # JWT settings
 SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to environment variable
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 1 day (24 hours * 60 minutes)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
