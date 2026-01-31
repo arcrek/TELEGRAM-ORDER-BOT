@@ -12,7 +12,8 @@ import { OrdersPage } from './pages/OrdersPage'
 import { ProductUploadPage } from './pages/ProductUploadPage'
 import { PreUploadedPage } from './pages/PreUploadedPage'
 import { VariationsPage } from './pages/VariationsPage'
-import { SuppliersPage } from './pages/SuppliersPage'
+// Supplier functionality disabled
+// import { SuppliersPage } from './pages/SuppliersPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { IotdPage } from './pages/IotdPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -37,7 +38,8 @@ export function AppRoutes() {
         <Route path="product-upload" element={<ProductUploadPage />} />
         <Route path="pre-uploaded" element={<PreUploadedPage />} />
         <Route path="variations" element={<VariationsPage />} />
-        <Route path="suppliers" element={<SuppliersPage />} />
+        {/* Supplier functionality disabled */}
+        {/* <Route path="suppliers" element={<SuppliersPage />} /> */}
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="iotd" element={<IotdPage />} />
       </Route>

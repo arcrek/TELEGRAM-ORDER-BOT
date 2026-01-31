@@ -20,7 +20,7 @@ class ProductFormatter:
         update: Optional[Update] = None,
     ) -> str:
         """
-        Format product list message with box drawing.
+        Format product list message with emoji-based design.
         
         Args:
             products: List of Product instances
@@ -34,23 +34,23 @@ class ProductFormatter:
         lines = []
         
         # Get translations
-        title = t('products.list.title', update) if update else "LIST PRODUCT"
-        page_text = t('products.list.page', update, current=page, total=total_pages) if update else f"page {page} / {total_pages}"
+        title = t('products.list.title', update) if update else "📋 DANH SÁCH SẢN PHẨM:"
         
-        # Header with box drawing
-        lines.append("+" + "─" * 35 + "+")
-        lines.append(f"|  {title}")
-        lines.append(f"|  {page_text}")
-        lines.append("|" + "─" * 35 + "|")
+        # Header
+        lines.append(title)
         
         # Product list
         for idx, product in enumerate(products, start=1):
             product_num = (page - 1) * self.ITEMS_PER_PAGE + idx
-            product_line = f"| [{product_num}] {product.name.upper()}"
+            product_line = f"{product_num}. {product.name.upper()}"
             lines.append(product_line)
         
-        # Footer
-        lines.append("+" + "─" * 35 + "+")
+        # Support info
+        lines.append("")
+        support_text = t('products.list.support', update) if update else "🧑‍💻 Hỗ trợ: @muataikhoanpro"
+        phone_text = t('products.list.phone', update) if update else "📞 Zalo: 0964935727"
+        lines.append(support_text)
+        lines.append(phone_text)
         
         return "\n".join(lines)
 

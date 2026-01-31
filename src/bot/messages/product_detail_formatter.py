@@ -18,7 +18,7 @@ class ProductDetailFormatter:
         update: Optional[Update] = None,
     ) -> str:
         """
-        Format product detail message with box drawing.
+        Format product detail message with emoji-based design.
         
         Args:
             product: Product instance
@@ -32,34 +32,26 @@ class ProductDetailFormatter:
         lines = []
         
         # Get translations
-        product_label = t('products.detail.product_label', update) if update else "・ Product"
-        stock_total = t('products.detail.stock_total', update) if update else "・ Stock Total"
-        detail_label = t('products.detail.detail_label', update) if update else "・ Detail"
-        variations_header = t('products.detail.variations_header', update) if update else "Variations, Prices & Stock"
+        title = t('products.detail.title', update) if update else "📋 DANH SÁCH SẢN PHẨM:"
+        select_prompt = t('products.detail.select_prompt', update) if update else "👉 CHỌN SẢN PHẨM BÊN DƯỚI :"
+        in_stock_template = t('products.detail.stock_available', update) if update else "(còn {stock})"
+        out_of_stock = t('products.detail.out_of_stock', update) if update else "(hết hàng)"
         
-        # Product info header
-        lines.append("+" + "─" * 37 + "+")
-        lines.append(f"|{product_label}: {product.name.upper()}")
-        lines.append(f"|{stock_total}: {total_stock}")
-        if product.description:
-            # Truncate description if too long
-            desc = product.description[:30] + "..." if len(product.description) > 30 else product.description
-            lines.append(f"|{detail_label}: {desc}")
-        lines.append("+" + "─" * 37 + "+")
+        # Header
+        lines.append(title)
         
-        # Variations section
+        # Variations list
         if variations:
-            lines.append("+" + "─" * 37 + "+")
-            lines.append(f"| {variations_header}:")
-            for variation in variations:
-                var_line_template = t('products.detail.variation_line', update) if update else "・ {name}: {price} - Stock: {stock}"
-                var_line = var_line_template.format(
-                    name=variation.name,
-                    price=f"{variation.price:,}",
-                    stock=variation.stock
-                )
-                lines.append(f"|{var_line}")
-            lines.append("+" + "─" * 37 + "+")
+            for idx, variation in enumerate(variations, start=1):
+                # Format price with thousand separators
+                price_str = f"{variation.price:,}đ"
+                stock_str = in_stock_template.format(stock=variation.stock) if variation.stock > 0 else out_of_stock
+                var_line = f"{idx}. {product.name.upper()} {variation.name} — {price_str} {stock_str}"
+                lines.append(var_line)
+        
+        # Selection prompt
+        lines.append("")
+        lines.append(select_prompt)
         
         return "\n".join(lines)
 

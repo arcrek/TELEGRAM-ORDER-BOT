@@ -246,10 +246,20 @@ class IPNOrderProcessor:
                     self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
                     delivery_success = True
                 elif delivery_type == DeliveryType.SUPPLIER_BASED:
-                    # Handle supplier-based delivery
-                    logger.info(f"Processing SUPPLIER_BASED delivery for order {order_id}")
-                    self._handle_supplier_delivery(session, order_id, order.user_id)
-                    delivery_success = True
+                    # Supplier-based delivery is DISABLED
+                    logger.warning(f"SUPPLIER_BASED delivery is disabled for order {order_id}")
+                    # Send notification to user about disabled supplier delivery
+                    if self.bot:
+                        try:
+                            user_message = (
+                                f"⚠️ Order {order_id} payment confirmed!\n\n"
+                                f"However, supplier-based delivery is currently disabled.\n"
+                                f"Please contact support for assistance."
+                            )
+                            run_async(self.bot.send_message(chat_id=order.user_id, text=user_message))
+                        except Exception as e:
+                            logger.error(f"Failed to send supplier disabled notification: {str(e)}")
+                    delivery_success = False
                 else:
                     logger.error(f"Unknown delivery type: {delivery_type} for order {order_id}")
                     return False

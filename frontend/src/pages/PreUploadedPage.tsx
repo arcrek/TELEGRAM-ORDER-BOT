@@ -1,5 +1,5 @@
 /**
- * Pre-uploaded Product Management page.
+ * Kho hàng (Inventory) Management page.
  * Premium Dark SaaS Design System.
  */
 import { useState, useEffect } from 'react'
@@ -217,7 +217,7 @@ export function PreUploadedPage() {
       <div className="pre-uploaded-page">
         <div className="loading-state">
           <RefreshCw className="spinning" />
-          <p>Loading pre-uploaded products...</p>
+          <p>Đang tải kho hàng...</p>
         </div>
       </div>
     )
@@ -226,8 +226,8 @@ export function PreUploadedPage() {
   return (
     <div className="pre-uploaded-page">
       <div className="page-header">
-        <h1>Pre-uploaded Products</h1>
-        <p>Manage pre-uploaded product inventory</p>
+        <h1>Kho hàng</h1>
+        <p>Quản lý kho sản phẩm</p>
       </div>
 
       {/* Statistics */}
@@ -239,7 +239,7 @@ export function PreUploadedPage() {
                 <Package size={24} />
               </div>
               <div className="stat-info">
-                <h3>Total</h3>
+                <h3>Tổng cộng</h3>
                 <p className="stat-value">{statistics.total}</p>
               </div>
             </div>
@@ -251,7 +251,7 @@ export function PreUploadedPage() {
                 <CheckCircle size={24} />
               </div>
               <div className="stat-info">
-                <h3>Available</h3>
+                <h3>Còn hàng</h3>
                 <p className="stat-value">{statistics.available}</p>
               </div>
             </div>
@@ -263,7 +263,7 @@ export function PreUploadedPage() {
                 <XCircle size={24} />
               </div>
               <div className="stat-info">
-                <h3>Sold</h3>
+                <h3>Đã bán</h3>
                 <p className="stat-value">{statistics.used}</p>
               </div>
             </div>
@@ -280,7 +280,7 @@ export function PreUploadedPage() {
           <div className="filter-group">
             <Select
               options={[
-                { value: null, label: 'All Products' },
+                { value: null, label: 'Tất cả sản phẩm' },
                 ...availableProducts.map(p => ({ value: p.id, label: p.name })),
               ]}
               value={productFilter}
@@ -288,22 +288,22 @@ export function PreUploadedPage() {
                 setProductFilter(value as string | null)
                 setPage(1)
               }}
-              placeholder="Filter by Product"
+              placeholder="Lọc theo sản phẩm"
             />
           </div>
           <div className="filter-group">
             <Select
               options={[
-                { value: null, label: 'All Status' },
-                { value: false, label: 'Available' },
-                { value: true, label: 'Sold' },
+                { value: null, label: 'Tất cả trạng thái' },
+                { value: false, label: 'Còn hàng' },
+                { value: true, label: 'Đã bán' },
               ]}
               value={statusFilter}
               onChange={(value) => {
                 setStatusFilter(value as boolean | null)
                 setPage(1)
               }}
-              placeholder="Filter by Status"
+              placeholder="Lọc theo trạng thái"
             />
           </div>
         </div>
@@ -312,20 +312,20 @@ export function PreUploadedPage() {
       {/* Products List */}
       <Card className="products-card">
         <div className="products-header">
-          <h2>Products ({total})</h2>
+          <h2>Sản phẩm ({total})</h2>
           <div className="products-bulk-actions">
             <span className="selected-count">
-              {selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : ''}
+              {selectedProductIds.length > 0 ? `${selectedProductIds.length} đã chọn` : ''}
             </span>
             <Button
               onClick={handleBulkDelete}
               variant="secondary"
               size="small"
               disabled={selectedProductIds.length === 0}
-              title="Delete selected products"
+              title="Xóa sản phẩm đã chọn"
             >
               <Trash2 size={14} />
-              Delete Selected
+              Xóa đã chọn
             </Button>
           </div>
         </div>
@@ -340,7 +340,7 @@ export function PreUploadedPage() {
         {products.length === 0 ? (
           <div className="empty-state">
             <Package size={48} />
-            <p>No pre-uploaded products found</p>
+            <p>Không tìm thấy sản phẩm trong kho</p>
           </div>
         ) : (
           <>
@@ -356,12 +356,12 @@ export function PreUploadedPage() {
                         onChange={handleToggleSelectAll}
                       />
                     </th>
-                    <th>Product</th>
-                    <th>Variation</th>
-                    <th>Product Data</th>
-                    <th>Status</th>
-                    <th>Created</th>
-                    <th>Actions</th>
+                    <th>Sản phẩm</th>
+                    <th>Phân loại</th>
+                    <th>Dữ liệu</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày tạo</th>
+                    <th>Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -399,12 +399,12 @@ export function PreUploadedPage() {
                           {product.is_used ? (
                             <>
                               <XCircle size={14} />
-                              Sold
+                              Đã bán
                             </>
                           ) : (
                             <>
                               <CheckCircle size={14} />
-                              Available
+                              Còn hàng
                             </>
                           )}
                         </span>
@@ -422,7 +422,7 @@ export function PreUploadedPage() {
                                 size="small"
                               >
                                 <CheckCircle size={14} />
-                                Mark Available
+                                Còn hàng
                               </Button>
                             )
                           ) : (
@@ -432,7 +432,7 @@ export function PreUploadedPage() {
                               size="small"
                             >
                               <XCircle size={14} />
-                              Mark Sold
+                              Đã bán
                             </Button>
                           )}
                           <Button
@@ -460,10 +460,10 @@ export function PreUploadedPage() {
                   variant="secondary"
                   size="small"
                 >
-                  Previous
+                  Trước
                 </Button>
                 <span className="pagination-info">
-                  Page {page} of {totalPages}
+                  Trang {page} / {totalPages}
                 </span>
                 <Button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
@@ -471,7 +471,7 @@ export function PreUploadedPage() {
                   variant="secondary"
                   size="small"
                 >
-                  Next
+                  Tiếp
                 </Button>
               </div>
             )}
@@ -486,29 +486,29 @@ export function PreUploadedPage() {
             <div className="modal-header">
               <h2>
                 <Trash2 size={20} />
-                Delete Pre-uploaded Product
+                Xóa sản phẩm
               </h2>
               <button onClick={() => setShowDeleteModal(false)}>×</button>
             </div>
             <div className="modal-body">
-              <p>Are you sure you want to delete this pre-uploaded product?</p>
+              <p>Bạn có chắc chắn muốn xóa sản phẩm này?</p>
               {selectedProduct && (
                 <div style={{ marginTop: '16px', padding: '12px', background: 'var(--bg-secondary, #141412)', borderRadius: '8px' }}>
-                  <p style={{ margin: '4px 0', fontWeight: 600 }}>Product: {selectedProduct.product_name}</p>
-                  <p style={{ margin: '4px 0' }}>Variation: {selectedProduct.variation_name}</p>
+                  <p style={{ margin: '4px 0', fontWeight: 600 }}>Sản phẩm: {selectedProduct.product_name}</p>
+                  <p style={{ margin: '4px 0' }}>Phân loại: {selectedProduct.variation_name}</p>
                   <p style={{ margin: '4px 0', fontSize: '12px', color: 'var(--text-muted, #8F8F8F)' }}>ID: {selectedProduct.id}</p>
                 </div>
               )}
               <p className="delete-warning" style={{ marginTop: '16px', color: '#EF4444', fontSize: '14px' }}>
-                This will permanently delete the product. This action cannot be undone.
+                Thao tác này sẽ xóa vĩnh viễn sản phẩm. Không thể hoàn tác.
               </p>
             </div>
             <div className="modal-actions">
               <Button type="button" variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
+                Hủy
               </Button>
               <Button type="button" onClick={handleConfirmDelete} style={{ background: '#EF4444', borderColor: '#EF4444' }}>
-                Delete
+                Xóa
               </Button>
             </div>
           </div>
@@ -522,22 +522,22 @@ export function PreUploadedPage() {
             <div className="modal-header">
               <h2>
                 <Trash2 size={20} />
-                Delete Selected Pre-uploaded Products
+                Xóa sản phẩm đã chọn
               </h2>
               <button onClick={() => setShowBulkDeleteModal(false)}>×</button>
             </div>
             <div className="modal-body">
               <p>
-                Are you sure you want to delete{' '}
-                <strong>{selectedProductIds.length}</strong> selected pre-uploaded products?
+                Bạn có chắc chắn muốn xóa{' '}
+                <strong>{selectedProductIds.length}</strong> sản phẩm đã chọn?
               </p>
               <p className="delete-warning" style={{ marginTop: '16px', color: '#EF4444', fontSize: '14px' }}>
-                This will permanently delete the selected products. This action cannot be undone.
+                Thao tác này sẽ xóa vĩnh viễn các sản phẩm đã chọn. Không thể hoàn tác.
               </p>
             </div>
             <div className="modal-actions">
               <Button type="button" variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
-                Cancel
+                Hủy
               </Button>
               <Button
                 type="button"
@@ -563,7 +563,7 @@ export function PreUploadedPage() {
                 }}
                 style={{ background: '#EF4444', borderColor: '#EF4444' }}
               >
-                Delete Selected
+                Xóa đã chọn
               </Button>
             </div>
           </div>

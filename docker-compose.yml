@@ -14,7 +14,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
       # Telegram Bot Tokens (needed for PayOS webhook fulfillment)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
+      # Supplier functionality disabled
+      # SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
       # PayOS Configuration (needed for webhook verification)
       PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
       PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
@@ -72,27 +73,28 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  bot_supplier:
-    build:
-      context: .
-      dockerfile: Dockerfile.bot-supplier
-    env_file:
-      - .env
-    environment:
-      APP_ENV: ${APP_ENV:-dev}
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-mtkbot}
-      DB_USER: ${DB_USER:-mtkbot}
-      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
-      # Telegram configuration
-      SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
-    volumes:
-      - ./data/delivery_data:/app/delivery_data
-    depends_on:
-      api:
-        condition: service_healthy
-    restart: unless-stopped
+  # Supplier bot disabled
+  # bot_supplier:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.bot-supplier
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     APP_ENV: ${APP_ENV:-dev}
+  #     DB_HOST: postgres
+  #     DB_PORT: 5432
+  #     DB_NAME: ${DB_NAME:-mtkbot}
+  #     DB_USER: ${DB_USER:-mtkbot}
+  #     DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
+  #     # Telegram configuration
+  #     SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
+  #   volumes:
+  #     - ./data/delivery_data:/app/delivery_data
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+  #   restart: unless-stopped
 
   frontend:
     build:
