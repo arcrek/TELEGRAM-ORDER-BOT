@@ -54,17 +54,29 @@ export function BonusSummaryPage() {
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      // Fetch all products first (paginated response with items array)
-      const productsResponse = await axios.get(`${API_BASE_URL}/api/products`, {
-        params: { per_page: 1000 }, // Get all products
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      
+      // Fetch all products with pagination (max 100 per page)
       const productsMap: Record<string, Product> = {}
-      const productItems = productsResponse.data.items || productsResponse.data || []
-      productItems.forEach((p: Product) => {
-        productsMap[p.id] = p
-      })
+      let page = 1
+      let hasMore = true
+      
+      while (hasMore) {
+        const productsResponse = await axios.get(`${API_BASE_URL}/api/products`, {
+          params: { page, per_page: 100 },
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        
+        const productItems = productsResponse.data.items || []
+        productItems.forEach((p: Product) => {
+          productsMap[p.id] = p
+        })
+        
+        // Check if there are more pages
+        const total = productsResponse.data.total || 0
+        const totalPages = productsResponse.data.pages || Math.ceil(total / 100)
+        hasMore = page < totalPages
+        page++
+      }
+      
       setProducts(productsMap)
       
       // Fetch all variations (returns grouped by product)
