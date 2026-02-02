@@ -12,6 +12,7 @@ import { OrdersPage } from './pages/OrdersPage'
 import { ProductUploadPage } from './pages/ProductUploadPage'
 import { PreUploadedPage } from './pages/PreUploadedPage'
 import { VariationsPage } from './pages/VariationsPage'
+import { BonusSummaryPage } from './pages/BonusSummaryPage'
 // Supplier functionality disabled
 // import { SuppliersPage } from './pages/SuppliersPage'
 import { NotificationsPage } from './pages/NotificationsPage'
@@ -38,6 +39,7 @@ export function AppRoutes() {
         <Route path="product-upload" element={<ProductUploadPage />} />
         <Route path="pre-uploaded" element={<PreUploadedPage />} />
         <Route path="variations" element={<VariationsPage />} />
+        <Route path="bonus-summary" element={<BonusSummaryPage />} />
         {/* Supplier functionality disabled */}
         {/* <Route path="suppliers" element={<SuppliersPage />} /> */}
         <Route path="notifications" element={<NotificationsPage />} />

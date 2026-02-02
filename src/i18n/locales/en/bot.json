@@ -119,7 +119,17 @@
     "success": "✅ Payment successful! Processing your order...",
     "pending": "⏳ Awaiting payment...",
     "failed": "❌ Payment failed. Please try again.",
-    "timeout": "⏰ Payment timeout. Order has been cancelled."
+    "timeout": "⏰ Payment timeout. Order has been cancelled.",
+    "order_created": "✅ Order created successfully!",
+    "scan_qr": "💳 Scan QR code below to complete payment",
+    "auto_cancel_30min": "⏰ This order will be automatically cancelled if payment is not completed within 30 minutes.",
+    "product_label": "📌 Product",
+    "variation_label": "➕ Type",
+    "quantity_label": "👉 Order quantity",
+    "quantity_with_bonus": "x{quantity} (Bonus {bonus})",
+    "quantity_no_bonus": "x{quantity}",
+    "total_amount_label": "💰 Total Amount",
+    "auto_cancel_short": "⏰ Auto-cancels in 30 minutes if unpaid"
   },
   "delivery": {
     "ready": "✅ Your product is ready!",

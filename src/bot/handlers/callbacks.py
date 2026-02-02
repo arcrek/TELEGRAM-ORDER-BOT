@@ -44,6 +44,102 @@ def get_actual_stock(variation, product, variation_service: VariationService) ->
         return variation.stock
 
 
+def format_payment_message(order, update, session) -> tuple[str, str]:
+    """
+    Format payment message with item details and translations.
+    
+    Args:
+        order: Order instance with items
+        update: Telegram update for language detection
+        session: Database session
+    
+    Returns:
+        Tuple of (full_message, caption_message)
+    """
+    from src.bot.utils.language import t
+    
+    # Get translations
+    order_created = t('payment.order_created', update) if update else "✅ Order created successfully!"
+    scan_qr = t('payment.scan_qr', update) if update else "💳 Scan QR code below to complete payment"
+    auto_cancel = t('payment.auto_cancel_30min', update) if update else "⏰ This order will be automatically cancelled if payment is not completed within 30 minutes."
+    auto_cancel_short = t('payment.auto_cancel_short', update) if update else "⏰ Auto-cancels in 30 minutes if unpaid"
+    product_label = t('payment.product_label', update) if update else "📌 Product"
+    variation_label = t('payment.variation_label', update) if update else "➕ Type"
+    quantity_label = t('payment.quantity_label', update) if update else "👉 Order quantity"
+    total_amount_label = t('payment.total_amount_label', update) if update else "💰 Total Amount"
+    
+    lines = [order_created, ""]
+    lines.append(f"📦 Order ID: {order.id}")
+    
+    # Format item details
+    product_service = ProductService(session)
+    variation_service = VariationService(session)
+    
+    for item in order.items:
+        # Get product and variation info
+        product = product_service.get_product_by_id(item.product_id) if item.product_id else None
+        variation = variation_service.get_variation_by_id(item.variation_id) if item.variation_id else None
+        
+        product_name = product.name if product else "N/A"
+        variation_name = variation.name if variation else "N/A"
+        
+        lines.append(f"{product_label}: {product_name}")
+        lines.append(f"{variation_label}: {variation_name}")
+        
+        # Format quantity with bonus
+        bonus_qty = item.bonus_quantity or 0
+        if bonus_qty > 0:
+            qty_with_bonus = t('payment.quantity_with_bonus', update) if update else "x{quantity} (Bonus {bonus})"
+            qty_text = qty_with_bonus.format(quantity=item.quantity, bonus=bonus_qty)
+        else:
+            qty_no_bonus = t('payment.quantity_no_bonus', update) if update else "x{quantity}"
+            qty_text = qty_no_bonus.format(quantity=item.quantity)
+        
+        lines.append(f"{quantity_label}: {qty_text}")
+    
+    lines.append("")
+    lines.append(f"{total_amount_label}: {order.total_amount:,} VND")
+    lines.append("")
+    lines.append(scan_qr)
+    lines.append("")
+    lines.append(auto_cancel)
+    
+    full_message = "\n".join(lines)
+    
+    # Shorter caption for QR image
+    caption_lines = [
+        f"📦 Order ID: {order.id}"
+    ]
+    
+    for item in order.items:
+        product = product_service.get_product_by_id(item.product_id) if item.product_id else None
+        variation = variation_service.get_variation_by_id(item.variation_id) if item.variation_id else None
+        
+        product_name = product.name if product else "N/A"
+        variation_name = variation.name if variation else "N/A"
+        
+        caption_lines.append(f"{product_label}: {product_name}")
+        caption_lines.append(f"{variation_label}: {variation_name}")
+        
+        bonus_qty = item.bonus_quantity or 0
+        if bonus_qty > 0:
+            qty_with_bonus = t('payment.quantity_with_bonus', update) if update else "x{quantity} (Bonus {bonus})"
+            qty_text = qty_with_bonus.format(quantity=item.quantity, bonus=bonus_qty)
+        else:
+            qty_no_bonus = t('payment.quantity_no_bonus', update) if update else "x{quantity}"
+            qty_text = qty_no_bonus.format(quantity=item.quantity)
+        
+        caption_lines.append(f"{quantity_label}: {qty_text}")
+    
+    caption_lines.append(f"{total_amount_label}: {order.total_amount:,} VND")
+    caption_lines.append("")
+    caption_lines.append(auto_cancel_short)
+    
+    caption_message = "\n".join(caption_lines)
+    
+    return full_message, caption_message
+
+
 async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle page navigation callback (next/prev page).
@@ -780,14 +876,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
                 state_manager.update_user_state(user_id, pending_order_id=order.id)
 
-                payment_message = (
-                    f"✅ Order created successfully!\n\n"
-                    f"📦 Order ID: {order.id}\n"
-                    f"💰 Total Amount: {order.total_amount:,} VND\n"
-                    f"📝 Items: {len(order.items)}\n\n"
-                    f"💳 Scan QR code below to complete payment\n\n"
-                    f"⏰ This order will be automatically cancelled if payment is not completed within 30 minutes."
-                )
+                # Format payment message with item details
+                payment_message, caption = format_payment_message(order, update, session)
 
                 cancel_keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
@@ -802,12 +892,6 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 if qr_payload:
                     try:
                         qr_image = make_qr_png_bytes(str(qr_payload))
-                        caption = (
-                            f"📦 Order ID: {order.id}\n"
-                            f"💰 Total: {order.total_amount:,} VND\n"
-                            f"📝 Items: {len(order.items)}\n\n"
-                            f"⏰ Auto-cancels in 30 minutes if unpaid"
-                        )
 
                         sent_message = await context.bot.send_photo(
                             chat_id=user_id,
@@ -1013,15 +1097,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 # Update user state
                 state_manager.update_user_state(user_id, pending_order_id=order.id)
                 
-                # Prepare payment message with auto-cancel notification
-                payment_message = (
-                    f"✅ Order created successfully!\n\n"
-                    f"📦 Order ID: {order.id}\n"
-                    f"💰 Total Amount: {order.total_amount:,} VND\n"
-                    f"📝 Items: {len(order.items)}\n\n"
-                    f"💳 Scan QR code below to complete payment\n\n"
-                    f"⏰ This order will be automatically cancelled if payment is not completed within 30 minutes."
-                )
+                # Format payment message with item details
+                payment_message, caption_base = format_payment_message(order, update, session)
                 
                 # Extract QR code from response
                 qr_code_data = None
@@ -1054,20 +1131,20 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                     # Edit the callback message first
                     await query.edit_message_text(payment_message)
                     
+                    # Add bank info to caption
+                    bank_info = (
+                        f"\n\n🏦 Bank Information:\n"
+                        f"  • Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
+                        f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
+                        f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
+                    )
+                    caption_with_bank = caption_base + bank_info
+                    
                     # Send QR code as photo with cancel button
                     sent_message = await context.bot.send_photo(
                         chat_id=user_id,
                         photo=InputFile(qr_image, filename="qr_code.png"),
-                        caption=(
-                            f"📦 Order ID: {order.id}\n"
-                            f"💰 Total: {order.total_amount:,} VND\n"
-                            f"📝 Items: {len(order.items)}\n\n"
-                            f"🏦 Bank Information:\n"
-                            f"  • Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
-                            f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
-                            f"  • Name: {qr_list[0].get('account_name', 'N/A')}\n\n"
-                            f"⏰ Auto-cancels in 30 minutes if unpaid"
-                        ),
+                        caption=caption_with_bank,
                         reply_markup=cancel_keyboard
                     )
                     
