@@ -54,26 +54,45 @@ export function BonusSummaryPage() {
       setLoading(true)
       const token = localStorage.getItem('token')
       
-      // Fetch all products first
+      // Fetch all products first (paginated response with items array)
       const productsResponse = await axios.get(`${API_BASE_URL}/api/products`, {
+        params: { per_page: 1000 }, // Get all products
         headers: { Authorization: `Bearer ${token}` },
       })
       
       const productsMap: Record<string, Product> = {}
-      productsResponse.data.forEach((p: Product) => {
+      const productItems = productsResponse.data.items || productsResponse.data || []
+      productItems.forEach((p: Product) => {
         productsMap[p.id] = p
       })
       setProducts(productsMap)
       
-      // Fetch all variations
+      // Fetch all variations (returns grouped by product)
       const variationsResponse = await axios.get(`${API_BASE_URL}/api/variations`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       
+      // Extract all variations from the grouped response
+      const groupedData = variationsResponse.data.items || variationsResponse.data || []
+      const allVariations: Array<{id: string, name: string, price: number, stock: number, product_id: string, product_name: string}> = []
+      
+      for (const group of groupedData) {
+        const productId = group.product_id
+        const productName = group.product_name || productsMap[productId]?.name || 'Unknown'
+        
+        for (const v of (group.variations || [])) {
+          allVariations.push({
+            ...v,
+            product_id: productId,
+            product_name: productName,
+          })
+        }
+      }
+      
       // Fetch bonus tiers for each variation that has them
       const variationsWithBonus: Variation[] = []
       
-      for (const variation of variationsResponse.data) {
+      for (const variation of allVariations) {
         try {
           const bonusResponse = await axios.get(
             `${API_BASE_URL}/api/variations/${variation.id}/bonus-tiers`,
@@ -83,7 +102,7 @@ export function BonusSummaryPage() {
           if (bonusResponse.data && bonusResponse.data.length > 0) {
             variationsWithBonus.push({
               ...variation,
-              product_name: productsMap[variation.product_id]?.name || 'Unknown',
+              product_name: variation.product_name || productsMap[variation.product_id]?.name || 'Unknown',
               bonus_tiers: bonusResponse.data,
             })
           }
