@@ -276,7 +276,7 @@ export function BonusSummaryPage() {
               <Gift size={24} />
             </div>
             <div className="summary-card-info">
-              <h3>Tầng Bonus hoạt động</h3>
+              <h3>Bonus hoạt động</h3>
               <p className="summary-value">{totalActiveTiers}</p>
             </div>
           </div>
@@ -288,7 +288,7 @@ export function BonusSummaryPage() {
               <Gift size={24} />
             </div>
             <div className="summary-card-info">
-              <h3>Tầng Bonus tạm dừng</h3>
+              <h3>Bonus tạm dừng</h3>
               <p className="summary-value">{totalInactiveTiers}</p>
             </div>
           </div>
@@ -349,7 +349,6 @@ export function BonusSummaryPage() {
                 onClick={() => toggleProduct(productId)}
               >
                 <div className="product-info">
-                  <Package size={20} />
                   <h2>{products[productId]?.name || 'Unknown Product'}</h2>
                   <span className="variation-count">
                     {productVariations.length} phân loại
