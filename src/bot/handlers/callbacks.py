@@ -128,12 +128,18 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
             variation.stock = actual_stock  # Override with actual stock
             total_stock += actual_stock
         
+        # Get bonus texts for variations
+        from src.bot.utils.language import get_user_language
+        language = get_user_language(update)
+        variation_ids = [v.id for v in variations]
+        bonus_texts = formatter.get_bonus_texts_for_variations(variation_ids, session, language)
+        
         # Get current page from state (for back button)
         user_state = state_manager.get_user_state(user_id)
         current_page = user_state.current_page if user_state else 1
         
         # Format message and keyboard
-        message = formatter.format_product_detail(product, variations, total_stock, update)
+        message = formatter.format_product_detail(product, variations, total_stock, update, bonus_texts)
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         
         # Update message
@@ -189,9 +195,16 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
             quantity=1,  # Default quantity
         )
         
-        # Format order confirmation
+        # Format order confirmation with bonus
         quantity = 1
-        message = formatter.format_order_confirmation(product, variation, quantity, update)
+        from src.bot.utils.language import get_user_language
+        language = get_user_language(update)
+        bonus_quantity, bonus_label = formatter.get_applicable_bonus(
+            variation_id, quantity, actual_stock, session, language
+        )
+        message = formatter.format_order_confirmation(
+            product, variation, quantity, update, bonus_quantity, bonus_label
+        )
         keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock, update)
         
         # Update message
@@ -259,8 +272,15 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
         # Update state
         state_manager.update_user_state(user_id, quantity=new_quantity)
         
-        # Format updated order confirmation
-        message = formatter.format_order_confirmation(product, variation, new_quantity, update)
+        # Format updated order confirmation with bonus
+        from src.bot.utils.language import get_user_language
+        language = get_user_language(update)
+        bonus_quantity, bonus_label = formatter.get_applicable_bonus(
+            variation_id, new_quantity, actual_stock, session, language
+        )
+        message = formatter.format_order_confirmation(
+            product, variation, new_quantity, update, bonus_quantity, bonus_label
+        )
         keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock, update)
         
         # Update message
@@ -422,9 +442,16 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
         except Exception as e:
             logger.warning(f"Could not delete user input message: {str(e)}")
         
-        # Update the order confirmation message
+        # Update the order confirmation message with bonus
         if user_state.order_message_id:
-            message = formatter.format_order_confirmation(product, variation, quantity, update)
+            from src.bot.utils.language import get_user_language
+            language = get_user_language(update)
+            bonus_quantity, bonus_label = formatter.get_applicable_bonus(
+                user_state.selected_variation_id, quantity, actual_stock, session, language
+            )
+            message = formatter.format_order_confirmation(
+                product, variation, quantity, update, bonus_quantity, bonus_label
+            )
             keyboard = formatter.create_quantity_keyboard(
                 user_state.selected_variation_id, quantity, actual_stock, update
             )
@@ -501,11 +528,17 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
             variation.stock = actual_stock  # Override with actual stock
             total_stock += actual_stock
         
+        # Get bonus texts for variations
+        from src.bot.utils.language import get_user_language
+        language = get_user_language(update)
+        variation_ids = [v.id for v in variations]
+        bonus_texts = formatter.get_bonus_texts_for_variations(variation_ids, session, language)
+        
         # Get current page from state (for back button)
         current_page = user_state.current_page if user_state else 1
         
         # Format message and keyboard
-        message = formatter.format_product_detail(product, variations, total_stock, update)
+        message = formatter.format_product_detail(product, variations, total_stock, update, bonus_texts)
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         
         # Update message
@@ -587,28 +620,40 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         variation_service = VariationService(session)
         product_service = ProductService(session)
         
-        # Validate stock one more time
-        if not order_service.validate_stock(variation_id, quantity):
-            variation = variation_service.get_variation_by_id(variation_id)
-            if variation:
-                product = product_service.get_product_by_id(variation.product_id)
-                if product:
-                    actual_stock = get_actual_stock(variation, product, variation_service)
-                    await query.edit_message_text(
-                        f"❌ Insufficient stock. Available: {actual_stock}, Requested: {quantity}"
-                    )
-                else:
-                    await query.edit_message_text("❌ Product not found.")
-            else:
-                await query.edit_message_text("❌ Variation not found.")
+        # Get variation and actual stock
+        variation = variation_service.get_variation_by_id(variation_id)
+        if not variation:
+            await query.edit_message_text("❌ Variation not found.")
             return
         
-        # Create order
+        product = product_service.get_product_by_id(variation.product_id)
+        if not product:
+            await query.edit_message_text("❌ Product not found.")
+            return
+        
+        actual_stock = get_actual_stock(variation, product, variation_service)
+        
+        # Get applicable bonus
+        from src.database.services.bonus_tier_service import BonusTierService
+        bonus_service = BonusTierService(session)
+        bonus_tier = bonus_service.get_applicable_bonus(variation_id, quantity, actual_stock)
+        bonus_quantity = bonus_tier.bonus_quantity if bonus_tier else 0
+        total_items = quantity + bonus_quantity
+        
+        # Validate stock including bonus
+        if actual_stock < total_items:
+            await query.edit_message_text(
+                f"❌ Insufficient stock. Available: {actual_stock}, Requested: {total_items} (quantity: {quantity} + bonus: {bonus_quantity})"
+            )
+            return
+        
+        # Create order with bonus
         try:
             order = order_service.create_order(
                 user_id=user_id,
                 variation_id=variation_id,
                 quantity=quantity,
+                bonus_quantity=bonus_quantity,
             )
         except ValueError as e:
             await query.edit_message_text(f"❌ {str(e)}")

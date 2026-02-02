@@ -25,4 +25,5 @@ class ProductVariation(Base):
     product = relationship("Product", back_populates="variations")
     order_items = relationship("OrderItem", back_populates="variation")
     pre_uploaded_products = relationship("PreUploadedProduct", back_populates="variation")
+    bonus_tiers = relationship("BonusTier", back_populates="variation", cascade="all, delete-orphan")
 

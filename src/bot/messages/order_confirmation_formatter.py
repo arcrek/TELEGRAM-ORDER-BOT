@@ -1,7 +1,7 @@
 """
 Order confirmation formatter for Telegram messages.
 """
-from typing import Optional
+from typing import Optional, Tuple
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from src.database.models import Product, ProductVariation
 from src.bot.utils.language import t
@@ -16,6 +16,8 @@ class OrderConfirmationFormatter:
         variation: ProductVariation,
         quantity: int,
         update: Optional[Update] = None,
+        bonus_quantity: int = 0,
+        bonus_label: Optional[str] = None,
     ) -> str:
         """
         Format order confirmation message with emoji-based design.
@@ -25,11 +27,14 @@ class OrderConfirmationFormatter:
             variation: ProductVariation instance
             quantity: Order quantity
             update: Telegram update object for translations
+            bonus_quantity: Number of bonus items (0 if no bonus)
+            bonus_label: Label for bonus (e.g., "Mua 10 tặng 2")
         
         Returns:
             Formatted message string
         """
         total = self.calculate_total(variation.price, quantity)
+        total_items = quantity + bonus_quantity
         
         # Get translations
         title = t('products.order_confirmation.title', update) if update else "✅ XÁC NHẬN THANH TOÁN 🛒"
@@ -50,9 +55,56 @@ class OrderConfirmationFormatter:
         lines.append(f"{in_stock_label}: {variation.stock}")
         lines.append("")
         lines.append(f"{order_quantity_label}: x{quantity}")
-        lines.append(f"{total_payment_label}: {total:,} VND")
+        
+        # Add bonus line if applicable
+        if bonus_quantity > 0 and bonus_label:
+            bonus_text = t('products.order_confirmation.bonus', update) if update else "🎁 Bonus"
+            lines.append(f"{bonus_text}: +{bonus_quantity} ({bonus_label})")
+        
+        # Total payment line with item count if bonus
+        if bonus_quantity > 0:
+            total_items_text = t('products.order_confirmation.total_items', update) if update else "({total} sản phẩm)"
+            total_items_text = total_items_text.format(total=total_items)
+            lines.append(f"{total_payment_label}: {total:,} VND {total_items_text}")
+        else:
+            lines.append(f"{total_payment_label}: {total:,} VND")
         
         return "\n".join(lines)
+
+    def get_applicable_bonus(
+        self,
+        variation_id: str,
+        quantity: int,
+        stock: int,
+        session,
+        language: str = 'vi',
+    ) -> Tuple[int, Optional[str]]:
+        """
+        Get applicable bonus for a given quantity and stock.
+        
+        Args:
+            variation_id: Variation ID
+            quantity: Order quantity
+            stock: Available stock
+            session: Database session
+            language: Language code
+        
+        Returns:
+            Tuple of (bonus_quantity, bonus_label) or (0, None) if no bonus
+        """
+        from src.database.services.bonus_tier_service import BonusTierService
+        
+        bonus_service = BonusTierService(session)
+        tier = bonus_service.get_applicable_bonus(variation_id, quantity, stock)
+        
+        if tier:
+            if language == 'en':
+                label = f"Buy {tier.min_quantity} get {tier.bonus_quantity} free"
+            else:
+                label = f"Mua {tier.min_quantity} tặng {tier.bonus_quantity}"
+            return tier.bonus_quantity, label
+        
+        return 0, None
 
     def calculate_total(self, unit_price: int, quantity: int) -> int:
         """

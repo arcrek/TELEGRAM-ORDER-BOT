@@ -157,13 +157,16 @@ class PreUploadedService:
                 })
                 continue
             
-            # Get available products for this variation
-            products = self.get_available_products(item.variation_id, item.quantity)
+            # Calculate total items to deliver (quantity + bonus)
+            total_items = item.quantity + (item.bonus_quantity or 0)
             
-            if len(products) < item.quantity:
+            # Get available products for this variation
+            products = self.get_available_products(item.variation_id, total_items)
+            
+            if len(products) < total_items:
                 failed_items.append({
                     "variation_id": item.variation_id,
-                    "reason": f"Insufficient pre-uploaded products. Available: {len(products)}, Required: {item.quantity}"
+                    "reason": f"Insufficient pre-uploaded products. Available: {len(products)}, Required: {total_items} (quantity: {item.quantity} + bonus: {item.bonus_quantity or 0})"
                 })
                 continue
             

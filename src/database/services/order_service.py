@@ -61,13 +61,14 @@ class OrderService:
                 return candidate
         raise RuntimeError("Unable to generate unique PayOS orderCode after retries")
 
-    def validate_stock(self, variation_id: str, quantity: int) -> bool:
+    def validate_stock(self, variation_id: str, quantity: int, include_bonus: bool = True) -> bool:
         """
-        Validate that sufficient stock is available.
+        Validate that sufficient stock is available including bonus items.
         
         Args:
             variation_id: Variation ID
             quantity: Requested quantity
+            include_bonus: If True, include bonus items in validation
         
         Returns:
             True if stock is available, False otherwise
@@ -78,7 +79,20 @@ class OrderService:
         
         # Get actual available stock based on delivery type
         actual_stock = self._get_actual_stock(variation_id)
-        return actual_stock >= quantity and quantity > 0
+        
+        if quantity <= 0:
+            return False
+        
+        # Calculate total items including bonus
+        total_items = quantity
+        if include_bonus:
+            from src.database.services.bonus_tier_service import BonusTierService
+            bonus_service = BonusTierService(self.session)
+            bonus_tier = bonus_service.get_applicable_bonus(variation_id, quantity, actual_stock)
+            if bonus_tier:
+                total_items = quantity + bonus_tier.bonus_quantity
+        
+        return actual_stock >= total_items
     
     def _get_actual_stock(self, variation_id: str) -> int:
         """
@@ -130,6 +144,7 @@ class OrderService:
         user_id: int,
         variation_id: str,
         quantity: int,
+        bonus_quantity: int = 0,
     ) -> Order:
         """
         Create a new order from user selection.
@@ -138,6 +153,7 @@ class OrderService:
             user_id: Telegram user ID
             variation_id: Selected variation ID
             quantity: Order quantity
+            bonus_quantity: Number of bonus items (0 if no bonus)
         
         Returns:
             Created Order instance
@@ -145,14 +161,16 @@ class OrderService:
         Raises:
             ValueError: If stock is insufficient or variation not found
         """
-        # Validate stock
-        if not self.validate_stock(variation_id, quantity):
+        # Validate stock including bonus
+        total_items = quantity + bonus_quantity
+        actual_stock = self._get_actual_stock(variation_id)
+        
+        if actual_stock < total_items or quantity <= 0:
             variation = self.variation_service.get_variation_by_id(variation_id)
             if not variation:
                 raise ValueError(f"Variation {variation_id} not found")
-            actual_stock = self._get_actual_stock(variation_id)
             raise ValueError(
-                f"Insufficient stock. Available: {actual_stock}, Requested: {quantity}"
+                f"Insufficient stock. Available: {actual_stock}, Requested: {total_items} (quantity: {quantity} + bonus: {bonus_quantity})"
             )
 
         # Get variation and product
@@ -160,7 +178,7 @@ class OrderService:
         if not variation:
             raise ValueError(f"Variation {variation_id} not found")
 
-        # Calculate total
+        # Calculate total (only charge for quantity, not bonus)
         total_amount = self.calculate_total(variation_id, quantity)
 
         # Generate order ID
@@ -175,13 +193,14 @@ class OrderService:
         )
         self.session.add(order)
 
-        # Create order item
+        # Create order item with bonus
         order_item = OrderItem(
             id=self.generate_order_item_id(),
             order_id=order_id,
             product_id=variation.product_id,
             variation_id=variation_id,
             quantity=quantity,
+            bonus_quantity=bonus_quantity,
             unit_price=variation.price,
             subtotal=total_amount,
         )
@@ -480,6 +499,8 @@ class OrderService:
             item_data = {
                 "id": item.id,
                 "quantity": item.quantity,
+                "bonus_quantity": item.bonus_quantity or 0,
+                "total_items": item.quantity + (item.bonus_quantity or 0),
                 "unit_price": item.unit_price,
                 "subtotal": item.subtotal,
             }

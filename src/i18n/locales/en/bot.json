@@ -61,6 +61,8 @@
       "in_stock": "📦 In stock",
       "order_quantity": "👉 Order quantity",
       "total_payment": "💵 Total",
+      "bonus": "🎁 Bonus",
+      "total_items": "({total} items)",
       "proceed_payment": "💳 Proceed payment",
       "custom": "⚙️ Custom quantity",
       "cancel": "❌ Cancel",

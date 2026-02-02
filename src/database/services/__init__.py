@@ -11,6 +11,7 @@ from .statistics_service import StatisticsService
 from .bot_user_service import BotUserService
 from .notification_service import NotificationService
 from .user_preference_service import UserPreferenceService
+from .bonus_tier_service import BonusTierService
 
 __all__ = [
     "OrderService",
@@ -23,4 +24,5 @@ __all__ = [
     "BotUserService",
     "NotificationService",
     "UserPreferenceService",
+    "BonusTierService",
 ]

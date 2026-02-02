@@ -61,6 +61,8 @@
       "in_stock": "📦 Còn",
       "order_quantity": "👉 Số lượng đặt hàng",
       "total_payment": "💵 Tổng tiền",
+      "bonus": "🎁 Bonus",
+      "total_items": "({total} sản phẩm)",
       "proceed_payment": "💳 Tiến hành thanh toán",
       "custom": "⚙️ Tuỳ chọn số lượng",
       "cancel": "❌ Huỷ",

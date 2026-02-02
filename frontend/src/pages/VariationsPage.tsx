@@ -24,6 +24,7 @@ import {
   ChevronUp,
   CheckSquare,
   Square,
+  Gift,
 } from 'lucide-react'
 import axios from 'axios'
 import './VariationsPage.css'
@@ -53,6 +54,16 @@ interface VariationsResponse {
 interface Product {
   id: string
   name: string
+}
+
+interface BonusTier {
+  id: string
+  variation_id: string
+  min_quantity: number
+  bonus_quantity: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 export function VariationsPage() {
@@ -85,6 +96,17 @@ export function VariationsPage() {
     price: '',
     is_active: true,
   })
+  
+  // Bonus modal states
+  const [showBonusModal, setShowBonusModal] = useState(false)
+  const [bonusVariation, setBonusVariation] = useState<{variation: Variation, productName: string} | null>(null)
+  const [bonusTiers, setBonusTiers] = useState<BonusTier[]>([])
+  const [bonusLoading, setBonusLoading] = useState(false)
+  const [bonusForm, setBonusForm] = useState({
+    min_quantity: '',
+    bonus_quantity: '',
+  })
+  const [editingBonusTier, setEditingBonusTier] = useState<BonusTier | null>(null)
 
   useEffect(() => {
     fetchVariations()
@@ -361,6 +383,143 @@ export function VariationsPage() {
     }).format(price)
   }
 
+  // Bonus management functions
+  const handleOpenBonusModal = async (variation: Variation, productName: string) => {
+    setBonusVariation({ variation, productName })
+    setShowBonusModal(true)
+    setBonusForm({ min_quantity: '', bonus_quantity: '' })
+    setEditingBonusTier(null)
+    await fetchBonusTiers(variation.id)
+  }
+
+  const fetchBonusTiers = async (variationId: string) => {
+    try {
+      setBonusLoading(true)
+      const token = localStorage.getItem('token')
+      const response = await axios.get<{ items: BonusTier[] }>(
+        `${API_BASE_URL}/api/variations/${variationId}/bonus-tiers?only_active=false`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setBonusTiers(response.data.items)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to load bonus tiers')
+    } finally {
+      setBonusLoading(false)
+    }
+  }
+
+  const handleCreateBonusTier = async () => {
+    if (!bonusVariation) return
+    
+    const minQty = parseInt(bonusForm.min_quantity)
+    const bonusQty = parseInt(bonusForm.bonus_quantity)
+    
+    if (isNaN(minQty) || minQty < 1) {
+      alert('Min quantity must be at least 1')
+      return
+    }
+    if (isNaN(bonusQty) || bonusQty < 1) {
+      alert('Bonus quantity must be at least 1')
+      return
+    }
+    
+    try {
+      const token = localStorage.getItem('token')
+      await axios.post(
+        `${API_BASE_URL}/api/variations/${bonusVariation.variation.id}/bonus-tiers`,
+        {
+          min_quantity: minQty,
+          bonus_quantity: bonusQty,
+          is_active: true,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setBonusForm({ min_quantity: '', bonus_quantity: '' })
+      await fetchBonusTiers(bonusVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to create bonus tier')
+    }
+  }
+
+  const handleUpdateBonusTier = async () => {
+    if (!editingBonusTier || !bonusVariation) return
+    
+    const minQty = parseInt(bonusForm.min_quantity)
+    const bonusQty = parseInt(bonusForm.bonus_quantity)
+    
+    if (isNaN(minQty) || minQty < 1) {
+      alert('Min quantity must be at least 1')
+      return
+    }
+    if (isNaN(bonusQty) || bonusQty < 1) {
+      alert('Bonus quantity must be at least 1')
+      return
+    }
+    
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(
+        `${API_BASE_URL}/api/bonus-tiers/${editingBonusTier.id}`,
+        {
+          min_quantity: minQty,
+          bonus_quantity: bonusQty,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setBonusForm({ min_quantity: '', bonus_quantity: '' })
+      setEditingBonusTier(null)
+      await fetchBonusTiers(bonusVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to update bonus tier')
+    }
+  }
+
+  const handleDeleteBonusTier = async (tierId: string) => {
+    if (!bonusVariation) return
+    
+    if (!confirm('Are you sure you want to delete this bonus tier?')) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      await axios.delete(
+        `${API_BASE_URL}/api/bonus-tiers/${tierId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      await fetchBonusTiers(bonusVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to delete bonus tier')
+    }
+  }
+
+  const handleToggleBonusTierActive = async (tier: BonusTier) => {
+    if (!bonusVariation) return
+    
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(
+        `${API_BASE_URL}/api/bonus-tiers/${tier.id}`,
+        { is_active: !tier.is_active },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      await fetchBonusTiers(bonusVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to update bonus tier')
+    }
+  }
+
+  const handleEditBonusTier = (tier: BonusTier) => {
+    setEditingBonusTier(tier)
+    setBonusForm({
+      min_quantity: tier.min_quantity.toString(),
+      bonus_quantity: tier.bonus_quantity.toString(),
+    })
+  }
+
+  const handleCancelEditBonusTier = () => {
+    setEditingBonusTier(null)
+    setBonusForm({ min_quantity: '', bonus_quantity: '' })
+  }
+
   if (loading && productGroups.length === 0) {
     return (
       <div className="variations-page">
@@ -556,6 +715,14 @@ export function VariationsPage() {
                         </td>
                         <td>
                           <div className="action-buttons">
+                            <Button
+                              onClick={() => handleOpenBonusModal(variation, group.product_name)}
+                              variant="secondary"
+                              size="small"
+                              title="Bonus Config"
+                            >
+                              <Gift size={14} />
+                            </Button>
                             <Button
                               onClick={() => handleEdit(variation, group.product_id)}
                               variant="secondary"
@@ -775,6 +942,138 @@ export function VariationsPage() {
               </Button>
               <Button type="button" onClick={handleConfirmBulkDelete}>
                 Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bonus Configuration Modal */}
+      {showBonusModal && bonusVariation && (
+        <div className="modal-overlay" onClick={() => setShowBonusModal(false)}>
+          <div className="modal-content bonus-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <Gift size={20} />
+                Bonus Configuration
+              </h2>
+              <button onClick={() => setShowBonusModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p className="bonus-variation-info">
+                <strong>Product:</strong> {bonusVariation.productName}<br />
+                <strong>Variation:</strong> {bonusVariation.variation.name}
+              </p>
+              
+              {/* Add/Edit Bonus Form */}
+              <div className="bonus-form">
+                <h3>{editingBonusTier ? 'Edit Bonus Tier' : 'Add Bonus Tier'}</h3>
+                <div className="bonus-form-row">
+                  <div className="form-group">
+                    <label>Min Quantity</label>
+                    <Input
+                      type="number"
+                      value={bonusForm.min_quantity}
+                      onChange={(e) => setBonusForm({ ...bonusForm, min_quantity: e.target.value })}
+                      placeholder="e.g., 10"
+                      min="1"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Bonus Quantity</label>
+                    <Input
+                      type="number"
+                      value={bonusForm.bonus_quantity}
+                      onChange={(e) => setBonusForm({ ...bonusForm, bonus_quantity: e.target.value })}
+                      placeholder="e.g., 2"
+                      min="1"
+                    />
+                  </div>
+                  <div className="bonus-form-actions">
+                    {editingBonusTier ? (
+                      <>
+                        <Button onClick={handleUpdateBonusTier} size="small">
+                          Update
+                        </Button>
+                        <Button onClick={handleCancelEditBonusTier} variant="secondary" size="small">
+                          Cancel
+                        </Button>
+                      </>
+                    ) : (
+                      <Button onClick={handleCreateBonusTier} size="small">
+                        <Plus size={14} />
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bonus Tiers List */}
+              <div className="bonus-tiers-list">
+                <h3>Existing Bonus Tiers</h3>
+                {bonusLoading ? (
+                  <p className="loading-text">Loading...</p>
+                ) : bonusTiers.length === 0 ? (
+                  <p className="empty-text">No bonus tiers configured for this variation.</p>
+                ) : (
+                  <table className="bonus-tiers-table">
+                    <thead>
+                      <tr>
+                        <th>Min Qty</th>
+                        <th>Bonus</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bonusTiers.map((tier) => (
+                        <tr key={tier.id} className={!tier.is_active ? 'inactive-row' : ''}>
+                          <td>{tier.min_quantity}</td>
+                          <td>+{tier.bonus_quantity}</td>
+                          <td>
+                            <span className={`status-badge ${tier.is_active ? 'active' : 'inactive'}`}>
+                              {tier.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="bonus-tier-actions">
+                              <Button
+                                onClick={() => handleToggleBonusTierActive(tier)}
+                                variant="secondary"
+                                size="small"
+                                title={tier.is_active ? 'Deactivate' : 'Activate'}
+                              >
+                                {tier.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                              </Button>
+                              <Button
+                                onClick={() => handleEditBonusTier(tier)}
+                                variant="secondary"
+                                size="small"
+                                title="Edit"
+                              >
+                                <Edit size={14} />
+                              </Button>
+                              <Button
+                                onClick={() => handleDeleteBonusTier(tier.id)}
+                                variant="secondary"
+                                size="small"
+                                title="Delete"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+            <div className="modal-actions">
+              <Button type="button" onClick={() => setShowBonusModal(false)}>
+                Close
               </Button>
             </div>
           </div>

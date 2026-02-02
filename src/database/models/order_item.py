@@ -16,6 +16,7 @@ class OrderItem(Base):
     product_id = Column(String, ForeignKey("products.id"), nullable=True)  # Nullable to allow product deletion
     variation_id = Column(String, ForeignKey("product_variations.id"), nullable=True)  # Nullable to allow variation deletion
     quantity = Column(Integer, nullable=False)
+    bonus_quantity = Column(Integer, default=0, nullable=False)  # Bonus items given
     unit_price = Column(Integer, nullable=False)  # Price at time of order
     subtotal = Column(Integer, nullable=False)  # quantity × unit_price
 

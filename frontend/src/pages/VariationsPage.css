@@ -469,6 +469,107 @@
   width: 120px;
 }
 
+/* Bonus Modal */
+.modal-content.bonus-modal {
+  max-width: 600px;
+}
+
+.bonus-variation-info {
+  padding: 12px 16px;
+  background-color: var(--bg-secondary, #141412);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.bonus-form {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: var(--bg-secondary, #141412);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #2A2A26);
+}
+
+.bonus-form h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #EAEAEA);
+}
+
+.bonus-form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.bonus-form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.bonus-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.bonus-tiers-list {
+  margin-top: 16px;
+}
+
+.bonus-tiers-list h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #EAEAEA);
+}
+
+.bonus-tiers-list .loading-text,
+.bonus-tiers-list .empty-text {
+  color: var(--text-muted, #8F8F8F);
+  font-size: 14px;
+  text-align: center;
+  padding: 24px;
+}
+
+.bonus-tiers-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bonus-tiers-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-muted, #8F8F8F);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: var(--bg-secondary, #141412);
+  border-bottom: 1px solid var(--border-color, #2A2A26);
+}
+
+.bonus-tiers-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color, #2A2A26);
+  color: var(--text-primary, #EAEAEA);
+  font-size: 14px;
+}
+
+.bonus-tiers-table tbody tr:hover {
+  background-color: var(--bg-secondary, #141412);
+}
+
+.bonus-tiers-table tbody tr.inactive-row {
+  opacity: 0.6;
+}
+
+.bonus-tier-actions {
+  display: flex;
+  gap: 6px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .variations-page {
@@ -498,6 +599,15 @@
 
   .modal-content {
     max-width: 100%;
+  }
+
+  .bonus-form-row {
+    flex-direction: column;
+  }
+
+  .bonus-form-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 
