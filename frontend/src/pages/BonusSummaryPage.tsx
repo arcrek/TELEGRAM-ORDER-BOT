@@ -108,14 +108,20 @@ export function BonusSummaryPage() {
         try {
           const bonusResponse = await axios.get(
             `${API_BASE_URL}/api/variations/${variation.id}/bonus-tiers`,
-            { headers: { Authorization: `Bearer ${token}` } }
+            { 
+              params: { only_active: false }, // Get ALL bonus tiers including inactive
+              headers: { Authorization: `Bearer ${token}` } 
+            }
           )
           
-          if (bonusResponse.data && bonusResponse.data.length > 0) {
+          // API returns { items: [...] }
+          const bonusTiers = bonusResponse.data?.items || bonusResponse.data || []
+          
+          if (bonusTiers.length > 0) {
             variationsWithBonus.push({
               ...variation,
               product_name: variation.product_name || productsMap[variation.product_id]?.name || 'Unknown',
-              bonus_tiers: bonusResponse.data,
+              bonus_tiers: bonusTiers,
             })
           }
         } catch {
