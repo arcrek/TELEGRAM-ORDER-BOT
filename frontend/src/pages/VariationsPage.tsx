@@ -976,7 +976,6 @@ export function VariationsPage() {
                       value={bonusForm.min_quantity}
                       onChange={(e) => setBonusForm({ ...bonusForm, min_quantity: e.target.value })}
                       placeholder="e.g., 10"
-                      min="1"
                     />
                   </div>
                   <div className="form-group">
@@ -986,7 +985,6 @@ export function VariationsPage() {
                       value={bonusForm.bonus_quantity}
                       onChange={(e) => setBonusForm({ ...bonusForm, bonus_quantity: e.target.value })}
                       placeholder="e.g., 2"
-                      min="1"
                     />
                   </div>
                   <div className="bonus-form-actions">
