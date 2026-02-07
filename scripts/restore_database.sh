@@ -35,8 +35,12 @@ if [ "$CONFIRM" != "yes" ]; then
     exit 0
 fi
 
-echo "Stopping application postgres service..."
-docker compose stop postgres
+echo "Stopping application services (keeping postgres running)..."
+docker compose stop bot api || true
+
+echo "Ensuring postgres is running..."
+docker compose start postgres
+sleep 2  # Wait for postgres to be ready
 
 echo "Restoring database..."
 
@@ -50,5 +54,5 @@ else
     exit 1
 fi
 
-echo "Starting application postgres service..."
-docker compose start postgres || true
+echo "Starting application services..."
+docker compose start bot api || true
