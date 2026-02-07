@@ -42,7 +42,13 @@ echo "Ensuring postgres is running..."
 docker compose start postgres
 sleep 2  # Wait for postgres to be ready
 
-echo "Restoring database..."
+echo "Dropping existing database..."
+docker compose exec -T "$SERVICE" psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS $DB_NAME;"
+
+echo "Creating fresh database..."
+docker compose exec -T "$SERVICE" psql -U "$DB_USER" -d postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+
+echo "Restoring database from backup..."
 
 # Pipe the backup file directly to psql via stdin
 cat "$BACKUP_FILE" | docker compose exec -T "$SERVICE" psql -U "$DB_USER" -d "$DB_NAME"

@@ -22,6 +22,14 @@ echo "Database: $DB_NAME"
 echo "Backup: $BACKUP_DIR/${BACKUP_NAME}.sql"
 echo
 
-docker compose exec "$SERVICE" pg_dump -U "$DB_USER" "$DB_NAME" > "${BACKUP_DIR}/${BACKUP_NAME}.sql"
+docker compose exec "$SERVICE" pg_dump -U "$DB_USER" --clean --if-exists "$DB_NAME" > "${BACKUP_DIR}/${BACKUP_NAME}.sql"
 
-echo "Backup completed: ${BACKUP_DIR}/${BACKUP_NAME}.sql"
+if [ $? -eq 0 ]; then
+    BACKUP_SIZE=$(du -h "${BACKUP_DIR}/${BACKUP_NAME}.sql" | cut -f1)
+    echo "Backup completed successfully!"
+    echo "File: ${BACKUP_DIR}/${BACKUP_NAME}.sql"
+    echo "Size: $BACKUP_SIZE"
+else
+    echo "Error: Backup failed!"
+    exit 1
+fi
