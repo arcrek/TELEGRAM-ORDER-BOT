@@ -35,15 +35,20 @@ if [ "$CONFIRM" != "yes" ]; then
     exit 0
 fi
 
-echo "Stopping application services..."
-docker compose stop bot bot_supplier api || true
+echo "Stopping application postgres service..."
+docker compose stop postgres
 
 echo "Restoring database..."
-BACKUP_ABS_PATH=$(realpath "$BACKUP_FILE")
-BACKUP_DIR=$(dirname "$BACKUP_ABS_PATH")
-BACKUP_NAME=$(basename "$BACKUP_ABS_PATH")
 
-docker compose exec -T "$SERVICE" bash -c "psql -U \"$DB_USER\" -d \"$DB_NAME\" -f \"/backup/$BACKUP_NAME\"" \
-  -v "${BACKUP_DIR}:/backup"
+# Pipe the backup file directly to psql via stdin
+cat "$BACKUP_FILE" | docker compose exec -T "$SERVICE" psql -U "$DB_USER" -d "$DB_NAME"
 
-echo "Restore completed."
+if [ $? -eq 0 ]; then
+    echo "Restore completed successfully."
+else
+    echo "Error: Restore failed!"
+    exit 1
+fi
+
+echo "Starting application postgres service..."
+docker compose start postgres || true
