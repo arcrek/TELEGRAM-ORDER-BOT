@@ -70,6 +70,9 @@ services:
       # Payment URLs
       IPN_URL: ${IPN_URL}
       REDIRECT_URL: ${REDIRECT_URL:-https://t.me/your_bot}
+      # Support Contact Information (footer lines)
+      SUPPORT_LINE_1: ${SUPPORT_LINE_1}
+      SUPPORT_LINE_2: ${SUPPORT_LINE_2}
     volumes:
       - ./data/delivery_data:/app/delivery_data
     depends_on:

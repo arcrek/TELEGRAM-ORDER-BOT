@@ -31,8 +31,8 @@
     "list": {
       "title": "📋 DANH SÁCH SẢN PHẨM:",
       "page": "trang {current} / {total}",
-      "support": "🧑‍💻 Hỗ trợ: @muataikhoanpro",
-      "phone": "📞 Zalo: 0964935727"
+      "footer_line_1": "{line1}",
+      "footer_line_2": "{line2}"
     },
     "detail": {
       "title": "📋 DANH SÁCH SẢN PHẨM:",

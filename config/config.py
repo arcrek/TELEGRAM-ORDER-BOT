@@ -57,3 +57,8 @@ PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
 PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")# URLs used when creating payment links
 PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
 PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
+
+# Support Contact Information (displayed in bot messages)
+# You can customize both lines of the footer
+SUPPORT_LINE_1 = os.getenv("SUPPORT_LINE_1", "🧑‍💻 Hỗ trợ: @muataikhoanpro")
+SUPPORT_LINE_2 = os.getenv("SUPPORT_LINE_2", "📞 Zalo: 0964935727")
