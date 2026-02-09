@@ -489,9 +489,10 @@ class IPNOrderProcessor:
 
             # Create file content with timestamp and header
             delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
             file_content = (
                 f"================\n"
-                f"MUATAIKHOANPRO\n"
+                f"{system_name}\n"
                 f"Order ID: {order_id}\n"
                 f"Delivered: {delivery_time}\n"
                 f"User ID: {user_id}\n"

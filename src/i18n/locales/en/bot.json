@@ -2,7 +2,7 @@
   "commands": {
     "start": {
       "welcome": "Hello, {name}! 👋",
-      "description": "🛒 Welcome to MUATAIKHOANPRO - Automated Account Store 24/7!\n\n✨ Here you can:\n• Browse available products\n• Place orders quickly\n• Pay via QR Code\n• Receive products automatically after payment",
+      "description": "🛒 Welcome to {system_name} - Automated Account Store 24/7!\n\n✨ Here you can:\n• Browse available products\n• Place orders quickly\n• Pay via QR Code\n• Receive products automatically after payment",
       "help_hint": "\n📌 Use /products to view products\n📌 Use /help for instructions\n📌 Use /lang to change language"
     },
     "help": {

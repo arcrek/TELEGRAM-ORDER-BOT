@@ -1,6 +1,7 @@
 """
 Command handlers for the Telegram bot.
 """
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.database.connection import get_session_factory
@@ -87,9 +88,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Get user language
     language = get_user_language(update)
     
+    # Get system name from environment
+    system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
+    
     welcome_message = (
         f"{t('commands.start.welcome', update, name=user.first_name or 'User')}\n\n"
-        f"{t('commands.start.description', update)}\n"
+        f"{t('commands.start.description', update, system_name=system_name)}\n"
         f"{t('commands.start.help_hint', update)}"
     )
     # Show persistent keyboard with Products button

@@ -12,6 +12,8 @@ services:
       DB_NAME: ${DB_NAME:-mtkbot}
       DB_USER: ${DB_USER:-mtkbot}
       DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
+      # System Name (displayed in messages and delivery files)
+      SYSTEM_NAME: ${SYSTEM_NAME:-MUATAIKHOANPRO}
       # Telegram Bot Tokens (needed for PayOS webhook fulfillment)
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       # Supplier functionality disabled
@@ -47,6 +49,8 @@ services:
       DB_NAME: ${DB_NAME:-mtkbot}
       DB_USER: ${DB_USER:-mtkbot}
       DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
+      # System Name (displayed in messages)
+      SYSTEM_NAME: ${SYSTEM_NAME:-MUATAIKHOANPRO}
       # Payment provider selection
       PAYMENT_PROVIDER_DEFAULT: ${PAYMENT_PROVIDER_DEFAULT:-payos}
       # PayOS Configuration (needed for payment creation)

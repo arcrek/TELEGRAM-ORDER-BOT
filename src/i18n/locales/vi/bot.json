@@ -2,7 +2,7 @@
   "commands": {
     "start": {
       "welcome": "Xin chào, {name}! 👋",
-      "description": "🛒 Chào mừng bạn đến với MUATAIKHOANPRO - Hệ thống mua tài khoản tự động 24/7!\n\n✨ Tại đây bạn có thể:\n• Xem danh sách sản phẩm\n• Đặt hàng nhanh chóng\n• Thanh toán qua QR Code\n• Nhận sản phẩm tự động sau thanh toán",
+      "description": "🛒 Chào mừng bạn đến với {system_name} - Hệ thống mua tài khoản tự động 24/7!\n\n✨ Tại đây bạn có thể:\n• Xem danh sách sản phẩm\n• Đặt hàng nhanh chóng\n• Thanh toán qua QR Code\n• Nhận sản phẩm tự động sau thanh toán",
       "help_hint": "\n📌 Sử dụng /products để xem sản phẩm\n📌 Sử dụng /help để xem hướng dẫn\n📌 Sử dụng /lang để đổi ngôn ngữ"
     },
     "help": {
