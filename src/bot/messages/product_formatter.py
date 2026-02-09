@@ -1,11 +1,11 @@
 """
 Product list formatter for Telegram messages.
 """
+import os
 from typing import List, Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from src.database.models import Product
 from src.bot.utils.language import t
-from config.config import SUPPORT_LINE_1, SUPPORT_LINE_2
 
 
 class ProductFormatter:
@@ -46,14 +46,17 @@ class ProductFormatter:
             product_line = f"{product_num}. {product.name.upper()}"
             lines.append(product_line)
         
-        # Footer with support info
+        # Footer with support info (read from environment variables)
+        support_line_1 = os.getenv("SUPPORT_LINE_1", "🧑‍💻 Hỗ trợ: @muataikhoanpro")
+        support_line_2 = os.getenv("SUPPORT_LINE_2", "📞 Zalo: 0964935727")
+        
         lines.append("")
         if update:
-            footer_line_1 = t('products.list.footer_line_1', update, line1=SUPPORT_LINE_1)
-            footer_line_2 = t('products.list.footer_line_2', update, line2=SUPPORT_LINE_2)
+            footer_line_1 = t('products.list.footer_line_1', update, line1=support_line_1)
+            footer_line_2 = t('products.list.footer_line_2', update, line2=support_line_2)
         else:
-            footer_line_1 = SUPPORT_LINE_1
-            footer_line_2 = SUPPORT_LINE_2
+            footer_line_1 = support_line_1
+            footer_line_2 = support_line_2
         lines.append(footer_line_1)
         lines.append(footer_line_2)
         
