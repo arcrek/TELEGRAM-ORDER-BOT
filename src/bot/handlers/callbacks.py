@@ -840,7 +840,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 )
 
                 # PayOS description can be restrictive; keep it short.
-                description = f"MTK{order.id}"[:9]
+                order_prefix = os.getenv("ORDER_PREFIX", "MTK")
+                description = f"{order_prefix}{order.id}"[:9]
                 
                 # Set PayOS payment link expiration to 30 minutes (same as Pay2S timeout)
                 # PayOS will automatically expire the payment link after this time
@@ -1043,7 +1044,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Create order info (10-32 chars, alphanumeric ONLY - no special chars!)
             # API spec: "chỉ chấp nhận ký tự chữ + số, không dấu gạch ngang hoặc đặc biệt"
             # Format: MTK + order_id (no underscores or special characters!)
-            order_info = f"MTK{order.id}"[:32]
+            order_prefix = os.getenv("ORDER_PREFIX", "MTK")
+            order_info = f"{order_prefix}{order.id}"[:32]
             
             # Generate unique request_id using timestamp (as per Pay2S API sample)
             import time
