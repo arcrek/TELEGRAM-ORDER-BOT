@@ -1,6 +1,7 @@
 """
 Authentication and authorization for dashboard.
 """
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
@@ -24,7 +25,7 @@ def get_db():
 # Password hashing - use bcrypt directly to avoid passlib backend detection issues
 
 # JWT settings
-SECRET_KEY = "your-secret-key-change-in-production"  # TODO: Move to environment variable
+SECRET_KEY = os.getenv("DASHBOARD_SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 1 day (24 hours * 60 minutes)
 
