@@ -85,10 +85,10 @@ def create_bot_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^lang_"))
     
     # Register message handlers
-    # Products button handler must be registered BEFORE custom quantity input handler
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button))
-    # Custom quantity input handler (will only process if products button handler returns False)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
+    # Custom quantity input handler runs in a separate group so it is not blocked
+    # by handle_products_button which matches the same filter.
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input), group=1)
 
     # Catch-all for unknown slash commands (including sending just "/")
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
