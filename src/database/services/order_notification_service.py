@@ -112,7 +112,7 @@ class OrderNotificationService:
         """
         event_label = "NEW_ORDER_CREATED" if event == "created" else "ORDER_PAID"
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-        item_count = len(order.items) if getattr(order, "items", None) else "?"
+        items = getattr(order, "items", None) or []
 
         lines = [
             f"🔔 {event_label}",
@@ -120,9 +120,27 @@ class OrderNotificationService:
             f"• User ID: {order.user_id}",
             f"• Status: {getattr(order.status, 'value', str(order.status))}",
             f"• Total: {order.total_amount:,} VND",
-            f"• Items: {item_count}",
-            f"• At: {ts}",
         ]
+
+        # Per-item details
+        for item in items:
+            product_name = (
+                item.product.name if getattr(item, "product", None) else "N/A"
+            )
+            variation_name = (
+                item.variation.name if getattr(item, "variation", None) else "N/A"
+            )
+            bonus_qty = item.bonus_quantity or 0
+            qty_str = (
+                f"{item.quantity} (+{bonus_qty} bonus)"
+                if bonus_qty > 0
+                else str(item.quantity)
+            )
+            lines.append(
+                f"  ↳ {product_name} [{variation_name}] × {qty_str} — {item.subtotal:,} VND"
+            )
+
+        lines.append(f"• At: {ts}")
 
         return "\n".join(lines)
 

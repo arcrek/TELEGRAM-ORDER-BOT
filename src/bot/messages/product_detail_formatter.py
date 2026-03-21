@@ -41,6 +41,11 @@ class ProductDetailFormatter:
         
         # Header
         lines.append(title)
+
+        # Product description (if set)
+        if product.description and product.description.strip():
+            lines.append("")
+            lines.append(product.description.strip())
         
         # Variations list
         if variations:
