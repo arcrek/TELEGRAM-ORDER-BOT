@@ -46,6 +46,7 @@ COPY entrypoint.sh ./entrypoint.sh
 
 # Create non-root user and app data dir with proper ownership
 RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app && \
+    sed -i 's/\r$//' /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 # Default envs (override in compose/.env)
