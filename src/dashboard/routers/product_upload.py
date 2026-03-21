@@ -79,11 +79,11 @@ def _collect_upload_notification_messages(
 
         price_str = f"{variation.price:,}đ"
         message = (
-            f"📢 {system_name} thông báo có hàng!\n\n"
+            f"📢 {system_name} thông báo có hàng mới!\n\n"
             f"Sản phẩm: {product.name} {variation.name} {price_str}\n"
             f"➕ Đã thêm: {uploaded_qty}\n"
             f"📦 Tổng số lượng: {total_qty}\n\n"
-            f"👉/products để mua hàng"
+            f"👉 /products để mua hàng"
         )
         messages.append(message)
 
