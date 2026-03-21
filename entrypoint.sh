@@ -6,4 +6,3 @@ alembic upgrade head
 
 echo "Starting application..."
 exec "$@"
-
