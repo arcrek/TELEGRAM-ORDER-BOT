@@ -29,11 +29,9 @@ def formatter():
 
 
 class TestProductFormatter:
-    def test_format_product_list_uses_name_lines(self, formatter, sample_products):
+    def test_format_product_list_without_custom_text_returns_non_empty_placeholder(self, formatter, sample_products):
         formatted = formatter.format_product_list(sample_products, page=1, total_pages=1)
-
-        assert "Product 0" in formatted
-        assert "Product 4" in formatted
+        assert formatted == "\u200B"
 
     def test_format_product_list_custom_prompt(self, formatter, sample_products):
         formatted = formatter.format_product_list(
@@ -52,6 +50,35 @@ class TestProductFormatter:
         product_buttons = [btn for btn in buttons if btn.callback_data and btn.callback_data.startswith("product_")]
         assert len(product_buttons) == 5
         assert product_buttons[0].text.startswith("Product")
+
+    def test_create_product_keyboard_long_name_in_separate_row(self, formatter):
+        products = [
+            Product(
+                id="short_1",
+                name="Short",
+                description="",
+                delivery_type=DeliveryType.PRE_UPLOADED,
+                is_active=True,
+            ),
+            Product(
+                id="long_1",
+                name="This is a very long product name that should be on its own row",
+                description="",
+                delivery_type=DeliveryType.PRE_UPLOADED,
+                is_active=True,
+            ),
+            Product(
+                id="short_2",
+                name="Other",
+                description="",
+                delivery_type=DeliveryType.PRE_UPLOADED,
+                is_active=True,
+            ),
+        ]
+
+        keyboard = formatter.create_product_keyboard(products, page=1, total_pages=1)
+        rows = keyboard.inline_keyboard
+        assert any(len(row) == 1 and row[0].callback_data == "product_long_1" for row in rows)
 
     def test_calculate_total_pages(self, formatter):
         assert formatter.calculate_total_pages(15, 15) == 1
