@@ -12,7 +12,7 @@ class ProductFormatter:
     """Formatter for product list messages."""
 
     ITEMS_PER_PAGE = 15
-    _LONG_NAME_ROW_THRESHOLD = 16
+    _LONG_NAME_ROW_THRESHOLD = 18
 
     @staticmethod
     def _display_width(text: str) -> int:
@@ -48,30 +48,39 @@ class ProductFormatter:
     ) -> InlineKeyboardMarkup:
         """Create inline keyboard for product selection."""
         keyboard = []
-
-        # Product buttons (3 per row for short labels).
-        row = []
+        short_products = []
+        long_products = []
         for product in products:
-            button_text = product.name
-            button = InlineKeyboardButton(
-                button_text,
-                callback_data=f"product_{product.id}",
-            )
-
-            # Long names get their own row.
-            if self._display_width(button_text) > self._LONG_NAME_ROW_THRESHOLD:
-                if row:
-                    keyboard.append(row)
-                    row = []
-                keyboard.append([button])
+            if self._display_width(product.name) > self._LONG_NAME_ROW_THRESHOLD:
+                long_products.append(product)
             else:
-                row.append(button)
-                if len(row) == 3:
-                    keyboard.append(row)
-                    row = []
+                short_products.append(product)
 
+        # Short-name products stay in 3-column layout.
+        row = []
+        for product in short_products:
+            row.append(
+                InlineKeyboardButton(
+                    product.name,
+                    callback_data=f"product_{product.id}",
+                )
+            )
+            if len(row) == 3:
+                keyboard.append(row)
+                row = []
         if row:
             keyboard.append(row)
+
+        # Long-name products are moved to the bottom and shown one per row.
+        for product in long_products:
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        product.name,
+                        callback_data=f"product_{product.id}",
+                    )
+                ]
+            )
 
         nav_row = []
         if page > 1:

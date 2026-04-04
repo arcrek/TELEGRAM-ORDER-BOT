@@ -51,7 +51,7 @@ class TestProductFormatter:
         assert len(product_buttons) == 5
         assert product_buttons[0].text.startswith("Product")
 
-    def test_create_product_keyboard_long_name_in_separate_row(self, formatter):
+    def test_create_product_keyboard_long_name_is_moved_to_bottom(self, formatter):
         products = [
             Product(
                 id="short_1",
@@ -78,7 +78,12 @@ class TestProductFormatter:
 
         keyboard = formatter.create_product_keyboard(products, page=1, total_pages=1)
         rows = keyboard.inline_keyboard
-        assert any(len(row) == 1 and row[0].callback_data == "product_long_1" for row in rows)
+        # Short products should stay in the top 3-column section.
+        assert rows[0][0].callback_data == "product_short_1"
+        assert rows[0][1].callback_data == "product_short_2"
+        # Long product should be placed at the bottom as a single-button row.
+        assert rows[-1][0].callback_data == "product_long_1"
+        assert len(rows[-1]) == 1
 
     def test_calculate_total_pages(self, formatter):
         assert formatter.calculate_total_pages(15, 15) == 1
