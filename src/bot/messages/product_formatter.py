@@ -1,6 +1,7 @@
 """
 Product list formatter for Telegram messages.
 """
+import unicodedata
 from typing import List, Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from src.database.models import Product
@@ -11,7 +12,18 @@ class ProductFormatter:
     """Formatter for product list messages."""
 
     ITEMS_PER_PAGE = 15
-    _LONG_NAME_ROW_THRESHOLD = 20
+    _LONG_NAME_ROW_THRESHOLD = 16
+
+    @staticmethod
+    def _display_width(text: str) -> int:
+        """
+        Approximate display width for Telegram buttons.
+        Wide unicode chars count as 2 cells.
+        """
+        width = 0
+        for ch in text:
+            width += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+        return width
 
     def format_product_list(
         self,
@@ -47,7 +59,7 @@ class ProductFormatter:
             )
 
             # Long names get their own row.
-            if len(button_text) > self._LONG_NAME_ROW_THRESHOLD:
+            if self._display_width(button_text) > self._LONG_NAME_ROW_THRESHOLD:
                 if row:
                     keyboard.append(row)
                     row = []
