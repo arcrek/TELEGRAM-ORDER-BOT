@@ -27,8 +27,6 @@ def test_get_settings_creates_singleton_row(db_session):
     assert settings.id == "global"
     assert settings.product_choose_text is None
     assert settings.variation_choose_text is None
-    assert settings.webapp_button_text is None
-    assert settings.webapp_url is None
 
 
 def test_update_settings_trims_and_normalizes_empty(db_session):
@@ -37,12 +35,8 @@ def test_update_settings_trims_and_normalizes_empty(db_session):
     settings = service.update_settings(
         product_choose_text="  Choose product  ",
         variation_choose_text="   ",
-        webapp_button_text="  Open App ",
-        webapp_url="  https://example.com/app  ",
     )
 
     assert settings.product_choose_text == "Choose product"
     assert settings.variation_choose_text is None
-    assert settings.webapp_button_text == "Open App"
-    assert settings.webapp_url == "https://example.com/app"
 

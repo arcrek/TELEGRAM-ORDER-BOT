@@ -100,8 +100,6 @@ def test_get_bot_ui_settings_success(client, auth_token):
     data = response.json()
     assert "product_choose_text" in data
     assert "variation_choose_text" in data
-    assert "webapp_button_text" in data
-    assert "webapp_url" in data
 
 
 def test_put_bot_ui_settings_success(client, auth_token):
@@ -110,8 +108,6 @@ def test_put_bot_ui_settings_success(client, auth_token):
         json={
             "product_choose_text": "Choose category",
             "variation_choose_text": "Choose package",
-            "webapp_button_text": "Open App",
-            "webapp_url": "https://example.com/app",
         },
         headers={"Authorization": f"Bearer {auth_token}"},
     )
@@ -119,8 +115,6 @@ def test_put_bot_ui_settings_success(client, auth_token):
     data = response.json()
     assert data["product_choose_text"] == "Choose category"
     assert data["variation_choose_text"] == "Choose package"
-    assert data["webapp_button_text"] == "Open App"
-    assert data["webapp_url"] == "https://example.com/app"
 
     check = client.get(
         "/api/bot-ui-settings",
@@ -130,6 +124,4 @@ def test_put_bot_ui_settings_success(client, auth_token):
     check_data = check.json()
     assert check_data["product_choose_text"] == "Choose category"
     assert check_data["variation_choose_text"] == "Choose package"
-    assert check_data["webapp_button_text"] == "Open App"
-    assert check_data["webapp_url"] == "https://example.com/app"
 

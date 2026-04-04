@@ -15,8 +15,6 @@ class BotUiSettings(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     product_choose_text = Column(Text, nullable=True)
     variation_choose_text = Column(Text, nullable=True)
-    webapp_button_text = Column(Text, nullable=True)
-    webapp_url = Column(Text, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(

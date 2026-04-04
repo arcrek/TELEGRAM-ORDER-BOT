@@ -16,15 +16,11 @@ router = APIRouter()
 class BotUiSettingsResponse(BaseModel):
     product_choose_text: Optional[str] = None
     variation_choose_text: Optional[str] = None
-    webapp_button_text: Optional[str] = None
-    webapp_url: Optional[str] = None
 
 
 class BotUiSettingsUpdateRequest(BaseModel):
     product_choose_text: Optional[str] = None
     variation_choose_text: Optional[str] = None
-    webapp_button_text: Optional[str] = None
-    webapp_url: Optional[str] = None
 
 
 @router.get("", response_model=BotUiSettingsResponse, include_in_schema=True)
@@ -38,8 +34,6 @@ async def get_bot_ui_settings(
     return BotUiSettingsResponse(
         product_choose_text=settings.product_choose_text,
         variation_choose_text=settings.variation_choose_text,
-        webapp_button_text=settings.webapp_button_text,
-        webapp_url=settings.webapp_url,
     )
 
 
@@ -54,12 +48,8 @@ async def update_bot_ui_settings(
     settings = service.update_settings(
         product_choose_text=payload.product_choose_text,
         variation_choose_text=payload.variation_choose_text,
-        webapp_button_text=payload.webapp_button_text,
-        webapp_url=payload.webapp_url,
     )
     return BotUiSettingsResponse(
         product_choose_text=settings.product_choose_text,
         variation_choose_text=settings.variation_choose_text,
-        webapp_button_text=settings.webapp_button_text,
-        webapp_url=settings.webapp_url,
     )

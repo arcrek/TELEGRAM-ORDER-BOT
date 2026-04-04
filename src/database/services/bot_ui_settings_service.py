@@ -27,8 +27,6 @@ class BotUiSettingsService:
             id=self._SINGLETON_ID,
             product_choose_text=None,
             variation_choose_text=None,
-            webapp_button_text=None,
-            webapp_url=None,
         )
         self.session.add(settings)
         self.session.commit()
@@ -47,14 +45,10 @@ class BotUiSettingsService:
         *,
         product_choose_text: Optional[str] = None,
         variation_choose_text: Optional[str] = None,
-        webapp_button_text: Optional[str] = None,
-        webapp_url: Optional[str] = None,
     ) -> BotUiSettings:
         settings = self.get_settings()
         settings.product_choose_text = self._normalize_text(product_choose_text)
         settings.variation_choose_text = self._normalize_text(variation_choose_text)
-        settings.webapp_button_text = self._normalize_text(webapp_button_text)
-        settings.webapp_url = self._normalize_text(webapp_url)
         self.session.commit()
         self.session.refresh(settings)
         return settings

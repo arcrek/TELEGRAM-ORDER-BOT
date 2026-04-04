@@ -49,15 +49,6 @@
   resize: vertical;
 }
 
-.bot-ui-settings-input {
-  width: 100%;
-  border: 1px solid var(--border-color, #2a2a26);
-  background: var(--surface-bg, #181816);
-  color: var(--text-primary, #eaeaea);
-  border-radius: 8px;
-  padding: 0.75rem;
-}
-
 .bot-ui-settings-actions {
   display: flex;
   gap: 0.5rem;
