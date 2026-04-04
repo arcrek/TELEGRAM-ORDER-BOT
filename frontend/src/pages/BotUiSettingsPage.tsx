@@ -10,6 +10,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001
 interface BotUiSettingsResponse {
   product_choose_text: string | null
   variation_choose_text: string | null
+  webapp_button_text: string | null
+  webapp_url: string | null
 }
 
 export function BotUiSettingsPage() {
@@ -18,6 +20,8 @@ export function BotUiSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [productChooseText, setProductChooseText] = useState('')
   const [variationChooseText, setVariationChooseText] = useState('')
+  const [webappButtonText, setWebappButtonText] = useState('')
+  const [webappUrl, setWebappUrl] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -33,6 +37,8 @@ export function BotUiSettingsPage() {
       })
       setProductChooseText(response.data.product_choose_text || '')
       setVariationChooseText(response.data.variation_choose_text || '')
+      setWebappButtonText(response.data.webapp_button_text || '')
+      setWebappUrl(response.data.webapp_url || '')
     } catch (e: any) {
       console.error('Failed to load bot UI settings', e)
       setError(e.response?.data?.detail || 'Failed to load bot UI settings')
@@ -51,6 +57,8 @@ export function BotUiSettingsPage() {
         {
           product_choose_text: productChooseText,
           variation_choose_text: variationChooseText,
+          webapp_button_text: webappButtonText,
+          webapp_url: webappUrl,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -100,6 +108,24 @@ export function BotUiSettingsPage() {
                 onChange={(e) => setVariationChooseText(e.target.value)}
                 placeholder="Choose a package"
                 rows={4}
+                disabled={saving}
+              />
+
+              <label className="bot-ui-settings-label">Web app button text</label>
+              <input
+                className="bot-ui-settings-input"
+                value={webappButtonText}
+                onChange={(e) => setWebappButtonText(e.target.value)}
+                placeholder="Open Dashboard"
+                disabled={saving}
+              />
+
+              <label className="bot-ui-settings-label">Web app URL</label>
+              <input
+                className="bot-ui-settings-input"
+                value={webappUrl}
+                onChange={(e) => setWebappUrl(e.target.value)}
+                placeholder="https://example.com/app"
                 disabled={saving}
               />
 
