@@ -120,7 +120,7 @@ class ProductDetailFormatter:
                 if language == 'en':
                     result[variation_id] = f"(Buy {first_tier.min_quantity} get {first_tier.bonus_quantity} free)"
                 else:
-                    result[variation_id] = f"(Mua {first_tier.min_quantity} tang {first_tier.bonus_quantity})"
+                    result[variation_id] = f"(Mua {first_tier.min_quantity} tặng {first_tier.bonus_quantity})"
 
         return result
 

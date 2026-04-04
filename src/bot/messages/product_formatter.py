@@ -13,6 +13,7 @@ class ProductFormatter:
 
     ITEMS_PER_PAGE = 15
     _BUTTON_TEXT_MAX_LEN = 40
+    _LONG_NAME_ROW_THRESHOLD = 20
 
     @staticmethod
     def _truncate_button_text(text: str, max_len: int = 40) -> str:
@@ -42,24 +43,14 @@ class ProductFormatter:
         """
         lines = []
         
-        # Get translations
-        title = t('products.list.title', update) if update else "ðŸ“‹ DANH SÃCH Sáº¢N PHáº¨M:"
-        
-        # Header
-        lines.append(title)
-
         # Product list
         for product in products:
             product_line = f"â€¢ {product.name}"
             lines.append(product_line)
 
-        lines.append("")
-        choose_prompt = (
-            product_choose_text.strip()
-            if product_choose_text and product_choose_text.strip()
-            else (t('products.detail.select_prompt', update) if update else "Choose a product")
-        )
-        lines.append(choose_prompt)
+        if product_choose_text and product_choose_text.strip():
+            lines.append("")
+            lines.append(product_choose_text.strip())
         
         # Footer with support info (read from environment variables)
         support_line_1 = os.getenv("SUPPORT_LINE_1", "ðŸ§‘â€ðŸ’» Há»— trá»£: @muataikhoanpro")
@@ -101,16 +92,23 @@ class ProductFormatter:
         # Product buttons (3 per row)
         row = []
         for product in products:
+            button_text = self._truncate_button_text(product.name, self._BUTTON_TEXT_MAX_LEN)
             button = InlineKeyboardButton(
-                self._truncate_button_text(product.name, self._BUTTON_TEXT_MAX_LEN),
+                button_text,
                 callback_data=f"product_{product.id}",
             )
-            row.append(button)
-            
-            # Add row every 3 buttons
-            if len(row) == 3:
-                keyboard.append(row)
-                row = []
+
+            # Long names get their own full-width row for readability.
+            if len(button_text) > self._LONG_NAME_ROW_THRESHOLD:
+                if row:
+                    keyboard.append(row)
+                    row = []
+                keyboard.append([button])
+            else:
+                row.append(button)
+                if len(row) == 3:
+                    keyboard.append(row)
+                    row = []
         
         # Add remaining buttons
         if row:
