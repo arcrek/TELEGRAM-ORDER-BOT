@@ -8,6 +8,7 @@ from src.database.connection import get_session_factory
 from src.database.services.product_service import ProductService
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.user_preference_service import UserPreferenceService
+from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.language import get_user_language, t
@@ -16,6 +17,13 @@ from src.bot.utils.keyboard import get_persistent_keyboard
 
 # Global state manager instance
 state_manager = StateManager()
+
+
+def _get_bot_selection_prompts(session) -> tuple[str | None, str | None]:
+    """Load global custom prompt texts for product/variation selection."""
+    service = BotUiSettingsService(session)
+    settings = service.get_settings()
+    return settings.product_choose_text, settings.variation_choose_text
 
 async def _restore_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -192,6 +200,7 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Get products
         product_service = ProductService(session)
         formatter = ProductFormatter()
+        product_choose_text, _ = _get_bot_selection_prompts(session)
         
         # Get products for the page
         products = product_service.list_products(
@@ -203,7 +212,13 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         total_pages = formatter.calculate_total_pages(total_count)
         
         # Format message and inline keyboard (for product selection / pagination)
-        message = formatter.format_product_list(products, current_page, total_pages, update)
+        message = formatter.format_product_list(
+            products,
+            current_page,
+            total_pages,
+            update,
+            product_choose_text=product_choose_text,
+        )
         inline_keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
 
         # Send main message with inline keyboard

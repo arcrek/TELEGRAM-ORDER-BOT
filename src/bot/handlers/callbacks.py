@@ -11,6 +11,7 @@ from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService
 from src.database.services.order_service import OrderService
 from src.database.services.order_notification_service import OrderNotificationService
+from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
@@ -22,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 # Global state manager instance
 state_manager = StateManager()
+
+
+def _get_bot_selection_prompts(session) -> tuple[str | None, str | None]:
+    """Load global custom prompt texts for product/variation selection."""
+    service = BotUiSettingsService(session)
+    settings = service.get_settings()
+    return settings.product_choose_text, settings.variation_choose_text
 
 
 def get_actual_stock(variation, product, variation_service: VariationService) -> int:
@@ -165,6 +173,7 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
     try:
         product_service = ProductService(session)
         formatter = ProductFormatter()
+        product_choose_text, _ = _get_bot_selection_prompts(session)
         
         # Get products for the page
         products = product_service.list_products(page=page, per_page=formatter.ITEMS_PER_PAGE, only_active=True)
@@ -172,7 +181,13 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
         total_pages = formatter.calculate_total_pages(total_count)
         
         # Format message and keyboard
-        message = formatter.format_product_list(products, page, total_pages, update)
+        message = formatter.format_product_list(
+            products,
+            page,
+            total_pages,
+            update,
+            product_choose_text=product_choose_text,
+        )
         keyboard = formatter.create_product_keyboard(products, page, total_pages, update)
         
         # Update message
@@ -207,6 +222,7 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
         product_service = ProductService(session)
         variation_service = VariationService(session)
         formatter = ProductDetailFormatter()
+        _, variation_choose_text = _get_bot_selection_prompts(session)
         
         # Get product
         product = product_service.get_product_by_id(product_id)
@@ -235,7 +251,14 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
         current_page = user_state.current_page if user_state else 1
         
         # Format message and keyboard
-        message = formatter.format_product_detail(product, variations, total_stock, update, bonus_texts)
+        message = formatter.format_product_detail(
+            product,
+            variations,
+            total_stock,
+            update,
+            bonus_texts,
+            variation_choose_text=variation_choose_text,
+        )
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         
         # Update message
@@ -607,6 +630,7 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
         product_service = ProductService(session)
         variation_service = VariationService(session)
         formatter = ProductDetailFormatter()
+        _, variation_choose_text = _get_bot_selection_prompts(session)
         
         # Get product
         product = product_service.get_product_by_id(product_id)
@@ -634,7 +658,14 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
         current_page = user_state.current_page if user_state else 1
         
         # Format message and keyboard
-        message = formatter.format_product_detail(product, variations, total_stock, update, bonus_texts)
+        message = formatter.format_product_detail(
+            product,
+            variations,
+            total_stock,
+            update,
+            bonus_texts,
+            variation_choose_text=variation_choose_text,
+        )
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         
         # Update message
@@ -667,12 +698,19 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         product_service = ProductService(session)
         formatter = ProductFormatter()
+        product_choose_text, _ = _get_bot_selection_prompts(session)
         
         products = product_service.list_products(page=current_page, per_page=formatter.ITEMS_PER_PAGE, only_active=True)
         total_count = product_service.get_total_count(only_active=True)
         total_pages = formatter.calculate_total_pages(total_count)
         
-        message = formatter.format_product_list(products, current_page, total_pages, update)
+        message = formatter.format_product_list(
+            products,
+            current_page,
+            total_pages,
+            update,
+            product_choose_text=product_choose_text,
+        )
         keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
         
         await query.edit_message_text(message, reply_markup=keyboard)

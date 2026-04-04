@@ -12,6 +12,13 @@ class ProductFormatter:
     """Formatter for product list messages."""
 
     ITEMS_PER_PAGE = 15
+    _BUTTON_TEXT_MAX_LEN = 40
+
+    @staticmethod
+    def _truncate_button_text(text: str, max_len: int = 40) -> str:
+        if len(text) <= max_len:
+            return text
+        return f"{text[:max_len - 1]}â€¦"
 
     def format_product_list(
         self,
@@ -19,6 +26,7 @@ class ProductFormatter:
         page: int,
         total_pages: int,
         update: Optional[Update] = None,
+        product_choose_text: Optional[str] = None,
     ) -> str:
         """
         Format product list message with emoji-based design.
@@ -35,20 +43,27 @@ class ProductFormatter:
         lines = []
         
         # Get translations
-        title = t('products.list.title', update) if update else "📋 DANH SÁCH SẢN PHẨM:"
+        title = t('products.list.title', update) if update else "ðŸ“‹ DANH SÃCH Sáº¢N PHáº¨M:"
         
         # Header
         lines.append(title)
-        
+
         # Product list
-        for idx, product in enumerate(products, start=1):
-            product_num = (page - 1) * self.ITEMS_PER_PAGE + idx
-            product_line = f"{product_num}. {product.name.upper()}"
+        for product in products:
+            product_line = f"â€¢ {product.name}"
             lines.append(product_line)
+
+        lines.append("")
+        choose_prompt = (
+            product_choose_text.strip()
+            if product_choose_text and product_choose_text.strip()
+            else (t('products.detail.select_prompt', update) if update else "Choose a product")
+        )
+        lines.append(choose_prompt)
         
         # Footer with support info (read from environment variables)
-        support_line_1 = os.getenv("SUPPORT_LINE_1", "🧑‍💻 Hỗ trợ: @muataikhoanpro")
-        support_line_2 = os.getenv("SUPPORT_LINE_2", "📞 Zalo: 0964935727")
+        support_line_1 = os.getenv("SUPPORT_LINE_1", "ðŸ§‘â€ðŸ’» Há»— trá»£: @muataikhoanpro")
+        support_line_2 = os.getenv("SUPPORT_LINE_2", "ðŸ“ž Zalo: 0964935727")
         
         lines.append("")
         if update:
@@ -85,10 +100,9 @@ class ProductFormatter:
         
         # Product buttons (3 per row)
         row = []
-        for idx, product in enumerate(products, start=1):
-            product_num = (page - 1) * self.ITEMS_PER_PAGE + idx
+        for product in products:
             button = InlineKeyboardButton(
-                str(product_num),
+                self._truncate_button_text(product.name, self._BUTTON_TEXT_MAX_LEN),
                 callback_data=f"product_{product.id}",
             )
             row.append(button)
@@ -105,12 +119,12 @@ class ProductFormatter:
         # Navigation buttons
         nav_row = []
         if page > 1:
-            prev_text = t('buttons.prev', update) if update else "◀ PREV PAGE"
+            prev_text = t('buttons.prev', update) if update else "â—€ PREV PAGE"
             nav_row.append(
                 InlineKeyboardButton(prev_text, callback_data=f"page_{page - 1}")
             )
         if page < total_pages:
-            next_text = t('buttons.next', update) if update else "NEXT PAGE ▶"
+            next_text = t('buttons.next', update) if update else "NEXT PAGE â–¶"
             nav_row.append(
                 InlineKeyboardButton(next_text, callback_data=f"page_{page + 1}")
             )
@@ -138,4 +152,6 @@ class ProductFormatter:
             return 1
         
         return (total_items + items_per_page - 1) // items_per_page
+
+
 

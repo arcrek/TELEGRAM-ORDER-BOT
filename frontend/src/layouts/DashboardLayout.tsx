@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 // Users icon removed - supplier functionality disabled
-import { Moon, Sun, BarChart3, Package, ShoppingCart, LogOut, Upload, Box, Layers, Bell, Gift, Menu, X } from 'lucide-react'
+import { Moon, Sun, BarChart3, Package, ShoppingCart, LogOut, Upload, Box, Layers, Bell, Gift, Menu, X, MessageSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -38,6 +38,7 @@ export function DashboardLayout() {
     // Supplier functionality disabled
     // { path: '/suppliers', label: t('navigation.suppliers'), icon: Users, key: 'suppliers' },
     { path: '/notifications', label: t('navigation.notifications'), icon: Bell, key: 'notifications' },
+    { path: '/bot-ui-settings', label: t('navigation.botUiSettings'), icon: MessageSquare, key: 'botUiSettings' },
     { path: '/product-upload', label: t('navigation.productUpload'), icon: Upload, key: 'productUpload' },
     { path: '/pre-uploaded', label: t('navigation.preUploaded'), icon: Box, key: 'preUploaded' },
   ]
