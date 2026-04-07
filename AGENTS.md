@@ -14,7 +14,6 @@
 - Run customer bot: `python -m src.bot.main`
 - Run supplier bot: `python -m src.bot_supplier.main`
 - Run dashboard API: `python run_dashboard.py`
-- Run IPN server: `python run_ipn_server.py`
 - Apply DB migrations: `alembic upgrade head`
 - Run Python tests: `pytest` (or `./run_tests.sh`, `run_tests.bat`)
 - Frontend setup: `cd frontend && npm install`

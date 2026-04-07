@@ -289,6 +289,29 @@
 .product-data-cell {
   max-width: 300px;
   min-width: 200px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.copy-btn {
+  background: none;
+  border: 1px solid var(--border-color, #2A2A26);
+  border-radius: 4px;
+  color: var(--text-muted, #8F8F8F);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: color 0.2s, border-color 0.2s;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  color: var(--accent-blue, #6EA8FF);
+  border-color: var(--accent-blue, #6EA8FF);
 }
 
 .product-data-text {

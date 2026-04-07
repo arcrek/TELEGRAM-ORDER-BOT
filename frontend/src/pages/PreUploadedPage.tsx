@@ -13,9 +13,23 @@ import {
   RefreshCw,
   Filter,
   Trash2,
+  Copy,
+  Download,
 } from 'lucide-react'
 import axios from 'axios'
 import './PreUploadedPage.css'
+
+function extractProductData(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === 'object' && parsed !== null && 'value' in parsed) {
+      return String(parsed.value)
+    }
+    return raw
+  } catch {
+    return raw
+  }
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
@@ -71,6 +85,9 @@ export function PreUploadedPage() {
   // Bulk selection & delete state
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+
+  // Copy-to-clipboard feedback state
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -190,6 +207,26 @@ export function PreUploadedPage() {
   const handleBulkDelete = () => {
     if (!selectedProductIds.length) return
     setShowBulkDeleteModal(true)
+  }
+
+  const handleCopyProductData = async (id: string, raw: string) => {
+    await navigator.clipboard.writeText(extractProductData(raw))
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const handleDownloadSelected = () => {
+    const selectedProducts = products.filter((p) => selectedProductIds.includes(p.id))
+    const content = selectedProducts.map((p) => extractProductData(p.product_data)).join('\n')
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `products_${new Date().toISOString().slice(0, 10)}.txt`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   const handleConfirmDelete = async () => {
@@ -318,6 +355,16 @@ export function PreUploadedPage() {
               {selectedProductIds.length > 0 ? `${selectedProductIds.length} đã chọn` : ''}
             </span>
             <Button
+              onClick={handleDownloadSelected}
+              variant="secondary"
+              size="small"
+              disabled={selectedProductIds.length === 0}
+              title="Tải về sản phẩm đã chọn"
+            >
+              <Download size={14} />
+              Tải về
+            </Button>
+            <Button
               onClick={handleBulkDelete}
               variant="secondary"
               size="small"
@@ -389,9 +436,16 @@ export function PreUploadedPage() {
                       </td>
                       <td>
                         <div className="product-data-cell">
-                          <span className="product-data-text" title={product.product_data}>
-                            {product.product_data}
+                          <span className="product-data-text" title={extractProductData(product.product_data)}>
+                            {extractProductData(product.product_data)}
                           </span>
+                          <button
+                            className="copy-btn"
+                            onClick={() => handleCopyProductData(product.id, product.product_data)}
+                            title="Sao chép"
+                          >
+                            {copiedId === product.id ? 'Đã sao chép!' : <Copy size={14} />}
+                          </button>
                         </div>
                       </td>
                       <td>
