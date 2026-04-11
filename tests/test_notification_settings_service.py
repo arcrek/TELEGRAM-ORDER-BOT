@@ -40,7 +40,7 @@ def test_update_settings_normalizes_whitelist(db_session):
         order_notify_enabled=True,
         order_notify_on_created=True,
         order_notify_on_paid=False,
-        whitelist_chat_ids=[123, "123", -1001, "bad", 0, 123],
+        whitelist_chat_ids=[123, "123", -1001, "bad", 0, 123, "-1001:5", "-1001:5", "-1001:0"],
     )
 
     assert settings.order_notify_enabled is True
@@ -49,4 +49,7 @@ def test_update_settings_normalizes_whitelist(db_session):
 
     whitelist = service.get_whitelist_chat_ids(settings)
     assert whitelist == [123, -1001, 0]
+
+    entries = service.get_whitelist_entries(settings)
+    assert entries == ["123", "-1001", "0", "-1001:5"]
 

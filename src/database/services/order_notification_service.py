@@ -2,15 +2,18 @@
 Order notification service for sending new-order alerts to whitelisted chat IDs.
 """
 import asyncio
+import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from sqlalchemy.orm import Session
 from telegram import Bot
+from telegram.error import TelegramError
 from src.database.models import Order
-from src.database.services.notification_service import NotificationService
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OrderNotificationService:
@@ -50,9 +53,9 @@ class OrderNotificationService:
             }
 
         settings = self._settings_service.get_settings()
-        whitelist = self._settings_service.get_whitelist_chat_ids(settings)
+        whitelist_targets = self._settings_service.get_whitelist_targets(settings)
 
-        if not settings.order_notify_enabled or not whitelist:
+        if not settings.order_notify_enabled or not whitelist_targets:
             return {
                 "total": 0,
                 "success": 0,
@@ -90,13 +93,90 @@ class OrderNotificationService:
             }
 
         message = self._format_message(event, order)
-        notification_service = NotificationService(self.session, bot=self.bot)
+        return await self.send_message_to_whitelist_async(message=message, targets=whitelist_targets)
 
-        # Use async variant to avoid nested event loop issues in async contexts.
-        return await notification_service.send_notification_to_multiple_users_async(
-            telegram_user_ids=whitelist,
-            message=message,
-        )
+    async def send_message_to_whitelist_async(
+        self, message: str, targets: Optional[List[Dict[str, Optional[int]]]] = None
+    ) -> Dict[str, Any]:
+        """
+        Send a raw message to order notification whitelist targets.
+        """
+        if not self.bot:
+            return {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "details": [],
+                "skipped": "bot_not_available",
+            }
+
+        if targets is None:
+            settings = self._settings_service.get_settings()
+            targets = self._settings_service.get_whitelist_targets(settings)
+
+        results = {
+            "total": len(targets),
+            "success": 0,
+            "failed": 0,
+            "details": [],
+        }
+
+        for target in targets:
+            chat_id = int(target["chat_id"])
+            message_thread_id = target.get("message_thread_id")
+            send_kwargs = {
+                "chat_id": chat_id,
+                "text": message,
+            }
+            if message_thread_id is not None:
+                send_kwargs["message_thread_id"] = int(message_thread_id)
+
+            try:
+                send_message = self.bot.send_message
+                if asyncio.iscoroutinefunction(send_message):
+                    await send_message(**send_kwargs)
+                else:
+                    send_message(**send_kwargs)
+
+                details = {
+                    "success": True,
+                    "telegram_user_id": chat_id,
+                }
+                if message_thread_id is not None:
+                    details["message_thread_id"] = int(message_thread_id)
+                results["details"].append(details)
+                results["success"] += 1
+            except TelegramError as e:
+                error_msg = str(e)
+                logger.error(
+                    f"Failed to send order notification to chat {chat_id}: {error_msg}"
+                )
+                details = {
+                    "success": False,
+                    "error": error_msg,
+                    "telegram_user_id": chat_id,
+                }
+                if message_thread_id is not None:
+                    details["message_thread_id"] = int(message_thread_id)
+                results["details"].append(details)
+                results["failed"] += 1
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(
+                    f"Unexpected error sending order notification to chat {chat_id}: {error_msg}",
+                    exc_info=True,
+                )
+                details = {
+                    "success": False,
+                    "error": error_msg,
+                    "telegram_user_id": chat_id,
+                }
+                if message_thread_id is not None:
+                    details["message_thread_id"] = int(message_thread_id)
+                results["details"].append(details)
+                results["failed"] += 1
+
+        return results
 
     def _get_order(self, order_id: str) -> Optional[Order]:
         """Fetch order by ID using the ORM session."""

@@ -45,7 +45,7 @@ interface OrderNotificationSettings {
   order_notify_enabled: boolean
   order_notify_on_created: boolean
   order_notify_on_paid: boolean
-  whitelist_chat_ids: number[]
+  whitelist_chat_ids: string[]
 }
 
 export function NotificationsPage() {
@@ -107,16 +107,29 @@ export function NotificationsPage() {
     }
   }
 
-  const parseChatIds = (text: string): number[] => {
+  const parseChatIds = (text: string): string[] => {
     const parts = text.split(/[\s,]+/).map(p => p.trim()).filter(Boolean)
-    const ids: number[] = []
-    const seen = new Set<number>()
+    const ids: string[] = []
+    const seen = new Set<string>()
     for (const part of parts) {
-      const n = Number(part)
-      if (!Number.isFinite(n) || !Number.isInteger(n)) continue
-      if (!seen.has(n)) {
-        seen.add(n)
-        ids.push(n)
+      const normalized = part.replace(/\s+/g, '')
+      if (!normalized) continue
+
+      const matched = normalized.match(/^(-?\d+)(?::(\d+))?$/)
+      if (!matched) continue
+
+      const chatId = Number(matched[1])
+      if (!Number.isFinite(chatId) || !Number.isInteger(chatId)) continue
+
+      const threadRaw = matched[2]
+      if (threadRaw !== undefined) {
+        const threadId = Number(threadRaw)
+        if (!Number.isFinite(threadId) || !Number.isInteger(threadId) || threadId <= 0) continue
+      }
+
+      if (!seen.has(normalized)) {
+        seen.add(normalized)
+        ids.push(normalized)
       }
     }
     return ids
@@ -312,7 +325,7 @@ export function NotificationsPage() {
                   className="message-input"
                   value={orderSettingsText}
                   onChange={(e) => setOrderSettingsText(e.target.value)}
-                  placeholder={"Example:\n123456789\n-1001234567890"}
+                  placeholder={"Example:\n123456789\n-1001234567890\n-1001234567890:42"}
                   rows={5}
                   disabled={savingOrderSettings}
                 />

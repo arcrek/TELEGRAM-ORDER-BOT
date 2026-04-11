@@ -2,7 +2,7 @@
 Tests for OrderNotificationService.
 """
 import pytest
-from unittest.mock import Mock
+from unittest.mock import Mock, ANY
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -90,7 +90,7 @@ async def test_order_notification_sends_to_whitelist_when_enabled(db_session, sa
         order_notify_enabled=True,
         order_notify_on_created=True,
         order_notify_on_paid=False,
-        whitelist_chat_ids=[999, -1001],
+        whitelist_chat_ids=[999, "-1001:77"],
     )
 
     service = OrderNotificationService(db_session, bot=mock_bot)
@@ -99,6 +99,8 @@ async def test_order_notification_sends_to_whitelist_when_enabled(db_session, sa
     # Two recipients
     assert result["total"] == 2
     assert mock_bot.send_message.call_count == 2
+    mock_bot.send_message.assert_any_call(chat_id=999, text=ANY)
+    mock_bot.send_message.assert_any_call(chat_id=-1001, text=ANY, message_thread_id=77)
 
 
 @pytest.mark.asyncio

@@ -15,6 +15,7 @@ from src.database.services.bot_user_service import BotUserService
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
+from src.database.services.order_notification_service import OrderNotificationService
 from src.ipn import get_global_customer_bot
 from src.bot.utils.bot_instance import get_shared_bot_instance
 
@@ -83,7 +84,7 @@ class OrderNotificationSettingsResponse(BaseModel):
     order_notify_enabled: bool
     order_notify_on_created: bool
     order_notify_on_paid: bool
-    whitelist_chat_ids: List[int]
+    whitelist_chat_ids: List[str]
 
 
 class OrderNotificationSettingsUpdate(BaseModel):
@@ -92,7 +93,7 @@ class OrderNotificationSettingsUpdate(BaseModel):
     order_notify_enabled: bool
     order_notify_on_created: bool
     order_notify_on_paid: bool
-    whitelist_chat_ids: List[int]
+    whitelist_chat_ids: List[str]
 
 
 @router.post("/send", response_model=NotificationResponse)
@@ -231,7 +232,7 @@ async def get_order_notification_settings(
     """
     settings_service = NotificationSettingsService(db)
     settings = settings_service.get_settings()
-    whitelist_ids = settings_service.get_whitelist_chat_ids(settings)
+    whitelist_ids = settings_service.get_whitelist_entries(settings)
 
     return OrderNotificationSettingsResponse(
         order_notify_enabled=settings.order_notify_enabled,
@@ -259,7 +260,7 @@ async def update_order_notification_settings(
         order_notify_on_paid=payload.order_notify_on_paid,
         whitelist_chat_ids=payload.whitelist_chat_ids,
     )
-    whitelist_ids = settings_service.get_whitelist_chat_ids(settings)
+    whitelist_ids = settings_service.get_whitelist_entries(settings)
 
     return OrderNotificationSettingsResponse(
         order_notify_enabled=settings.order_notify_enabled,
@@ -281,9 +282,9 @@ async def test_order_notification_settings(
     """
     settings_service = NotificationSettingsService(db)
     settings = settings_service.get_settings()
-    whitelist_ids = settings_service.get_whitelist_chat_ids(settings)
+    whitelist_targets = settings_service.get_whitelist_targets(settings)
 
-    if not settings.order_notify_enabled or not whitelist_ids:
+    if not settings.order_notify_enabled or not whitelist_targets:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
@@ -299,10 +300,10 @@ async def test_order_notification_settings(
             detail="Bot instance not available. Please ensure TELEGRAM_BOT_TOKEN is set.",
         )
 
-    notification_service = NotificationService(db, bot=bot)
+    order_notification_service = OrderNotificationService(db, bot=bot)
     test_message = "🔔 Test order notification.\nThis is a test from the dashboard settings."
-    results = await notification_service.send_notification_to_multiple_users_async(
-        telegram_user_ids=whitelist_ids,
+    results = await order_notification_service.send_message_to_whitelist_async(
+        targets=whitelist_targets,
         message=test_message,
     )
 
