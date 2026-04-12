@@ -1,40 +1,35 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `src/` contains backend services:
-- `src/bot/` customer Telegram bot, `src/bot_supplier/` supplier bot.
-- `src/dashboard/` FastAPI admin API (`routers/` for endpoints, `auth.py` for JWT auth).
-- `src/database/` SQLAlchemy models, service layer, and Alembic migrations (`migrations/versions/`).
-- `src/ipn/`, `src/pay2s/`, and `src/payos/` handle payment/IPN workflows.
-- `frontend/` is the React + TypeScript dashboard (`src/components`, `src/pages`, `src/test`).
-- `tests/` holds Python test modules; `scripts/` stores operational scripts (admin creation, DB backup/restore).
+Core backend code lives under `src/`: `bot/` (customer Telegram bot), `bot_supplier/` (supplier bot), `dashboard/` (FastAPI API), `database/` (SQLAlchemy models, services, Alembic migrations), and payment/IPN modules (`pay2s/`, `payos/`, `ipn/`).
+Frontend dashboard code is in `frontend/src/` with `components/`, `pages/`, `layouts/`, `contexts/`, and `test/`.
+Integration and unit tests are in `tests/` (Python) and `frontend/src/test/` (Vitest). Operational scripts live in `scripts/`; runtime data is in `data/` and `delivery_data/`.
 
 ## Build, Test, and Development Commands
-- Install backend deps: `pip install -r requirements.txt`
-- Run customer bot: `python -m src.bot.main`
-- Run supplier bot: `python -m src.bot_supplier.main`
-- Run dashboard API: `python run_dashboard.py`
-- Apply DB migrations: `alembic upgrade head`
-- Run Python tests: `pytest` (or `./run_tests.sh`, `run_tests.bat`)
-- Frontend setup: `cd frontend && npm install`
-- Frontend dev server: `npm run dev`
-- Frontend build: `npm run build`
-- Frontend tests/lint: `npm test`, `npm run lint`
+- `pip install -r requirements.txt`: install backend dependencies.
+- `alembic upgrade head`: apply database migrations.
+- `python -m src.bot.main`: run customer bot.
+- `python -m src.bot_supplier.main`: run supplier bot.
+- `python run_dashboard.py`: run FastAPI dashboard API (default `:8001`).
+- `pytest` or `pytest --cov=src --cov-report=html`: run backend tests and coverage.
+- `ruff check .`, `ruff format .`, `mypy src`: lint, format, and type-check backend.
+- `cd frontend && npm install && npm run dev`: run frontend locally.
+- `cd frontend && npm test`, `npm run lint`, `npm run build`: frontend test/lint/build.
+- `docker compose up --build`: run full stack via containers.
 
 ## Coding Style & Naming Conventions
-- Python: 4-space indentation, type hints for new/edited service and API code, and `snake_case` for functions/modules.
-- Enforce Python quality with `ruff check .`, `ruff format .`, and `mypy src` before PR.
-- Frontend: TypeScript + React with `PascalCase` component files (for example `ProductsPage.tsx`), hooks/variables in `camelCase`.
-- Keep API route modules focused by resource (`orders.py`, `suppliers.py`, etc.).
+Python uses 4-space indentation, type hints for public functions, and `snake_case` for modules/functions/files. Keep service logic in `src/database/services/` and API routes in `src/dashboard/routers/`.
+React/TypeScript uses `PascalCase` for components/pages (for example `OrdersPage.tsx`), `camelCase` for variables/functions, and colocated `.css` files for component/page styles.
+Use `ruff format` for Python and `eslint` (`npm run lint`) for frontend checks before pushing.
 
 ## Testing Guidelines
-- Backend tests use `pytest` (+ `pytest-asyncio`, `pytest-cov`).
-- Name Python tests as `tests/test_<feature>.py`; keep unit tests near related domain behavior.
-- Frontend uses Vitest + Testing Library; place tests under `frontend/src/test/`.
-- For meaningful backend changes, run `pytest --cov=src --cov-report=html` and include major coverage impact in PR notes.
+Backend tests use `pytest` with files named `test_*.py` in `tests/`. Frontend tests use Vitest + Testing Library with `*.test.ts`/`*.test.tsx` in `frontend/src/test/`.
+Prefer focused unit tests for new services/formatters and route-level tests for API behavior changes. Run both backend and frontend test suites when touching shared flows (orders, payments, notifications).
 
 ## Commit & Pull Request Guidelines
-- Existing history favors short, imperative commit subjects (for example `fix restore db`, `update entrypoint.sh`).
-- Prefer `<area>: <action>` for clarity (example: `dashboard: add payos webhook validation`).
-- Avoid vague commit titles like `.` or `typo` unless the change is truly trivial.
-- PRs should include: purpose, changed modules, test commands run, migration/env changes, and UI screenshots for `frontend/` updates.
+Recent history mixes conventional commits (`feat: ...`) and descriptive summaries. Standardize on concise, imperative subjects; prefer prefixes like `feat:`, `fix:`, `refactor:`, `test:`.
+PRs should include: scope summary, linked issue/task, test evidence (commands run), migration notes if schema changes, and UI screenshots/GIFs for frontend updates.
+
+## Security & Configuration Tips
+Keep secrets in `.env`; never commit real tokens, payment keys, or production URLs. Validate new environment variables in `config/config.py` and document them in `README.md`.
+For database changes, include an Alembic migration in `src/database/migrations/versions/` and verify upgrade/downgrade paths.

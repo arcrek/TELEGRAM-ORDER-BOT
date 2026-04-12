@@ -12,6 +12,7 @@ from telegram import Bot
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.product_upload_service import ProductUploadService
 from src.database.services.notification_service import NotificationService
+from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
 from src.database.models.pre_uploaded_product import PreUploadedProduct
@@ -51,7 +52,9 @@ def _collect_upload_notification_messages(
 
     Must be called before the DB session closes so relationships are accessible.
     """
-    system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
+    ui_settings = BotUiSettingsService(db).get_settings()
+    default_header = f"📢 {os.getenv('SYSTEM_NAME', 'MUATAIKHOANPRO')} thông báo có hàng mới!"
+    header = ui_settings.upload_notification_header or default_header
 
     failed_indices = {e["index"] for e in result.get("errors", [])}
     successful_items = [
@@ -79,7 +82,7 @@ def _collect_upload_notification_messages(
 
         price_str = f"{variation.price:,}đ"
         message = (
-            f"📢 {system_name} thông báo có hàng mới!\n\n"
+            f"{header}\n\n"
             f"Sản phẩm: {product.name} {variation.name} {price_str}\n"
             f"➕ Đã thêm: {uploaded_qty}\n"
             f"📦 Tổng số lượng: {total_qty}\n\n"

@@ -10,6 +10,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001
 interface BotUiSettingsResponse {
   product_choose_text: string | null
   variation_choose_text: string | null
+  upload_notification_header: string | null
 }
 
 export function BotUiSettingsPage() {
@@ -18,6 +19,7 @@ export function BotUiSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [productChooseText, setProductChooseText] = useState('')
   const [variationChooseText, setVariationChooseText] = useState('')
+  const [uploadNotificationHeader, setUploadNotificationHeader] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -33,6 +35,7 @@ export function BotUiSettingsPage() {
       })
       setProductChooseText(response.data.product_choose_text || '')
       setVariationChooseText(response.data.variation_choose_text || '')
+      setUploadNotificationHeader(response.data.upload_notification_header || '')
     } catch (e: any) {
       console.error('Failed to load bot UI settings', e)
       setError(e.response?.data?.detail || 'Failed to load bot UI settings')
@@ -51,6 +54,7 @@ export function BotUiSettingsPage() {
         {
           product_choose_text: productChooseText,
           variation_choose_text: variationChooseText,
+          upload_notification_header: uploadNotificationHeader,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -83,6 +87,16 @@ export function BotUiSettingsPage() {
             {error && <div className="bot-ui-settings-error">{error}</div>}
 
             <div className="bot-ui-settings-form">
+              <label className="bot-ui-settings-label">Upload notification header</label>
+              <textarea
+                className="bot-ui-settings-textarea"
+                value={uploadNotificationHeader}
+                onChange={(e) => setUploadNotificationHeader(e.target.value)}
+                placeholder="📢 MUATAIKHOANPRO thông báo có hàng mới!"
+                rows={2}
+                disabled={saving}
+              />
+
               <label className="bot-ui-settings-label">Product choose text</label>
               <textarea
                 className="bot-ui-settings-textarea"

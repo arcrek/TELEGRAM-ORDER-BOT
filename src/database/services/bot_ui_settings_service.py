@@ -27,6 +27,7 @@ class BotUiSettingsService:
             id=self._SINGLETON_ID,
             product_choose_text=None,
             variation_choose_text=None,
+            upload_notification_header=None,
         )
         self.session.add(settings)
         self.session.commit()
@@ -45,10 +46,12 @@ class BotUiSettingsService:
         *,
         product_choose_text: Optional[str] = None,
         variation_choose_text: Optional[str] = None,
+        upload_notification_header: Optional[str] = None,
     ) -> BotUiSettings:
         settings = self.get_settings()
         settings.product_choose_text = self._normalize_text(product_choose_text)
         settings.variation_choose_text = self._normalize_text(variation_choose_text)
+        settings.upload_notification_header = self._normalize_text(upload_notification_header)
         self.session.commit()
         self.session.refresh(settings)
         return settings

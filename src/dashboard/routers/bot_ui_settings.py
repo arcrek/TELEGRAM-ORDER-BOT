@@ -16,11 +16,13 @@ router = APIRouter()
 class BotUiSettingsResponse(BaseModel):
     product_choose_text: Optional[str] = None
     variation_choose_text: Optional[str] = None
+    upload_notification_header: Optional[str] = None
 
 
 class BotUiSettingsUpdateRequest(BaseModel):
     product_choose_text: Optional[str] = None
     variation_choose_text: Optional[str] = None
+    upload_notification_header: Optional[str] = None
 
 
 @router.get("", response_model=BotUiSettingsResponse, include_in_schema=True)
@@ -34,6 +36,7 @@ async def get_bot_ui_settings(
     return BotUiSettingsResponse(
         product_choose_text=settings.product_choose_text,
         variation_choose_text=settings.variation_choose_text,
+        upload_notification_header=settings.upload_notification_header,
     )
 
 
@@ -48,8 +51,10 @@ async def update_bot_ui_settings(
     settings = service.update_settings(
         product_choose_text=payload.product_choose_text,
         variation_choose_text=payload.variation_choose_text,
+        upload_notification_header=payload.upload_notification_header,
     )
     return BotUiSettingsResponse(
         product_choose_text=settings.product_choose_text,
         variation_choose_text=settings.variation_choose_text,
+        upload_notification_header=settings.upload_notification_header,
     )
