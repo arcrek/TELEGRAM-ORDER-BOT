@@ -31,13 +31,14 @@ class OrderNotificationService:
         self.bot = bot
         self._settings_service = NotificationSettingsService(session)
 
-    async def _send_async(self, event: str, order_id: str) -> Dict[str, Any]:
+    async def _send_async(self, event: str, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
         """
         Internal async implementation of sending an order notification.
 
         Args:
             event: Event name, e.g. 'created' or 'paid'
             order_id: Order ID
+            delivery_data: Optional delivery data to include in the notification
 
         Returns:
             Result dict from NotificationService or a no-op result.
@@ -92,7 +93,7 @@ class OrderNotificationService:
                 "skipped": "order_not_found",
             }
 
-        message = self._format_message(event, order)
+        message = self._format_message(event, order, delivery_data=delivery_data)
         return await self.send_message_to_whitelist_async(message=message, targets=whitelist_targets)
 
     async def send_message_to_whitelist_async(
@@ -182,23 +183,43 @@ class OrderNotificationService:
         """Fetch order by ID using the ORM session."""
         return self.session.query(Order).filter_by(id=order_id).first()
 
-    def _format_message(self, event: str, order: Order) -> str:
+    def _format_message(self, event: str, order: Order, delivery_data: Optional[str] = None) -> str:
         """
-        Format a short, compact notification message.
+        Format a notification message.
 
         Args:
             event: 'created' or 'paid'
             order: Order instance
+            delivery_data: Optional string of delivery content to include
         """
+        from src.database.models.bot_user import BotUser
+
         event_label = "NEW_ORDER_CREATED" if event == "created" else "ORDER_PAID"
         ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         items = getattr(order, "items", None) or []
 
+        # Look up user info
+        bot_user = self.session.query(BotUser).filter_by(telegram_user_id=order.user_id).first()
+        username = (bot_user.username or "") if bot_user else ""
+        name_parts = []
+        if bot_user:
+            if bot_user.first_name:
+                name_parts.append(bot_user.first_name)
+            if bot_user.last_name:
+                name_parts.append(bot_user.last_name)
+        name = " ".join(name_parts)
+
+        short_order_id = order.id[:8] if len(order.id) >= 8 else order.id
+        status_val = getattr(order.status, "value", str(order.status))
+
         lines = [
             f"🔔 {event_label}",
-            f"• Order ID: {order.id}",
-            f"• User ID: {order.user_id}",
-            f"• Status: {getattr(order.status, 'value', str(order.status))}",
+            f"• Order ID: {short_order_id}",
+            f"• Info",
+            f"  ↳ ID: {order.user_id}",
+            f"  ↳ Username: {username}",
+            f"  ↳ Name: {name}",
+            f"• Status: {status_val}",
             f"• Total: {order.total_amount:,} VND",
         ]
 
@@ -220,6 +241,14 @@ class OrderNotificationService:
                 f"  ↳ {product_name} [{variation_name}] × {qty_str} — {item.subtotal:,} VND"
             )
 
+        # Delivery data section
+        lines.append("• Order details:")
+        if delivery_data:
+            for line in delivery_data.splitlines():
+                lines.append(f"  ↳ {line}")
+        else:
+            lines.append("  ↳ (pending delivery)")
+
         lines.append(f"• At: {ts}")
 
         return "\n".join(lines)
@@ -232,16 +261,16 @@ class OrderNotificationService:
         """
         return await self._send_async("created", order_id)
 
-    async def send_order_paid_async(self, order_id: str) -> Dict[str, Any]:
+    async def send_order_paid_async(self, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
         """
         Send notification for a paid order (PAID).
 
         Intended for use from async contexts; sync callers should use
         the corresponding blocking wrapper.
         """
-        return await self._send_async("paid", order_id)
+        return await self._send_async("paid", order_id, delivery_data=delivery_data)
 
-    def send_order_paid(self, order_id: str) -> Dict[str, Any]:
+    def send_order_paid(self, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
         """
         Blocking wrapper for send_order_paid_async, for use in sync flows
         such as the IPN server.
@@ -254,12 +283,12 @@ class OrderNotificationService:
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
                         asyncio.run,
-                        self.send_order_paid_async(order_id),
+                        self.send_order_paid_async(order_id, delivery_data=delivery_data),
                     )
                     return future.result()
             else:
-                return loop.run_until_complete(self.send_order_paid_async(order_id))
+                return loop.run_until_complete(self.send_order_paid_async(order_id, delivery_data=delivery_data))
         except RuntimeError:
             # No event loop
-            return asyncio.run(self.send_order_paid_async(order_id))
+            return asyncio.run(self.send_order_paid_async(order_id, delivery_data=delivery_data))
 

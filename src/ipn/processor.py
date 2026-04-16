@@ -185,12 +185,8 @@ class IPNOrderProcessor:
                 payment_transaction_id=transaction_id,
             )
 
-            # Fire order-paid notification (best effort, does not affect delivery)
-            try:
-                notify_service = OrderNotificationService(session, bot=self.bot)
-                notify_service.send_order_paid(order_id)
-            except Exception as e:
-                logger.warning(f"Order paid notification failed for {order_id}: {e}")
+            # ORDER_PAID notification is sent after delivery (in _handle_pre_uploaded_delivery)
+            # so that it can include the actual delivery data.
 
             # Process the order (determine delivery type and trigger delivery)
             if not delivery_service.process_paid_order(order_id):
@@ -367,8 +363,9 @@ class IPNOrderProcessor:
 
             logger.info(f"Bot available, sending products to user {user_id} for order {order_id}")
             delivery_sent = False
+            delivery_content = None
             try:
-                self._send_pre_uploaded_products(user_id, order_id, delivery_result["products"])
+                delivery_content = self._send_pre_uploaded_products(user_id, order_id, delivery_result["products"])
                 delivery_sent = True
             finally:
                 # Always mark DELIVERED once send completed, so status is correct even if
@@ -376,6 +373,13 @@ class IPNOrderProcessor:
                 if delivery_sent:
                     order_service.update_order_status(order_id, OrderStatus.DELIVERED)
                     logger.info(f"✓ Order {order_id} marked as DELIVERED after successful product send")
+
+            # Fire ORDER_PAID notification after delivery so it includes delivery data
+            try:
+                notify_service = OrderNotificationService(session, bot=self.bot)
+                notify_service.send_order_paid(order_id, delivery_data=delivery_content)
+            except Exception as e:
+                logger.warning(f"Order paid notification failed for {order_id}: {e}")
             return
 
         # Some items failed
@@ -470,14 +474,20 @@ class IPNOrderProcessor:
 
     def _send_pre_uploaded_products(
         self, user_id: int, order_id: str, products: list[Dict[str, Any]]
-    ) -> None:
+    ) -> str:
         """
         Send pre-uploaded products to user via Telegram and save to file.
+
+        Sends two messages: (1) text content of the delivery file, (2) the .txt file itself.
 
         Args:
             user_id: Telegram user ID
             order_id: Order ID
             products: List of product data dictionaries
+
+        Returns:
+            delivery_content: The product data lines (without file header), for use in
+            the admin ORDER_PAID notification.
         """
         if not self.bot:
             raise RuntimeError(f"Cannot send products: bot instance is None for order {order_id}")
@@ -490,7 +500,7 @@ class IPNOrderProcessor:
             # Create file content with timestamp and header
             delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
-            file_content = (
+            file_header = (
                 f"================\n"
                 f"{system_name}\n"
                 f"Order ID: {order_id}\n"
@@ -499,6 +509,8 @@ class IPNOrderProcessor:
                 f"================\n\n"
             )
 
+            # Build product data lines separately so we can include them in the notification
+            product_lines = ""
             for product in products:
                 logger.info(f"Product: {product}")
                 product_data = product.get("data", {})
@@ -508,24 +520,20 @@ class IPNOrderProcessor:
                 if isinstance(product_data, dict) and product_data:
                     # Check if it's our wrapper dict for plain text
                     if "delivery_data" in product_data and len(product_data) == 1:
-                        # Plain text data wrapped in delivery_data key
                         raw_text = product_data["delivery_data"]
-                        file_content += f"{raw_text}\n"
+                        product_lines += f"{raw_text}\n"
                     elif "value" in product_data and len(product_data) == 1:
-                        # Single value wrapped
-                        file_content += f"{product_data['value']}\n"
+                        product_lines += f"{product_data['value']}\n"
                     else:
-                        # If it's a non-empty dict with multiple keys, show all key-value pairs
                         for key, value in product_data.items():
-                            file_content += f"{key}: {value}\n"
+                            product_lines += f"{key}: {value}\n"
                 elif isinstance(product_data, dict) and not product_data:
-                    # Empty dict means product_data is null in database
                     product_id = product.get('id', 'N/A')
-                    file_content += f"[Product ID: {product_id} - No delivery data available]\n"
+                    product_lines += f"[Product ID: {product_id} - No delivery data available]\n"
                 else:
-                    # product_data is not a dict
-                    file_content += f"{str(product_data)}\n"
+                    product_lines += f"{str(product_data)}\n"
 
+            file_content = file_header + product_lines
             logger.info(f"File content:\n{file_content}")
 
             # Save to file
@@ -541,9 +549,20 @@ class IPNOrderProcessor:
             except Exception as e:
                 logger.error(f"Error saving delivery data to file: {str(e)}")
 
-            # Send delivery file as document to user
             sent_ok = False
             try:
+                # Message 1: Send delivery content as plain text
+                # Telegram text message limit is 4096 chars; truncate if needed
+                MAX_TEXT_LEN = 4096
+                text_to_send = file_content if len(file_content) <= MAX_TEXT_LEN else file_content[:MAX_TEXT_LEN - 3] + "..."
+                logger.info(f"Sending delivery content as text message to user {user_id}")
+                run_async(self.bot.send_message(
+                    chat_id=user_id,
+                    text=text_to_send,
+                ))
+                logger.info(f"✓ Delivery text message sent to user {user_id}")
+
+                # Message 2: Send delivery file as document
                 if file_path.exists():
                     logger.info(f"Sending delivery file to user {user_id} for order {order_id}")
                     logger.info(f"File path: {file_path}, File size: {file_path.stat().st_size} bytes")
@@ -569,10 +588,10 @@ class IPNOrderProcessor:
                     logger.error(f"Delivery file does not exist at {file_path}. Cannot send to user.")
                     raise RuntimeError("Delivery file does not exist; cannot send")
             except TelegramError as e:
-                logger.error(f"Telegram error sending delivery file to user {user_id}: {str(e)}", exc_info=True)
+                logger.error(f"Telegram error sending delivery to user {user_id}: {str(e)}", exc_info=True)
                 raise
             except Exception as e:
-                logger.error(f"Failed to send delivery file to user {user_id}: {str(e)}", exc_info=True)
+                logger.error(f"Failed to send delivery to user {user_id}: {str(e)}", exc_info=True)
                 raise
 
             # Delete the delivery file only after successful delivery
@@ -583,6 +602,8 @@ class IPNOrderProcessor:
                         logger.info(f"✓ Delivery file deleted after successful delivery: {file_path}")
                 except Exception as e:
                     logger.warning(f"Could not delete delivery file: {str(e)}")
+
+            return product_lines.strip()
 
         except TelegramError as e:
             logger.error(f"Failed to send pre-uploaded products: {str(e)}")
