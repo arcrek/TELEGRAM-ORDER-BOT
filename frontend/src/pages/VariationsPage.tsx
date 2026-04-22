@@ -222,6 +222,7 @@ export function VariationsPage() {
       name: '',
       price: '',
       is_active: true,
+      benefit_mode: 'bonus',
     })
     setShowCreateModal(true)
   }
