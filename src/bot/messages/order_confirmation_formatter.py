@@ -110,7 +110,7 @@ class OrderConfirmationFormatter:
             label = f"Giảm {tier.discount_value}%" if language != 'en' else f"{tier.discount_value}% off"
         else:
             if language != 'en':
-                label = f"Giá ưu đãi {tier.discount_value:,}đ/cái"
+                label = f"Giá ưu đãi {tier.discount_value:,}đ/tài khoản"
             else:
                 label = f"Special price {tier.discount_value:,}đ each"
 

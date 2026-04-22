@@ -172,7 +172,7 @@ export function BonusSummaryPage() {
   const formatDiscount = (tier: DiscountTier) =>
     tier.discount_type === 'percentage'
       ? `${tier.discount_value}% off`
-      : `${tier.discount_value.toLocaleString('vi-VN')}đ/cái`
+      : `${tier.discount_value.toLocaleString('vi-VN')}đ/tài khoản`
 
   // ── Derived stats ─────────────────────────────────────────────────────────
   const stats = useMemo(() => {

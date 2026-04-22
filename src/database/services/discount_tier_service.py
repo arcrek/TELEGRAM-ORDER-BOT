@@ -217,4 +217,4 @@ class DiscountTierService:
         else:  # fixed_price
             if language == 'en':
                 return f"(Buy {first.min_quantity}+ at {first.discount_value:,}đ each)"
-            return f"(Mua {first.min_quantity}+ còn {first.discount_value:,}đ/cái)"
+            return f"(Mua {first.min_quantity}+ còn {first.discount_value:,}đ/tài khoản)"
