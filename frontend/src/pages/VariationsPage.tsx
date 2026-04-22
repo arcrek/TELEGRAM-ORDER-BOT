@@ -108,7 +108,7 @@ export function VariationsPage() {
     name: '',
     price: '',
     is_active: true,
-    benefit_mode: 'bonus',
+    benefit_mode: 'both',
   })
   
   // Bonus modal states
@@ -222,7 +222,7 @@ export function VariationsPage() {
       name: '',
       price: '',
       is_active: true,
-      benefit_mode: 'bonus',
+      benefit_mode: 'both',
     })
     setShowCreateModal(true)
   }

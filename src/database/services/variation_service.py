@@ -103,6 +103,8 @@ class VariationService:
             variation.stock = update_data["stock"]
         if "is_active" in update_data:
             variation.is_active = update_data["is_active"]
+        if "benefit_mode" in update_data:
+            variation.benefit_mode = update_data["benefit_mode"]
         
         self.session.commit()
         self.session.refresh(variation)

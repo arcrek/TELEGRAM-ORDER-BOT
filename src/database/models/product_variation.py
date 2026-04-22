@@ -19,7 +19,7 @@ class ProductVariation(Base):
     stock = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     # Which reward system applies: 'bonus', 'discount', or 'both'
-    benefit_mode = Column(String, default='bonus', nullable=False)
+    benefit_mode = Column(String, default='both', nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
