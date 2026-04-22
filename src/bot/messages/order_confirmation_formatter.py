@@ -18,10 +18,12 @@ class OrderConfirmationFormatter:
         update: Optional[Update] = None,
         bonus_quantity: int = 0,
         bonus_label: Optional[str] = None,
+        discount_label: Optional[str] = None,
+        discount_amount: int = 0,
     ) -> str:
         """
         Format order confirmation message with emoji-based design.
-        
+
         Args:
             product: Product instance
             variation: ProductVariation instance
@@ -29,13 +31,16 @@ class OrderConfirmationFormatter:
             update: Telegram update object for translations
             bonus_quantity: Number of bonus items (0 if no bonus)
             bonus_label: Label for bonus (e.g., "Mua 10 tặng 2")
-        
+            discount_label: Short label describing the discount (e.g., "Giảm 5%")
+            discount_amount: Total VND savings from discount
+
         Returns:
             Formatted message string
         """
-        total = self.calculate_total(variation.price, quantity)
+        original_total = self.calculate_total(variation.price, quantity)
+        final_total = original_total - discount_amount
         total_items = quantity + bonus_quantity
-        
+
         # Get translations
         title = t('products.order_confirmation.title', update) if update else "✅ XÁC NHẬN THANH TOÁN 🛒"
         product_label = t('products.order_confirmation.product', update) if update else "📌 Sản phẩm"
@@ -44,9 +49,9 @@ class OrderConfirmationFormatter:
         in_stock_label = t('products.order_confirmation.in_stock', update) if update else "📦 Còn"
         order_quantity_label = t('products.order_confirmation.order_quantity', update) if update else "👉 Số lượng đặt hàng"
         total_payment_label = t('products.order_confirmation.total_payment', update) if update else "💵 Tổng tiền"
-        
+
         lines = []
-        
+
         # Header
         lines.append(title)
         lines.append(f"{product_label}: {product.name}")
@@ -55,21 +60,61 @@ class OrderConfirmationFormatter:
         lines.append(f"{in_stock_label}: {variation.stock}")
         lines.append("")
         lines.append(f"{order_quantity_label}: x{quantity}")
-        
-        # Add bonus line if applicable
+
+        # Bonus line
         if bonus_quantity > 0 and bonus_label:
             bonus_text = t('products.order_confirmation.bonus', update) if update else "🎁 Bonus"
             lines.append(f"{bonus_text}: +{bonus_quantity} ({bonus_label})")
-        
-        # Total payment line with item count if bonus
+
+        # Discount line
+        if discount_amount > 0 and discount_label:
+            lines.append(f"🏷️ {discount_label}: -{discount_amount:,} VND")
+
+        # Total payment line
         if bonus_quantity > 0:
             total_items_text = t('products.order_confirmation.total_items', update) if update else "({total} sản phẩm)"
             total_items_text = total_items_text.format(total=total_items)
-            lines.append(f"{total_payment_label}: {total:,} VND {total_items_text}")
+            lines.append(f"{total_payment_label}: {final_total:,} VND {total_items_text}")
         else:
-            lines.append(f"{total_payment_label}: {total:,} VND")
-        
+            lines.append(f"{total_payment_label}: {final_total:,} VND")
+
         return "\n".join(lines)
+
+    def get_applicable_discount(
+        self,
+        variation_id: str,
+        quantity: int,
+        unit_price: int,
+        session,
+        language: str = 'vi',
+        benefit_mode: str = 'bonus',
+    ) -> Tuple[Optional[str], int]:
+        """
+        Get applicable discount label and savings amount for the given quantity.
+
+        Returns:
+            (discount_label, discount_amount) — label is None when no discount applies
+        """
+        if benefit_mode not in ('discount', 'both'):
+            return None, 0
+
+        from src.database.services.discount_tier_service import DiscountTierService
+        service = DiscountTierService(session)
+        tier = service.get_applicable_discount(variation_id, quantity)
+        if not tier:
+            return None, 0
+
+        _, discount_amount = service.calculate_discounted_total(unit_price, quantity, tier)
+
+        if tier.discount_type == 'percentage':
+            label = f"Giảm {tier.discount_value}%" if language != 'en' else f"{tier.discount_value}% off"
+        else:
+            if language != 'en':
+                label = f"Giá ưu đãi {tier.discount_value:,}đ/cái"
+            else:
+                label = f"Special price {tier.discount_value:,}đ each"
+
+        return label, discount_amount
 
     def get_applicable_bonus(
         self,

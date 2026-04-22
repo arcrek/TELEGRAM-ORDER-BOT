@@ -145,32 +145,35 @@ class OrderService:
         variation_id: str,
         quantity: int,
         bonus_quantity: int = 0,
+        discount_tier=None,
     ) -> Order:
         """
         Create a new order from user selection.
-        
+
         Args:
             user_id: Telegram user ID
             variation_id: Selected variation ID
             quantity: Order quantity
             bonus_quantity: Number of bonus items (0 if no bonus)
-        
+            discount_tier: Optional DiscountTier instance to apply
+
         Returns:
             Created Order instance
-        
+
         Raises:
             ValueError: If stock is insufficient or variation not found
         """
         # Validate stock including bonus
         total_items = quantity + bonus_quantity
         actual_stock = self._get_actual_stock(variation_id)
-        
+
         if actual_stock < total_items or quantity <= 0:
             variation = self.variation_service.get_variation_by_id(variation_id)
             if not variation:
                 raise ValueError(f"Variation {variation_id} not found")
             raise ValueError(
-                f"Insufficient stock. Available: {actual_stock}, Requested: {total_items} (quantity: {quantity} + bonus: {bonus_quantity})"
+                f"Insufficient stock. Available: {actual_stock}, Requested: {total_items} "
+                f"(quantity: {quantity} + bonus: {bonus_quantity})"
             )
 
         # Get variation and product
@@ -178,8 +181,16 @@ class OrderService:
         if not variation:
             raise ValueError(f"Variation {variation_id} not found")
 
-        # Calculate total (only charge for quantity, not bonus)
-        total_amount = self.calculate_total(variation_id, quantity)
+        # Calculate total — apply discount if provided
+        if discount_tier is not None:
+            from src.database.services.discount_tier_service import DiscountTierService
+            discount_service = DiscountTierService(self.session)
+            total_amount, discount_amount = discount_service.calculate_discounted_total(
+                variation.price, quantity, discount_tier
+            )
+        else:
+            total_amount = self.calculate_total(variation_id, quantity)
+            discount_amount = 0
 
         # Generate order ID
         order_id = self.generate_order_id()
@@ -190,10 +201,11 @@ class OrderService:
             user_id=user_id,
             status=OrderStatus.PENDING,
             total_amount=total_amount,
+            discount_amount=discount_amount,
         )
         self.session.add(order)
 
-        # Create order item with bonus
+        # Create order item
         order_item = OrderItem(
             id=self.generate_order_item_id(),
             order_id=order_id,
@@ -203,6 +215,7 @@ class OrderService:
             bonus_quantity=bonus_quantity,
             unit_price=variation.price,
             subtotal=total_amount,
+            discount_amount=discount_amount,
         )
         self.session.add(order_item)
 
@@ -503,6 +516,7 @@ class OrderService:
                 "total_items": item.quantity + (item.bonus_quantity or 0),
                 "unit_price": item.unit_price,
                 "subtotal": item.subtotal,
+                "discount_amount": item.discount_amount or 0,
             }
             
             # Add product info if available
@@ -552,6 +566,7 @@ class OrderService:
             "user_id": order.user_id,
             "status": order.status.value,
             "total_amount": order.total_amount,
+            "discount_amount": order.discount_amount or 0,
             "payment_transaction_id": order.payment_transaction_id,
             "created_at": order.created_at.isoformat(),
             "updated_at": order.updated_at.isoformat(),

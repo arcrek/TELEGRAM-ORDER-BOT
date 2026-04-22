@@ -313,15 +313,20 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
             quantity=1,  # Default quantity
         )
         
-        # Format order confirmation with bonus
+        # Format order confirmation with bonus and/or discount
         quantity = 1
         from src.bot.utils.language import get_user_language
         language = get_user_language(update)
+        benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
         bonus_quantity, bonus_label = formatter.get_applicable_bonus(
             variation_id, quantity, actual_stock, session, language
         )
+        discount_label, discount_amount = formatter.get_applicable_discount(
+            variation_id, quantity, variation.price, session, language, benefit_mode
+        )
         message = formatter.format_order_confirmation(
-            product, variation, quantity, update, bonus_quantity, bonus_label
+            product, variation, quantity, update, bonus_quantity, bonus_label,
+            discount_label=discount_label, discount_amount=discount_amount,
         )
         keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock, update)
         
@@ -390,14 +395,19 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
         # Update state
         state_manager.update_user_state(user_id, quantity=new_quantity)
         
-        # Format updated order confirmation with bonus
+        # Format updated order confirmation with bonus and/or discount
         from src.bot.utils.language import get_user_language
         language = get_user_language(update)
+        benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
         bonus_quantity, bonus_label = formatter.get_applicable_bonus(
             variation_id, new_quantity, actual_stock, session, language
         )
+        discount_label, discount_amount = formatter.get_applicable_discount(
+            variation_id, new_quantity, variation.price, session, language, benefit_mode
+        )
         message = formatter.format_order_confirmation(
-            product, variation, new_quantity, update, bonus_quantity, bonus_label
+            product, variation, new_quantity, update, bonus_quantity, bonus_label,
+            discount_label=discount_label, discount_amount=discount_amount,
         )
         keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock, update)
         
@@ -560,15 +570,20 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
         except Exception as e:
             logger.warning(f"Could not delete user input message: {str(e)}")
         
-        # Update the order confirmation message with bonus
+        # Update the order confirmation message with bonus and/or discount
         if user_state.order_message_id:
             from src.bot.utils.language import get_user_language
             language = get_user_language(update)
+            benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
             bonus_quantity, bonus_label = formatter.get_applicable_bonus(
                 user_state.selected_variation_id, quantity, actual_stock, session, language
             )
+            discount_label, discount_amount = formatter.get_applicable_discount(
+                user_state.selected_variation_id, quantity, variation.price, session, language, benefit_mode
+            )
             message = formatter.format_order_confirmation(
-                product, variation, quantity, update, bonus_quantity, bonus_label
+                product, variation, quantity, update, bonus_quantity, bonus_label,
+                discount_label=discount_label, discount_amount=discount_amount,
             )
             keyboard = formatter.create_quantity_keyboard(
                 user_state.selected_variation_id, quantity, actual_stock, update
@@ -766,27 +781,42 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         
         actual_stock = get_actual_stock(variation, product, variation_service)
         
-        # Get applicable bonus
+        # Determine which benefits apply for this variation
+        benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
+
+        # Get applicable bonus (if mode includes bonus)
         from src.database.services.bonus_tier_service import BonusTierService
         bonus_service = BonusTierService(session)
-        bonus_tier = bonus_service.get_applicable_bonus(variation_id, quantity, actual_stock)
-        bonus_quantity = bonus_tier.bonus_quantity if bonus_tier else 0
+        bonus_tier = None
+        bonus_quantity = 0
+        if benefit_mode in ('bonus', 'both'):
+            bonus_tier = bonus_service.get_applicable_bonus(variation_id, quantity, actual_stock)
+            bonus_quantity = bonus_tier.bonus_quantity if bonus_tier else 0
+
         total_items = quantity + bonus_quantity
-        
+
         # Validate stock including bonus
         if actual_stock < total_items:
             await query.edit_message_text(
                 f"❌ Insufficient stock. Available: {actual_stock}, Requested: {total_items} (quantity: {quantity} + bonus: {bonus_quantity})"
             )
             return
-        
-        # Create order with bonus
+
+        # Get applicable discount (if mode includes discount)
+        from src.database.services.discount_tier_service import DiscountTierService
+        discount_service = DiscountTierService(session)
+        discount_tier = None
+        if benefit_mode in ('discount', 'both'):
+            discount_tier = discount_service.get_applicable_discount(variation_id, quantity)
+
+        # Create order with bonus and/or discount
         try:
             order = order_service.create_order(
                 user_id=user_id,
                 variation_id=variation_id,
                 quantity=quantity,
                 bonus_quantity=bonus_quantity,
+                discount_tier=discount_tier,
             )
         except ValueError as e:
             await query.edit_message_text(f"❌ {str(e)}")

@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, Link, useLocation } from 'react-router-dom'
 // Users icon removed - supplier functionality disabled
-import { Moon, Sun, BarChart3, Package, ShoppingCart, LogOut, Upload, Box, Layers, Bell, Gift, Menu, X, MessageSquare } from 'lucide-react'
+import { Moon, Sun, BarChart3, Package, ShoppingCart, LogOut, Upload, Box, Layers, Bell, Sparkles, Menu, X, MessageSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -34,7 +34,7 @@ export function DashboardLayout() {
     { path: '/products', label: t('navigation.products'), icon: Package, key: 'products' },
     { path: '/variations', label: t('navigation.variations'), icon: Layers, key: 'variations' },
     { path: '/orders', label: t('navigation.orders'), icon: ShoppingCart, key: 'orders' },
-    { path: '/bonus-summary', label: t('navigation.bonusSummary'), icon: Gift, key: 'bonusSummary' },
+    { path: '/bonus-summary', label: t('navigation.bonusSummary'), icon: Sparkles, key: 'bonusSummary' },
     // Supplier functionality disabled
     // { path: '/suppliers', label: t('navigation.suppliers'), icon: Users, key: 'suppliers' },
     { path: '/notifications', label: t('navigation.notifications'), icon: Bell, key: 'notifications' },

@@ -25,6 +25,7 @@ import {
   CheckSquare,
   Square,
   Gift,
+  Tag,
 } from 'lucide-react'
 import axios from 'axios'
 import './VariationsPage.css'
@@ -37,6 +38,7 @@ interface Variation {
   price: number
   stock: number
   is_active: boolean
+  benefit_mode: string
   created_at: string
   updated_at: string
 }
@@ -61,6 +63,17 @@ interface BonusTier {
   variation_id: string
   min_quantity: number
   bonus_quantity: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+interface DiscountTier {
+  id: string
+  variation_id: string
+  min_quantity: number
+  discount_type: string
+  discount_value: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -95,6 +108,7 @@ export function VariationsPage() {
     name: '',
     price: '',
     is_active: true,
+    benefit_mode: 'bonus',
   })
   
   // Bonus modal states
@@ -107,6 +121,19 @@ export function VariationsPage() {
     bonus_quantity: '',
   })
   const [editingBonusTier, setEditingBonusTier] = useState<BonusTier | null>(null)
+
+  // Discount modal states
+  const [showDiscountModal, setShowDiscountModal] = useState(false)
+  const [discountVariation, setDiscountVariation] = useState<{variation: Variation, productName: string} | null>(null)
+  const [discountTiers, setDiscountTiers] = useState<DiscountTier[]>([])
+  const [discountLoading, setDiscountLoading] = useState(false)
+  const [discountForm, setDiscountForm] = useState({
+    min_quantity: '',
+    discount_type: 'percentage',
+    discount_value: '',
+  })
+  const [editingDiscountTier, setEditingDiscountTier] = useState<DiscountTier | null>(null)
+  const [benefitModeLoading, setBenefitModeLoading] = useState(false)
 
   useEffect(() => {
     fetchVariations()
@@ -207,6 +234,7 @@ export function VariationsPage() {
       name: variation.name,
       price: variation.price.toString(),
       is_active: variation.is_active,
+      benefit_mode: variation.benefit_mode || 'bonus',
     })
     setShowEditModal(true)
   }
@@ -328,6 +356,7 @@ export function VariationsPage() {
           name: formData.name,
           price: parseInt(formData.price),
           is_active: formData.is_active,
+          benefit_mode: formData.benefit_mode,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -518,6 +547,140 @@ export function VariationsPage() {
   const handleCancelEditBonusTier = () => {
     setEditingBonusTier(null)
     setBonusForm({ min_quantity: '', bonus_quantity: '' })
+  }
+
+  // ── Discount tier handlers ──────────────────────────────────────────────
+
+  const handleOpenDiscountModal = async (variation: Variation, productName: string) => {
+    setDiscountVariation({ variation, productName })
+    setShowDiscountModal(true)
+    setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
+    setEditingDiscountTier(null)
+    await fetchDiscountTiers(variation.id)
+  }
+
+  const fetchDiscountTiers = async (variationId: string) => {
+    try {
+      setDiscountLoading(true)
+      const token = localStorage.getItem('token')
+      const response = await axios.get<{ items: DiscountTier[] }>(
+        `${API_BASE_URL}/api/variations/${variationId}/discount-tiers?only_active=false`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setDiscountTiers(response.data.items)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to load discount tiers')
+    } finally {
+      setDiscountLoading(false)
+    }
+  }
+
+  const handleCreateDiscountTier = async () => {
+    if (!discountVariation) return
+    const minQty = parseInt(discountForm.min_quantity)
+    const val = parseInt(discountForm.discount_value)
+    if (isNaN(minQty) || minQty < 1) { alert('Min quantity must be at least 1'); return }
+    if (isNaN(val) || val < 1) { alert('Discount value must be at least 1'); return }
+    if (discountForm.discount_type === 'percentage' && val > 100) { alert('Percentage must be 1-100'); return }
+    try {
+      const token = localStorage.getItem('token')
+      await axios.post(
+        `${API_BASE_URL}/api/variations/${discountVariation.variation.id}/discount-tiers`,
+        { min_quantity: minQty, discount_type: discountForm.discount_type, discount_value: val, is_active: true },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
+      await fetchDiscountTiers(discountVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to create discount tier')
+    }
+  }
+
+  const handleUpdateDiscountTier = async () => {
+    if (!editingDiscountTier || !discountVariation) return
+    const minQty = parseInt(discountForm.min_quantity)
+    const val = parseInt(discountForm.discount_value)
+    if (isNaN(minQty) || minQty < 1) { alert('Min quantity must be at least 1'); return }
+    if (isNaN(val) || val < 1) { alert('Discount value must be at least 1'); return }
+    if (discountForm.discount_type === 'percentage' && val > 100) { alert('Percentage must be 1-100'); return }
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(
+        `${API_BASE_URL}/api/discount-tiers/${editingDiscountTier.id}`,
+        { min_quantity: minQty, discount_type: discountForm.discount_type, discount_value: val },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
+      setEditingDiscountTier(null)
+      await fetchDiscountTiers(discountVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to update discount tier')
+    }
+  }
+
+  const handleDeleteDiscountTier = async (tierId: string) => {
+    if (!discountVariation) return
+    if (!confirm('Delete this discount tier?')) return
+    try {
+      const token = localStorage.getItem('token')
+      await axios.delete(`${API_BASE_URL}/api/discount-tiers/${tierId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      await fetchDiscountTiers(discountVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to delete discount tier')
+    }
+  }
+
+  const handleToggleDiscountTierActive = async (tier: DiscountTier) => {
+    if (!discountVariation) return
+    try {
+      const token = localStorage.getItem('token')
+      await axios.put(
+        `${API_BASE_URL}/api/discount-tiers/${tier.id}`,
+        { is_active: !tier.is_active },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      await fetchDiscountTiers(discountVariation.variation.id)
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to update discount tier')
+    }
+  }
+
+  const handleEditDiscountTier = (tier: DiscountTier) => {
+    setEditingDiscountTier(tier)
+    setDiscountForm({
+      min_quantity: tier.min_quantity.toString(),
+      discount_type: tier.discount_type,
+      discount_value: tier.discount_value.toString(),
+    })
+  }
+
+  const handleCancelEditDiscountTier = () => {
+    setEditingDiscountTier(null)
+    setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
+  }
+
+  const handleUpdateBenefitMode = async (variationId: string, mode: string) => {
+    try {
+      setBenefitModeLoading(true)
+      const token = localStorage.getItem('token')
+      await axios.put(
+        `${API_BASE_URL}/api/variations/${variationId}`,
+        { benefit_mode: mode },
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      // Update local state so the badge refreshes
+      setDiscountVariation(prev => prev ? {
+        ...prev,
+        variation: { ...prev.variation, benefit_mode: mode }
+      } : prev)
+      fetchVariations()
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Failed to update benefit mode')
+    } finally {
+      setBenefitModeLoading(false)
+    }
   }
 
   if (loading && productGroups.length === 0) {
@@ -724,6 +887,14 @@ export function VariationsPage() {
                               <Gift size={14} />
                             </Button>
                             <Button
+                              onClick={() => handleOpenDiscountModal(variation, group.product_name)}
+                              variant="secondary"
+                              size="small"
+                              title="Discount Config"
+                            >
+                              <Tag size={14} />
+                            </Button>
+                            <Button
                               onClick={() => handleEdit(variation, group.product_id)}
                               variant="secondary"
                               size="small"
@@ -879,6 +1050,21 @@ export function VariationsPage() {
                   <span>Active</span>
                 </label>
               </div>
+              <div className="form-group">
+                <label>
+                  <Tag size={16} />
+                  Benefit Mode
+                </label>
+                <Select
+                  options={[
+                    { value: 'bonus', label: 'Bonus only (buy X get Y free)' },
+                    { value: 'discount', label: 'Discount only (quantity threshold pricing)' },
+                    { value: 'both', label: 'Both (bonus + discount)' },
+                  ]}
+                  value={formData.benefit_mode}
+                  onChange={(value) => setFormData({ ...formData, benefit_mode: value as string })}
+                />
+              </div>
               <div className="modal-actions">
                 <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>
                   Cancel
@@ -943,6 +1129,178 @@ export function VariationsPage() {
               <Button type="button" onClick={handleConfirmBulkDelete}>
                 Delete
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discount Configuration Modal */}
+      {showDiscountModal && discountVariation && (
+        <div className="modal-overlay" onClick={() => setShowDiscountModal(false)}>
+          <div className="modal-content bonus-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <Tag size={20} />
+                Discount Configuration
+              </h2>
+              <button onClick={() => setShowDiscountModal(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p className="bonus-variation-info">
+                <strong>Product:</strong> {discountVariation.productName}<br />
+                <strong>Variation:</strong> {discountVariation.variation.name}
+              </p>
+
+              {/* Benefit Mode selector */}
+              <div className="bonus-form" style={{ marginBottom: '16px' }}>
+                <h3>Benefit Mode</h3>
+                <p style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '8px' }}>
+                  Controls which reward system applies when a customer orders this variation.
+                </p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {(['bonus', 'discount', 'both'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => handleUpdateBenefitMode(discountVariation.variation.id, mode)}
+                      disabled={benefitModeLoading}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '6px',
+                        border: '1px solid',
+                        cursor: benefitModeLoading ? 'not-allowed' : 'pointer',
+                        fontSize: '13px',
+                        borderColor: discountVariation.variation.benefit_mode === mode ? '#6EA8FF' : '#374151',
+                        background: discountVariation.variation.benefit_mode === mode ? 'rgba(110,168,255,0.15)' : 'transparent',
+                        color: discountVariation.variation.benefit_mode === mode ? '#6EA8FF' : '#9CA3AF',
+                      }}
+                    >
+                      {mode === 'bonus' ? '🎁 Bonus only' : mode === 'discount' ? '🏷️ Discount only' : '✨ Both'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add/Edit Discount Form */}
+              <div className="bonus-form">
+                <h3>{editingDiscountTier ? 'Edit Discount Tier' : 'Add Discount Tier'}</h3>
+                <div className="bonus-form-row" style={{ flexWrap: 'wrap', gap: '10px' }}>
+                  <div className="form-group">
+                    <label>Min Quantity</label>
+                    <Input
+                      type="number"
+                      value={discountForm.min_quantity}
+                      onChange={(e) => setDiscountForm({ ...discountForm, min_quantity: e.target.value })}
+                      placeholder="e.g., 10"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Type</label>
+                    <Select
+                      options={[
+                        { value: 'percentage', label: '% off total' },
+                        { value: 'fixed_price', label: 'Fixed price per item' },
+                      ]}
+                      value={discountForm.discount_type}
+                      onChange={(value) => setDiscountForm({ ...discountForm, discount_type: value as string })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>
+                      {discountForm.discount_type === 'percentage' ? 'Discount %' : 'Price per item (VND)'}
+                    </label>
+                    <Input
+                      type="number"
+                      value={discountForm.discount_value}
+                      onChange={(e) => setDiscountForm({ ...discountForm, discount_value: e.target.value })}
+                      placeholder={discountForm.discount_type === 'percentage' ? 'e.g., 5' : 'e.g., 10000'}
+                    />
+                  </div>
+                  <div className="bonus-form-actions">
+                    {editingDiscountTier ? (
+                      <>
+                        <Button onClick={handleUpdateDiscountTier} size="small">Update</Button>
+                        <Button onClick={handleCancelEditDiscountTier} variant="secondary" size="small">Cancel</Button>
+                      </>
+                    ) : (
+                      <Button onClick={handleCreateDiscountTier} size="small">
+                        <Plus size={14} />
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Discount Tiers List */}
+              <div className="bonus-tiers-list">
+                <h3>Existing Discount Tiers</h3>
+                {discountLoading ? (
+                  <p className="loading-text">Loading...</p>
+                ) : discountTiers.length === 0 ? (
+                  <p className="empty-text">No discount tiers configured for this variation.</p>
+                ) : (
+                  <table className="bonus-tiers-table">
+                    <thead>
+                      <tr>
+                        <th>Min Qty</th>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {discountTiers.map((tier) => (
+                        <tr key={tier.id} className={!tier.is_active ? 'inactive-row' : ''}>
+                          <td>{tier.min_quantity}+</td>
+                          <td>{tier.discount_type === 'percentage' ? '%' : 'Fixed'}</td>
+                          <td>
+                            {tier.discount_type === 'percentage'
+                              ? `${tier.discount_value}% off`
+                              : `${tier.discount_value.toLocaleString()}đ/item`}
+                          </td>
+                          <td>
+                            <span className={`status-badge ${tier.is_active ? 'active' : 'inactive'}`}>
+                              {tier.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="bonus-tier-actions">
+                              <Button
+                                onClick={() => handleToggleDiscountTierActive(tier)}
+                                variant="secondary"
+                                size="small"
+                                title={tier.is_active ? 'Deactivate' : 'Activate'}
+                              >
+                                {tier.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
+                              </Button>
+                              <Button
+                                onClick={() => handleEditDiscountTier(tier)}
+                                variant="secondary"
+                                size="small"
+                                title="Edit"
+                              >
+                                <Edit size={14} />
+                              </Button>
+                              <Button
+                                onClick={() => handleDeleteDiscountTier(tier.id)}
+                                variant="secondary"
+                                size="small"
+                                title="Delete"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+            <div className="modal-actions">
+              <Button type="button" onClick={() => setShowDiscountModal(false)}>Close</Button>
             </div>
           </div>
         </div>

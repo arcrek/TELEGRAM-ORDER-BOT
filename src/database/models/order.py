@@ -16,7 +16,8 @@ class Order(Base):
     id = Column(String, primary_key=True)  # OrderID
     user_id = Column(BigInteger, nullable=False)  # Telegram user ID
     status = Column(Enum(OrderStatus, native_enum=False), default=OrderStatus.PENDING, nullable=False)
-    total_amount = Column(Integer, nullable=False)  # Total in VND
+    total_amount = Column(Integer, nullable=False)  # Actual charged total in VND (post-discount)
+    discount_amount = Column(Integer, default=0, nullable=False)  # Total savings across all items
 
     # Payment tracking
     payment_provider = Column(String, nullable=True)  # "payos" | "pay2s"

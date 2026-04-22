@@ -1,5 +1,5 @@
 /**
- * Bonus Summary Page Styles
+ * Benefits Summary Page Styles
  */
 .bonus-summary-page {
   max-width: 1400px;
@@ -30,13 +30,19 @@
   text-align: center;
   padding: var(--space-8);
   color: var(--text-secondary);
-}
-
-.bonus-error {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
+}
+
+/* Spinning animation for loading icon */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinning {
+  animation: spin 1s linear infinite;
+  color: var(--accent-blue);
 }
 
 /* Summary Cards */
@@ -72,9 +78,14 @@
   color: #3b82f6;
 }
 
-.summary-card-icon.variations {
+.summary-card-icon.bonus {
   background: rgba(168, 85, 247, 0.15);
   color: #a855f7;
+}
+
+.summary-card-icon.discount {
+  background: rgba(110, 168, 255, 0.15);
+  color: #6ea8ff;
 }
 
 .summary-card-icon.active {
@@ -83,8 +94,8 @@
 }
 
 .summary-card-icon.inactive {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
 }
 
 .summary-card-info h3 {
@@ -101,6 +112,13 @@
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+  line-height: 1;
+}
+
+.summary-sub {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin: var(--space-1) 0 0 0;
 }
 
 /* Filters */
@@ -136,6 +154,13 @@
 .filter-buttons {
   display: flex;
   gap: var(--space-2);
+  align-items: center;
+}
+
+.filter-buttons button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* Empty State */
@@ -162,7 +187,7 @@
   margin: 0;
 }
 
-/* Product Bonus Cards */
+/* Product Benefit Cards */
 .bonus-products-list {
   display: flex;
   flex-direction: column;
@@ -235,14 +260,49 @@
 
 .variation-info {
   flex: 1;
-  min-width: 200px;
+  min-width: 180px;
 }
 
-.variation-info h3 {
+.variation-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.variation-name-row h3 {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 var(--space-2) 0;
+  margin: 0;
+}
+
+/* Benefit mode badge */
+.benefit-mode-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.benefit-mode-badge.mode-bonus {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.benefit-mode-badge.mode-discount {
+  background: rgba(110, 168, 255, 0.15);
+  color: #6ea8ff;
+  border: 1px solid rgba(110, 168, 255, 0.3);
+}
+
+.benefit-mode-badge.mode-both {
+  background: rgba(250, 204, 21, 0.12);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.3);
 }
 
 .variation-details {
@@ -260,6 +320,31 @@
   color: var(--text-secondary);
 }
 
+/* Tiers layout */
+.tiers-columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+}
+
+.tiers-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.tiers-group-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
 .bonus-tiers-list {
   display: flex;
   flex-wrap: wrap;
@@ -272,7 +357,7 @@
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 500;
 }
 
@@ -283,10 +368,18 @@
 }
 
 .bonus-tier-badge.inactive {
-  background: rgba(107, 114, 128, 0.15);
+  background: rgba(107, 114, 128, 0.1);
   color: var(--text-tertiary);
-  border: 1px solid rgba(107, 114, 128, 0.3);
+  border: 1px solid rgba(107, 114, 128, 0.25);
   text-decoration: line-through;
+}
+
+/* Discount badges use blue accent when active */
+.bonus-tier-badge.discount-badge.active {
+  background: rgba(110, 168, 255, 0.12);
+  color: #6ea8ff;
+  border: 1px solid rgba(110, 168, 255, 0.3);
+  text-decoration: none;
 }
 
 .tier-rule {
@@ -297,58 +390,30 @@
   font-weight: 700;
 }
 
-.tier-status.active {
-  color: #22c55e;
-}
-
-.tier-status.inactive {
-  color: var(--text-tertiary);
-}
+.tier-status.active  { color: #22c55e; }
+.tier-status.inactive { color: var(--text-tertiary); }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .bonus-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .bonus-summary-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .filters-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .search-box {
-    width: 100%;
-  }
-  
-  .filter-buttons {
-    width: 100%;
-    justify-content: stretch;
-  }
-  
-  .filter-buttons button {
-    flex: 1;
-  }
-  
-  .variation-bonus-item {
-    flex-direction: column;
-  }
-  
-  .variation-info {
-    width: 100%;
-  }
-  
-  .bonus-tiers-list {
-    width: 100%;
-  }
+  .bonus-header { flex-direction: column; align-items: flex-start; }
+
+  .bonus-summary-cards { grid-template-columns: repeat(2, 1fr); }
+
+  .filters-row { flex-direction: column; align-items: stretch; }
+
+  .search-box { width: 100%; }
+
+  .filter-buttons { width: 100%; flex-wrap: wrap; }
+
+  .filter-buttons button { flex: 1; justify-content: center; }
+
+  .variation-bonus-item { flex-direction: column; }
+
+  .variation-info { width: 100%; }
+
+  .tiers-columns { width: 100%; }
 }
 
 @media (max-width: 480px) {
-  .bonus-summary-cards {
-    grid-template-columns: 1fr;
-  }
+  .bonus-summary-cards { grid-template-columns: 1fr; }
 }

@@ -17,8 +17,9 @@ class OrderItem(Base):
     variation_id = Column(String, ForeignKey("product_variations.id"), nullable=True)  # Nullable to allow variation deletion
     quantity = Column(Integer, nullable=False)
     bonus_quantity = Column(Integer, default=0, nullable=False)  # Bonus items given
-    unit_price = Column(Integer, nullable=False)  # Price at time of order
-    subtotal = Column(Integer, nullable=False)  # quantity × unit_price
+    unit_price = Column(Integer, nullable=False)  # Original price at time of order
+    subtotal = Column(Integer, nullable=False)  # Actual charged amount (post-discount)
+    discount_amount = Column(Integer, default=0, nullable=False)  # Total savings on this item
 
     # Relationships
     order = relationship("Order", back_populates="items")

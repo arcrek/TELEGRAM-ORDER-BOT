@@ -17,6 +17,7 @@ from src.database.models.notification_settings import NotificationSettings
 from src.database.models.iotd_settings import IotdSettings
 from src.database.models.bot_ui_settings import BotUiSettings
 from src.database.models.bonus_tier import BonusTier
+from src.database.models.discount_tier import DiscountTier
 from src.database.models.enums import (
     DeliveryType,
     OrderStatus,
@@ -41,6 +42,7 @@ __all__ = [
     "IotdSettings",
     "BotUiSettings",
     "BonusTier",
+    "DiscountTier",
     "DeliveryType",
     "OrderStatus",
     "SupplierOrderStatus",

@@ -18,6 +18,8 @@ class ProductVariation(Base):
     price = Column(Integer, nullable=False)  # Price in VND
     stock = Column(Integer, default=0, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
+    # Which reward system applies: 'bonus', 'discount', or 'both'
+    benefit_mode = Column(String, default='bonus', nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -26,4 +28,5 @@ class ProductVariation(Base):
     order_items = relationship("OrderItem", back_populates="variation")
     pre_uploaded_products = relationship("PreUploadedProduct", back_populates="variation")
     bonus_tiers = relationship("BonusTier", back_populates="variation", cascade="all, delete-orphan")
+    discount_tiers = relationship("DiscountTier", back_populates="variation", cascade="all, delete-orphan")
 

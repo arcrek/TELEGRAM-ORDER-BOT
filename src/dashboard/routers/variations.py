@@ -29,6 +29,7 @@ class VariationUpdate(BaseModel):
     price: Optional[int] = None
     # stock is removed - it's calculated from pre-uploaded products
     is_active: Optional[bool] = None
+    benefit_mode: Optional[str] = None  # 'bonus' | 'discount' | 'both'
 
 
 class VariationResponse(BaseModel):
@@ -154,6 +155,7 @@ async def get_variation(
         "price": variation.price,
         "stock": calculated_stock,
         "is_active": variation.is_active,
+        "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
         "created_at": variation.created_at.isoformat(),
         "updated_at": variation.updated_at.isoformat(),
     }
@@ -214,6 +216,7 @@ async def create_variation(
         "price": variation.price,
         "stock": calculated_stock,
         "is_active": variation.is_active,
+        "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
         "created_at": variation.created_at.isoformat(),
         "updated_at": variation.updated_at.isoformat(),
     }
@@ -246,6 +249,13 @@ async def update_variation(
     # stock is not updated - it's calculated from pre-uploaded products
     if variation_data.is_active is not None:
         update_dict["is_active"] = variation_data.is_active
+    if variation_data.benefit_mode is not None:
+        if variation_data.benefit_mode not in ('bonus', 'discount', 'both'):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="benefit_mode must be 'bonus', 'discount', or 'both'",
+            )
+        update_dict["benefit_mode"] = variation_data.benefit_mode
     
     variation = service.update_variation(variation_id, update_dict)
     
@@ -270,6 +280,7 @@ async def update_variation(
         "price": variation.price,
         "stock": calculated_stock,
         "is_active": variation.is_active,
+        "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
         "created_at": variation.created_at.isoformat(),
         "updated_at": variation.updated_at.isoformat(),
     }
@@ -364,6 +375,7 @@ async def update_stock(
         "price": variation.price,
         "stock": calculated_stock,
         "is_active": variation.is_active,
+        "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
         "created_at": variation.created_at.isoformat(),
         "updated_at": variation.updated_at.isoformat(),
     }
