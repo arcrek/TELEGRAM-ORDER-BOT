@@ -158,6 +158,9 @@ class VariationService:
                 raise ValueError(f"Insufficient stock. Available: {available_stock}, Requested: {quantity}")
             # Stock is managed through pre-uploaded products, so we don't modify variation.stock
             # The actual reduction happens when pre-uploaded products are marked as used
+        elif product.delivery_type == DeliveryType.UPGRADE:
+            # UPGRADE products are not inventory-backed; nothing to decrement.
+            pass
         else:
             # For SUPPLIER_BASED products, decrease the stock field directly
             if variation.stock < quantity:
@@ -165,7 +168,7 @@ class VariationService:
             variation.stock -= quantity
             self.session.commit()
             self.session.refresh(variation)
-        
+
         return variation
 
     def delete_variation(self, variation_id: str) -> bool:

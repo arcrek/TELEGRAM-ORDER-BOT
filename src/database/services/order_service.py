@@ -119,9 +119,11 @@ class OrderService:
         if product.delivery_type == DeliveryType.PRE_UPLOADED:
             # For PRE_UPLOADED products, calculate from available pre-uploaded products
             return self.variation_service.calculate_stock_from_pre_uploaded(variation_id)
-        else:
-            # For SUPPLIER_BASED products, use the stock field directly
-            return variation.stock
+        if product.delivery_type == DeliveryType.UPGRADE:
+            # UPGRADE products are not inventory-backed — only is_active gates ordering.
+            return 999_999
+        # For SUPPLIER_BASED products, use the stock field directly
+        return variation.stock
 
     def calculate_total(self, variation_id: str, quantity: int) -> int:
         """

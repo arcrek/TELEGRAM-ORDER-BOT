@@ -11,6 +11,10 @@ class ProductDetailFormatter:
     """Formatter for product detail messages."""
 
     _BUTTON_TEXT_MAX_LEN = 55
+    # Stock values >= this are treated as "unlimited" (no inventory tracking).
+    # Set by callers for UPGRADE-delivery products; renderers omit the stock
+    # segment so the customer doesn't see a meaningless large number.
+    _UNLIMITED_STOCK_THRESHOLD = 999_999
 
     @staticmethod
     def _truncate_button_text(text: str, max_len: int = 55) -> str:
@@ -24,11 +28,14 @@ class ProductDetailFormatter:
         update: Optional[Update] = None,
     ) -> str:
         price_str = f"{variation.price:,}d"
-        if variation.stock > 0:
-            stock_str = str(variation.stock)
+        if variation.stock >= self._UNLIMITED_STOCK_THRESHOLD:
+            text = f"{variation.name} • {price_str}"
         else:
-            stock_str = t('products.detail.out_of_stock', update) if update else "out of stock"
-        text = f"{variation.name} • {price_str} • {stock_str}"
+            if variation.stock > 0:
+                stock_str = str(variation.stock)
+            else:
+                stock_str = t('products.detail.out_of_stock', update) if update else "out of stock"
+            text = f"{variation.name} • {price_str} • {stock_str}"
         return self._truncate_button_text(text, self._BUTTON_TEXT_MAX_LEN)
 
     def format_product_detail(
@@ -77,13 +84,19 @@ class ProductDetailFormatter:
         if variations:
             for idx, variation in enumerate(variations, start=1):
                 price_str = f"{variation.price:,}d"
-                stock_str = in_stock_template.format(stock=variation.stock) if variation.stock > 0 else out_of_stock
+                if variation.stock >= self._UNLIMITED_STOCK_THRESHOLD:
+                    stock_str = ""
+                elif variation.stock > 0:
+                    stock_str = in_stock_template.format(stock=variation.stock)
+                else:
+                    stock_str = out_of_stock
 
                 bonus_str = ""
                 if bonus_texts and variation.id in bonus_texts:
                     bonus_str = f" {bonus_texts[variation.id]}"
 
-                var_line = f"{idx}. {product.name.upper()} {variation.name} - {price_str} {stock_str}{bonus_str}"
+                stock_segment = f" {stock_str}" if stock_str else ""
+                var_line = f"{idx}. {product.name.upper()} {variation.name} - {price_str}{stock_segment}{bonus_str}"
                 lines.append(var_line)
 
         lines.append("")

@@ -10,6 +10,9 @@ from src.bot.utils.language import t
 class OrderConfirmationFormatter:
     """Formatter for order confirmation messages."""
 
+    # Stock values >= this are treated as "unlimited" (UPGRADE products).
+    _UNLIMITED_STOCK_THRESHOLD = 999_999
+
     def format_order_confirmation(
         self,
         product: Product,
@@ -57,7 +60,8 @@ class OrderConfirmationFormatter:
         lines.append(f"{product_label}: {product.name}")
         lines.append(f"{variation_label}: {variation.name}")
         lines.append(f"{unit_price_label}: {variation.price:,} VND")
-        lines.append(f"{in_stock_label}: {variation.stock}")
+        if variation.stock < self._UNLIMITED_STOCK_THRESHOLD:
+            lines.append(f"{in_stock_label}: {variation.stock}")
         lines.append("")
         lines.append(f"{order_quantity_label}: x{quantity}")
 

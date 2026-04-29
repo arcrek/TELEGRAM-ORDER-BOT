@@ -23,6 +23,11 @@ logger = logging.getLogger(__name__)
 # Global state manager instance
 state_manager = StateManager()
 
+# Sentinel returned for UPGRADE products to signal "stock doesn't apply".
+# Renderers treat any value >= this threshold as unlimited so the customer
+# isn't shown a meaningless inventory count.
+UNLIMITED_STOCK_SENTINEL = 999_999
+
 
 def _get_bot_selection_prompts(session) -> tuple[str | None, str | None]:
     """Load global custom prompt texts for product/variation selection."""
@@ -34,21 +39,23 @@ def _get_bot_selection_prompts(session) -> tuple[str | None, str | None]:
 def get_actual_stock(variation, product, variation_service: VariationService) -> int:
     """
     Get actual available stock for a variation based on product delivery type.
-    
+
     Args:
         variation: ProductVariation instance
         product: Product instance
         variation_service: VariationService instance
-    
+
     Returns:
         Actual available stock count
     """
     if product.delivery_type == DeliveryType.PRE_UPLOADED:
         # For PRE_UPLOADED products, calculate from available pre-uploaded products
         return variation_service.calculate_stock_from_pre_uploaded(variation.id)
-    else:
-        # For SUPPLIER_BASED products, use the stock field directly
-        return variation.stock
+    if product.delivery_type == DeliveryType.UPGRADE:
+        # UPGRADE products are not inventory-backed — only is_active gates ordering.
+        return UNLIMITED_STOCK_SENTINEL
+    # For SUPPLIER_BASED products, use the stock field directly
+    return variation.stock
 
 
 def format_payment_message(order, update, session) -> tuple[str, str]:
