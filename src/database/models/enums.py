@@ -9,6 +9,7 @@ class DeliveryType(str, Enum):
 
     PRE_UPLOADED = "pre_uploaded"
     SUPPLIER_BASED = "supplier_based"
+    UPGRADE = "upgrade"
 
 
 class OrderStatus(str, Enum):

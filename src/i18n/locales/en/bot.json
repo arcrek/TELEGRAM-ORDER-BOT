@@ -166,6 +166,16 @@
     "status_delivered": "📦 Delivered",
     "status_cancelled": "❌ Cancelled"
   },
+  "upgrade": {
+    "default_prompt": "📝 Please provide your account information for the upgrade:\n• Email/Username\n• Password\n• 2FA code (if any)\n\nYou can reply to this message with text or a screenshot.",
+    "prompt_header": "🔄 Upgrade order #{order_id}\n📦 {product} - {variation}",
+    "received": "✅ Information received. Our team will process order #{order_id} as soon as possible.",
+    "no_pending": "❓ No upgrade order is currently awaiting your information.",
+    "forward_header": "🔄 UPGRADE REQUEST\n• Order ID: #{order_id}\n• Customer: {name} (@{username}) — ID: {user_id}\n• Product: {product} - {variation}\n• Account info ↓",
+    "admin_update_header": "📝 ORDER #{order_id} STATUS UPDATE",
+    "admin_update_sent": "✅ Update sent to customer for order #{order_id}",
+    "admin_update_failed": "⚠️ Failed to send update to customer for order #{order_id}: {error}"
+  },
   "buttons": {
     "next": "Next ▶️",
     "prev": "◀️ Prev",

@@ -17,6 +17,7 @@ class Product(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     delivery_type = Column(Enum(DeliveryType, native_enum=False), nullable=False)
+    upgrade_request_text = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

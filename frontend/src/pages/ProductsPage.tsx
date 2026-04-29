@@ -25,11 +25,14 @@ import './ProductsPage.css'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
+type DeliveryType = 'pre_uploaded' | 'supplier_based' | 'upgrade'
+
 interface Product {
   id: string
   name: string
   description: string | null
-  delivery_type: 'pre_uploaded' | 'supplier_based'
+  delivery_type: DeliveryType
+  upgrade_request_text: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -71,7 +74,8 @@ export function ProductsPage() {
     id: '',
     name: '',
     description: '',
-    delivery_type: 'pre_uploaded' as 'pre_uploaded' | 'supplier_based',
+    delivery_type: 'pre_uploaded' as DeliveryType,
+    upgrade_request_text: '',
     is_active: true,
   })
 
@@ -149,6 +153,7 @@ export function ProductsPage() {
       name: '',
       description: '',
       delivery_type: 'pre_uploaded',
+      upgrade_request_text: '',
       is_active: true,
     })
     setShowCreateModal(true)
@@ -161,6 +166,7 @@ export function ProductsPage() {
       name: product.name,
       description: product.description || '',
       delivery_type: product.delivery_type,
+      upgrade_request_text: product.upgrade_request_text || '',
       is_active: product.is_active,
     })
     setShowEditModal(true)
@@ -180,9 +186,14 @@ export function ProductsPage() {
     e.preventDefault()
     try {
       const token = localStorage.getItem('token')
+      const payload = {
+        ...formData,
+        upgrade_request_text:
+          formData.delivery_type === 'upgrade' ? formData.upgrade_request_text || null : null,
+      }
       await axios.post(
         `${API_BASE_URL}/api/products/`,
-        formData,
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -199,7 +210,7 @@ export function ProductsPage() {
   const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProduct) return
-    
+
     try {
       const token = localStorage.getItem('token')
       await axios.put(
@@ -208,6 +219,8 @@ export function ProductsPage() {
           name: formData.name,
           description: formData.description,
           delivery_type: formData.delivery_type,
+          upgrade_request_text:
+            formData.delivery_type === 'upgrade' ? formData.upgrade_request_text || null : null,
           is_active: formData.is_active,
         },
         {
@@ -348,7 +361,11 @@ export function ProductsPage() {
                       </td>
                       <td>
                         <span className={`delivery-badge ${product.delivery_type}`}>
-                          {product.delivery_type === 'pre_uploaded' ? 'Pre-uploaded' : 'Supplier-based'}
+                          {product.delivery_type === 'pre_uploaded'
+                            ? 'Pre-uploaded'
+                            : product.delivery_type === 'supplier_based'
+                            ? 'Supplier-based'
+                            : 'Upgrade'}
                         </span>
                       </td>
                       <td>
@@ -469,14 +486,16 @@ interface ProductModalProps {
     id: string
     name: string
     description: string
-    delivery_type: 'pre_uploaded' | 'supplier_based'
+    delivery_type: DeliveryType
+    upgrade_request_text: string
     is_active: boolean
   }
   setFormData: React.Dispatch<React.SetStateAction<{
     id: string
     name: string
     description: string
-    delivery_type: 'pre_uploaded' | 'supplier_based'
+    delivery_type: DeliveryType
+    upgrade_request_text: string
     is_active: boolean
   }>>
   onSubmit: (e: React.FormEvent) => void
@@ -530,12 +549,28 @@ function ProductModal({
             <select
               className="form-select"
               value={formData.delivery_type}
-              onChange={(e) => setFormData({ ...formData, delivery_type: e.target.value as 'pre_uploaded' | 'supplier_based' })}
+              onChange={(e) => setFormData({ ...formData, delivery_type: e.target.value as DeliveryType })}
             >
               <option value="pre_uploaded">Pre-uploaded</option>
               <option value="supplier_based">Supplier-based</option>
+              <option value="upgrade">Upgrade (Nâng cấp chính chủ)</option>
             </select>
           </div>
+          {formData.delivery_type === 'upgrade' && (
+            <div className="form-group">
+              <label>Account Info Request Prompt</label>
+              <textarea
+                className="form-textarea"
+                value={formData.upgrade_request_text}
+                onChange={(e) => setFormData({ ...formData, upgrade_request_text: e.target.value })}
+                rows={5}
+                placeholder="Vui lòng cung cấp email, mật khẩu, mã 2FA... (để trống để dùng prompt mặc định)"
+              />
+              <small style={{ color: 'var(--text-muted, #888)', fontSize: '0.85em' }}>
+                Shown to the customer after payment. Leave empty to use the default prompt.
+              </small>
+            </div>
+          )}
           <div className="form-group">
             <label className="checkbox-label">
               <input
@@ -625,9 +660,21 @@ function ProductDetailModal({ product, onClose }: ProductDetailModalProps) {
           <div className="detail-row">
             <span className="detail-label">Delivery Type:</span>
             <span className={`delivery-badge ${product.delivery_type}`}>
-              {product.delivery_type === 'pre_uploaded' ? 'Pre-uploaded' : 'Supplier-based'}
+              {product.delivery_type === 'pre_uploaded'
+                ? 'Pre-uploaded'
+                : product.delivery_type === 'supplier_based'
+                ? 'Supplier-based'
+                : 'Upgrade'}
             </span>
           </div>
+          {product.delivery_type === 'upgrade' && (
+            <div className="detail-row">
+              <span className="detail-label">Upgrade Prompt:</span>
+              <span className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>
+                {product.upgrade_request_text || '(default)'}
+              </span>
+            </div>
+          )}
           <div className="detail-row">
             <span className="detail-label">Status:</span>
             <span className={`status-badge ${product.is_active ? 'active' : 'inactive'}`}>

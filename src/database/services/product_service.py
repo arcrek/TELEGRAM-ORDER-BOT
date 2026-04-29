@@ -34,6 +34,7 @@ class ProductService:
             name=product_data["name"],
             description=product_data.get("description"),
             delivery_type=product_data.get("delivery_type", DeliveryType.PRE_UPLOADED),
+            upgrade_request_text=product_data.get("upgrade_request_text"),
             is_active=product_data.get("is_active", True),
         )
         self.session.add(product)
@@ -169,6 +170,8 @@ class ProductService:
             product.description = update_data["description"]
         if "delivery_type" in update_data:
             product.delivery_type = update_data["delivery_type"]
+        if "upgrade_request_text" in update_data:
+            product.upgrade_request_text = update_data["upgrade_request_text"]
         if "is_active" in update_data:
             product.is_active = update_data["is_active"]
         

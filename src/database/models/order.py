@@ -1,7 +1,7 @@
 """
 Order model.
 """
-from sqlalchemy import Column, String, BigInteger, Integer, DateTime, Enum, Text
+from sqlalchemy import Column, String, BigInteger, Integer, DateTime, Enum, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from src.database.models.base import Base
@@ -28,6 +28,16 @@ class Order(Base):
     payos_order_code = Column(BigInteger, nullable=True, unique=True)  # PayOS orderCode (integer)
     payos_payment_link_id = Column(String, nullable=True)  # PayOS paymentLinkId
     payos_checkout_url = Column(Text, nullable=True)  # PayOS checkoutUrl (optional)
+
+    # UPGRADE delivery: flag flips True when IPN asks user for account info, cleared
+    # by the bot once the user has replied and the message has been forwarded.
+    awaiting_upgrade_info = Column(Boolean, default=False, nullable=False)
+
+    # UPGRADE delivery: JSON list of {chat_id, thread_id, header_msg_id, forward_msg_id}
+    # entries — message IDs of the bot's posts in each notification chat. Used to map
+    # an admin's reply (in the notification chat) back to the originating order so the
+    # bot can relay the admin's response to the customer.
+    upgrade_forwards = Column(Text, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)

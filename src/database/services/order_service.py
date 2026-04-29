@@ -237,6 +237,19 @@ class OrderService:
         """
         return self.session.query(Order).filter_by(id=order_id).first()
 
+    def get_oldest_awaiting_upgrade_order(self, user_id: int) -> Optional[Order]:
+        """
+        Get the oldest order from this user that is waiting for upgrade
+        account info (UPGRADE delivery type, post-payment, customer hasn't
+        replied yet).
+        """
+        return (
+            self.session.query(Order)
+            .filter_by(user_id=user_id, awaiting_upgrade_info=True)
+            .order_by(Order.created_at.asc())
+            .first()
+        )
+
     def get_user_orders(
         self,
         user_id: int,

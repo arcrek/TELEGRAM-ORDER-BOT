@@ -241,6 +241,10 @@ class IPNOrderProcessor:
                     logger.info(f"Processing PRE_UPLOADED delivery for order {order_id}")
                     self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
                     delivery_success = True
+                elif delivery_type == DeliveryType.UPGRADE:
+                    logger.info(f"Processing UPGRADE delivery for order {order_id}")
+                    self._handle_upgrade_delivery(session, order_id, order.user_id)
+                    delivery_success = True
                 elif delivery_type == DeliveryType.SUPPLIER_BASED:
                     # Supplier-based delivery is DISABLED
                     logger.warning(f"SUPPLIER_BASED delivery is disabled for order {order_id}")
@@ -403,6 +407,92 @@ class IPNOrderProcessor:
 
         # Treat partial delivery as failure so upstream returns processed=False
         raise RuntimeError(f"Partial delivery failure for order {order_id}")
+
+    def _handle_upgrade_delivery(
+        self, session, order_id: str, user_id: int
+    ) -> None:
+        """
+        Handle UPGRADE delivery: ask the customer for the account info needed
+        to perform the upgrade. The reply is forwarded to the notification chat
+        whitelist by the bot's upgrade message handler.
+
+        Args:
+            session: Database session
+            order_id: Order ID
+            user_id: Telegram user ID
+        """
+        from src.database.models import Order, Product
+        from src.database.services.user_preference_service import UserPreferenceService
+        from src.i18n.bot_translations import get_translation
+
+        order = session.query(Order).filter_by(id=order_id).first()
+        if not order:
+            logger.error(f"UPGRADE delivery: order {order_id} not found")
+            return
+
+        # Resolve product / variation names from the first item (UPGRADE orders
+        # always have one product per order).
+        product_name = "?"
+        variation_name = "?"
+        custom_prompt: Optional[str] = None
+        if order.items:
+            first_item = order.items[0]
+            if first_item.product:
+                product_name = first_item.product.name
+                custom_prompt = first_item.product.upgrade_request_text
+            if first_item.variation:
+                variation_name = first_item.variation.name
+
+        # Determine user language for the prompt.
+        try:
+            language = UserPreferenceService(session).get_user_language(user_id)
+        except Exception:
+            language = "vi"
+
+        header = get_translation(
+            "upgrade.prompt_header",
+            language,
+            order_id=order_id,
+            product=product_name,
+            variation=variation_name,
+        )
+        body = (custom_prompt or "").strip() or get_translation(
+            "upgrade.default_prompt", language
+        )
+        prompt = f"{header}\n\n{body}"
+
+        if not self.bot:
+            logger.error(
+                f"UPGRADE delivery: bot instance unavailable, cannot send prompt for order {order_id}"
+            )
+            return
+
+        try:
+            run_async(self.bot.send_message(chat_id=user_id, text=prompt))
+        except TelegramError as e:
+            logger.error(
+                f"Failed to send UPGRADE prompt for order {order_id}: {str(e)}"
+            )
+            return
+
+        # Mark order as awaiting account info; flip status to PROCESSING.
+        order.awaiting_upgrade_info = True
+        order.status = OrderStatus.PROCESSING
+        session.commit()
+
+        # Notify admins that an UPGRADE order is in flight (delivery_data
+        # placeholder; the customer's actual reply is forwarded later by
+        # src/bot/handlers/upgrade_handler.py).
+        try:
+            notify_service = OrderNotificationService(session, bot=self.bot)
+            notify_service.send_order_paid(
+                order_id,
+                delivery_data="(awaiting account info from customer)",
+            )
+        except Exception as e:
+            logger.warning(
+                f"Order paid notification failed for UPGRADE order {order_id}: {e}"
+            )
 
     def _handle_supplier_delivery(
         self, session, order_id: str, user_id: int

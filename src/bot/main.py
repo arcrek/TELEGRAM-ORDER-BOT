@@ -32,6 +32,7 @@ from src.bot.handlers.callbacks import (
     handle_order_detail,
     handle_back_to_order_history,
 )
+from src.bot.handlers.upgrade_handler import handle_upgrade_message
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -98,6 +99,10 @@ def create_bot_application() -> Application:
     # Custom quantity input handler runs in a separate group so it is not blocked
     # by handle_products_button which matches the same filter.
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input), group=1)
+    # UPGRADE-delivery dispatcher: handles both the customer's account-info reply
+    # (private chat) and admin status-update replies (notification chat).
+    # Matches any non-command message so we can carry text/photo/document.
+    application.add_handler(MessageHandler(~filters.COMMAND, handle_upgrade_message), group=2)
 
     # Catch-all for unknown slash commands (including sending just "/")
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))

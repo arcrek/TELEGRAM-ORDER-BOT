@@ -20,6 +20,7 @@ class ProductCreate(BaseModel):
     name: str
     description: Optional[str] = None
     delivery_type: DeliveryType = DeliveryType.PRE_UPLOADED
+    upgrade_request_text: Optional[str] = None
     is_active: bool = True
 
 
@@ -28,6 +29,7 @@ class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     delivery_type: Optional[DeliveryType] = None
+    upgrade_request_text: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -37,10 +39,11 @@ class ProductResponse(BaseModel):
     name: str
     description: Optional[str]
     delivery_type: str
+    upgrade_request_text: Optional[str]
     is_active: bool
     created_at: str
     updated_at: str
-    
+
     class Config:
         from_attributes = True
 
@@ -93,6 +96,7 @@ async def list_products(
                 "name": p.name,
                 "description": p.description,
                 "delivery_type": p.delivery_type.value,
+                "upgrade_request_text": p.upgrade_request_text,
                 "is_active": p.is_active,
                 "created_at": p.created_at.isoformat(),
                 "updated_at": p.updated_at.isoformat(),
@@ -166,6 +170,7 @@ async def get_product(
         "name": product.name,
         "description": product.description,
         "delivery_type": product.delivery_type.value,
+        "upgrade_request_text": product.upgrade_request_text,
         "is_active": product.is_active,
         "created_at": product.created_at.isoformat(),
         "updated_at": product.updated_at.isoformat(),
@@ -203,14 +208,16 @@ async def create_product(
         "name": product_data.name,
         "description": product_data.description,
         "delivery_type": product_data.delivery_type,
+        "upgrade_request_text": product_data.upgrade_request_text,
         "is_active": product_data.is_active,
     })
-    
+
     return {
         "id": product.id,
         "name": product.name,
         "description": product.description,
         "delivery_type": product.delivery_type.value,
+        "upgrade_request_text": product.upgrade_request_text,
         "is_active": product.is_active,
         "created_at": product.created_at.isoformat(),
         "updated_at": product.updated_at.isoformat(),
@@ -243,22 +250,25 @@ async def update_product(
         update_dict["description"] = product_data.description
     if product_data.delivery_type is not None:
         update_dict["delivery_type"] = product_data.delivery_type
+    if "upgrade_request_text" in product_data.model_fields_set:
+        update_dict["upgrade_request_text"] = product_data.upgrade_request_text
     if product_data.is_active is not None:
         update_dict["is_active"] = product_data.is_active
-    
+
     product = service.update_product(product_id, update_dict)
-    
+
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Product {product_id} not found"
         )
-    
+
     return {
         "id": product.id,
         "name": product.name,
         "description": product.description,
         "delivery_type": product.delivery_type.value,
+        "upgrade_request_text": product.upgrade_request_text,
         "is_active": product.is_active,
         "created_at": product.created_at.isoformat(),
         "updated_at": product.updated_at.isoformat(),

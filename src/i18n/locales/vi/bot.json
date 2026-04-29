@@ -166,6 +166,16 @@
     "status_delivered": "📦 Đã giao",
     "status_cancelled": "❌ Đã hủy"
   },
+  "upgrade": {
+    "default_prompt": "📝 Vui lòng cung cấp thông tin tài khoản cần nâng cấp:\n• Email/Username\n• Mật khẩu\n• Mã 2FA (nếu có)\n\nBạn có thể trả lời tin nhắn này bằng văn bản hoặc ảnh chụp màn hình.",
+    "prompt_header": "🔄 Đơn nâng cấp #{order_id}\n📦 {product} - {variation}",
+    "received": "✅ Đã nhận thông tin. Đội ngũ sẽ xử lý đơn #{order_id} sớm nhất có thể.",
+    "no_pending": "❓ Không có đơn nâng cấp nào đang chờ thông tin.",
+    "forward_header": "🔄 YÊU CẦU NÂNG CẤP\n• Mã đơn: #{order_id}\n• Khách hàng: {name} (@{username}) — ID: {user_id}\n• Sản phẩm: {product} - {variation}\n• Thông tin tài khoản ↓",
+    "admin_update_header": "📝 CẬP NHẬT TRẠNG THÁI ĐƠN #{order_id}",
+    "admin_update_sent": "✅ Đã gửi cập nhật cho khách hàng đơn #{order_id}",
+    "admin_update_failed": "⚠️ Không gửi được cập nhật cho khách hàng đơn #{order_id}: {error}"
+  },
   "buttons": {
     "next": "NEXT PAGE ▶",
     "prev": "◀ PREV PAGE",
