@@ -173,23 +173,11 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
         product_service = ProductService(session)
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
-        
-        # Get products for the page
-        products = product_service.list_products(page=page, per_page=formatter.ITEMS_PER_PAGE, only_active=True)
-        total_count = product_service.get_total_count(only_active=True)
-        total_pages = formatter.calculate_total_pages(total_count)
-        
-        # Format message and keyboard
-        message = formatter.format_product_list(
-            products,
-            page,
-            total_pages,
-            update,
-            product_choose_text=product_choose_text,
-        )
-        keyboard = formatter.create_product_keyboard(products, page, total_pages, update)
-        
-        # Update message
+
+        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        message = formatter.format_product_list(product_choose_text=product_choose_text)
+        keyboard = formatter.create_product_keyboard(products, update)
+
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
         session.close()
@@ -713,20 +701,11 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
         product_service = ProductService(session)
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
-        
-        products = product_service.list_products(page=current_page, per_page=formatter.ITEMS_PER_PAGE, only_active=True)
-        total_count = product_service.get_total_count(only_active=True)
-        total_pages = formatter.calculate_total_pages(total_count)
-        
-        message = formatter.format_product_list(
-            products,
-            current_page,
-            total_pages,
-            update,
-            product_choose_text=product_choose_text,
-        )
-        keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
-        
+
+        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        message = formatter.format_product_list(product_choose_text=product_choose_text)
+        keyboard = formatter.create_product_keyboard(products, update)
+
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
         session.close()

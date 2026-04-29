@@ -190,37 +190,15 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             last_name=user.last_name,
         )
         
-        # Initialize user state if needed
-        user_state = state_manager.get_user_state(user_id)
-        if not user_state:
-            state_manager.update_user_state(user_id, current_page=1)
-            current_page = 1
-        else:
-            current_page = user_state.current_page
-        
         # Get products
         product_service = ProductService(session)
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
-        
-        # Get products for the page
-        products = product_service.list_products(
-            page=current_page,
-            per_page=formatter.ITEMS_PER_PAGE,
-            only_active=True,
-        )
-        total_count = product_service.get_total_count(only_active=True)
-        total_pages = formatter.calculate_total_pages(total_count)
-        
-        # Format message and inline keyboard (for product selection / pagination)
-        message = formatter.format_product_list(
-            products,
-            current_page,
-            total_pages,
-            update,
-            product_choose_text=product_choose_text,
-        )
-        inline_keyboard = formatter.create_product_keyboard(products, current_page, total_pages, update)
+
+        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+
+        message = formatter.format_product_list(product_choose_text=product_choose_text)
+        inline_keyboard = formatter.create_product_keyboard(products, update)
 
         # Send main message with inline keyboard
         await update.message.reply_text(message, reply_markup=inline_keyboard)

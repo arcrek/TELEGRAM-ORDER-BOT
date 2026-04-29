@@ -70,6 +70,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("lang", language_command))
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CommandHandler("orders", order_history_command))
+    application.add_handler(CommandHandler("history", order_history_command))
     
     # Register admin notification commands
     application.add_handler(CommandHandler("notify_all", notify_all))
