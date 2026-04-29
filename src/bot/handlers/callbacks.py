@@ -1380,6 +1380,217 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
         session.close()
 
 
+_ORDERS_PER_PAGE = 8
+
+_STATUS_EMOJI = {
+    "pending": "⏳",
+    "paid": "✅",
+    "processing": "🔄",
+    "delivered": "📦",
+    "cancelled": "❌",
+}
+
+
+def _build_order_history_message_and_keyboard(orders, page, update):
+    """Return (message_text, InlineKeyboardMarkup) for the order history list view."""
+    from src.bot.utils.language import t
+
+    total = len(orders)
+    total_pages = max(1, (total + _ORDERS_PER_PAGE - 1) // _ORDERS_PER_PAGE)
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * _ORDERS_PER_PAGE
+    page_orders = orders[start: start + _ORDERS_PER_PAGE]
+
+    title = t("order_history.title", update)
+    if total == 0:
+        body = t("order_history.empty", update)
+    else:
+        body = t("order_history.count", update, count=total)
+        if total_pages > 1:
+            body += f"\n{t('order_history.page', update, current=page, total=total_pages)}"
+
+    message = f"{title}\n\n{body}"
+
+    keyboard = []
+    for order in page_orders:
+        status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+        emoji = _STATUS_EMOJI.get(status_val, "❓")
+        label = f"#{order.id} | {emoji} | {order.total_amount:,}đ"
+        keyboard.append([InlineKeyboardButton(label, callback_data=f"order_detail_{order.id}_from_{page}")])
+
+    nav_row = []
+    if page > 1:
+        prev_text = t("buttons.prev", update)
+        nav_row.append(InlineKeyboardButton(prev_text, callback_data=f"order_history_page_{page - 1}"))
+    if page < total_pages:
+        next_text = t("buttons.next", update)
+        nav_row.append(InlineKeyboardButton(next_text, callback_data=f"order_history_page_{page + 1}"))
+    if nav_row:
+        keyboard.append(nav_row)
+
+    return message, InlineKeyboardMarkup(keyboard)
+
+
+async def handle_order_history_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle order_history and order_history_page_<N> callbacks."""
+    from src.bot.utils.language import t
+
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    data = query.data  # "order_history" or "order_history_page_<N>"
+
+    page = 1
+    if data.startswith("order_history_page_"):
+        try:
+            page = int(data.replace("order_history_page_", ""))
+        except ValueError:
+            page = 1
+
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        order_service = OrderService(session)
+        orders = order_service.get_user_orders(user_id, limit=200)
+        message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
+        await query.edit_message_text(message, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Error in handle_order_history_page: {str(e)}", exc_info=True)
+        await query.answer(t("order_history.error", update), show_alert=True)
+    finally:
+        session.close()
+
+
+async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle order_detail_<order_id>_from_<page> callbacks."""
+    from src.bot.utils.language import t
+
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data  # "order_detail_<order_id>_from_<page>"
+    # Parse: strip prefix, then split on "_from_" to get order_id and source page
+    raw = data.replace("order_detail_", "", 1)
+    if "_from_" in raw:
+        order_id, from_page_str = raw.rsplit("_from_", 1)
+        try:
+            from_page = int(from_page_str)
+        except ValueError:
+            from_page = 1
+    else:
+        order_id = raw
+        from_page = 1
+
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        order_service = OrderService(session)
+        details = order_service.get_order_with_details(order_id)
+
+        if not details:
+            await query.answer(t("order.not_found", update), show_alert=True)
+            return
+
+        status_val = details["status"]
+        status_key = f"order_history.status_{status_val}"
+        status_label = t(status_key, update)
+
+        from datetime import datetime
+        try:
+            dt = datetime.fromisoformat(details["created_at"])
+            date_str = dt.strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            date_str = details["created_at"]
+
+        lines = [
+            t("order_history.detail_title", update),
+            "",
+            t("order_history.order_id", update, order_id=details["id"]),
+            t("order_history.date", update, date=date_str),
+            t("order_history.status", update, status=status_label),
+            "",
+            t("order_history.items_header", update),
+        ]
+
+        for item in details.get("items", []):
+            product_name = item["product"]["name"] if item.get("product") else "?"
+            variation_name = item["variation"]["name"] if item.get("variation") else "?"
+            qty = item["quantity"]
+            subtotal = item["subtotal"]
+            lines.append(t(
+                "order_history.item_line",
+                update,
+                product=product_name,
+                variation=variation_name,
+                qty=qty,
+                subtotal=f"{subtotal:,}đ",
+            ))
+            if item.get("bonus_quantity"):
+                lines.append(t("order_history.item_bonus", update, bonus=item["bonus_quantity"]))
+
+        lines.append("")
+        total = details["total_amount"]
+        discount = details.get("discount_amount", 0)
+        paid = total - discount
+
+        if discount > 0:
+            lines.append(t("order_history.total", update, total=f"{total:,}đ"))
+            lines.append(t("order_history.discount", update, discount=f"{discount:,}đ"))
+            lines.append(t("order_history.paid_amount", update, amount=f"{paid:,}đ"))
+        else:
+            lines.append(t("order_history.total", update, total=f"{total:,}đ"))
+
+        txn_id = details.get("payment_transaction_id")
+        if txn_id:
+            lines.append(t("order_history.transaction", update, txn_id=txn_id))
+
+        message = "\n".join(lines)
+
+        back_text = t("order_history.back_to_list", update)
+        keyboard = [[InlineKeyboardButton(back_text, callback_data=f"back_to_order_history_{from_page}")]]
+        await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception as e:
+        logger.error(f"Error in handle_order_detail: {str(e)}", exc_info=True)
+        await query.answer(t("order_history.error", update), show_alert=True)
+    finally:
+        session.close()
+
+
+async def handle_back_to_order_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle back_to_order_history and back_to_order_history_<N> callbacks."""
+    from src.bot.utils.language import t
+
+    query = update.callback_query
+    await query.answer()
+
+    data = query.data
+    page = 1
+    if data.startswith("back_to_order_history_"):
+        try:
+            page = int(data.replace("back_to_order_history_", ""))
+        except ValueError:
+            page = 1
+
+    user_id = query.from_user.id
+
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        order_service = OrderService(session)
+        orders = order_service.get_user_orders(user_id, limit=200)
+        message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
+        await query.edit_message_text(message, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Error in handle_back_to_order_history: {str(e)}", exc_info=True)
+        await query.answer(t("order_history.error", update), show_alert=True)
+    finally:
+        session.close()
+
+
 async def handle_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle language selection callback.

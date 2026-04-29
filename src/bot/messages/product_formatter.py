@@ -93,6 +93,9 @@ class ProductFormatter:
         if nav_row:
             keyboard.append(nav_row)
 
+        order_history_text = t('buttons.order_history', update) if update else "📋 Order History"
+        keyboard.append([InlineKeyboardButton(order_history_text, callback_data="order_history")])
+
         return InlineKeyboardMarkup(keyboard)
 
     def calculate_total_pages(self, total_items: int, items_per_page: int = None) -> int:

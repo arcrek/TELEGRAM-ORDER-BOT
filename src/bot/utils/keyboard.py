@@ -7,21 +7,23 @@ from src.bot.utils.language import t
 
 def get_persistent_keyboard(update: Update) -> ReplyKeyboardMarkup:
     """
-    Get the persistent keyboard with Products button.
-    
+    Get the persistent keyboard with Products, Order History, and Language buttons.
+
     Args:
         update: Telegram update object
-        
+
     Returns:
         ReplyKeyboardMarkup with persistent buttons
     """
     products_text = t("buttons.products", update)
+    order_history_text = t("buttons.order_history", update)
     language_text = t("buttons.language", update)
-    
+
     keyboard = [
-        [KeyboardButton(products_text), KeyboardButton(language_text)]
+        [KeyboardButton(products_text), KeyboardButton(order_history_text)],
+        [KeyboardButton(language_text)],
     ]
-    
+
     return ReplyKeyboardMarkup(
         keyboard,
         resize_keyboard=True,

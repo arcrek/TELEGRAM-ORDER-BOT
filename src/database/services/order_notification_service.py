@@ -217,7 +217,7 @@ class OrderNotificationService:
             f"• Order ID: {short_order_id}",
             f"• Info",
             f"  ↳ ID: {order.user_id}",
-            f"  ↳ Username: {username}",
+            f"  ↳ Username: @{username}",
             f"  ↳ Name: {name}",
             f"• Status: {status_val}",
             f"• Total: {order.total_amount:,} VND",

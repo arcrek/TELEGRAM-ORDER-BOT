@@ -7,6 +7,7 @@ from telegram.ext import ContextTypes
 from src.database.connection import get_session_factory
 from src.database.services.product_service import ProductService
 from src.database.services.bot_user_service import BotUserService
+from src.database.services.order_service import OrderService
 from src.database.services.user_preference_service import UserPreferenceService
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.bot.messages.product_formatter import ProductFormatter
@@ -236,6 +237,77 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         session.close()
 
 
+_ORDERS_PER_PAGE = 8
+
+
+async def order_history_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /orders command and reply-keyboard 'Order History' button."""
+    user = update.effective_user
+    user_id = user.id
+
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        bot_user_service = BotUserService(session)
+        bot_user_service.track_user(
+            telegram_user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+        )
+
+        order_service = OrderService(session)
+        orders = order_service.get_user_orders(user_id, limit=200)
+
+        total = len(orders)
+        total_pages = max(1, (total + _ORDERS_PER_PAGE - 1) // _ORDERS_PER_PAGE)
+        page = 1
+        page_orders = orders[:_ORDERS_PER_PAGE]
+
+        status_emoji = {
+            "pending": "⏳",
+            "paid": "✅",
+            "processing": "🔄",
+            "delivered": "📦",
+            "cancelled": "❌",
+        }
+
+        title = t("order_history.title", update)
+        if total == 0:
+            body = t("order_history.empty", update)
+        else:
+            body = t("order_history.count", update, count=total)
+
+        message = f"{title}\n\n{body}"
+
+        keyboard = []
+        for order in page_orders:
+            status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+            emoji = status_emoji.get(status_val, "❓")
+            label = f"#{order.id} | {emoji} | {order.total_amount:,}đ"
+            keyboard.append([InlineKeyboardButton(label, callback_data=f"order_detail_{order.id}_from_{page}")])
+
+        nav_row = []
+        if page < total_pages:
+            next_text = t("buttons.next", update)
+            nav_row.append(InlineKeyboardButton(next_text, callback_data=f"order_history_page_{page + 1}"))
+        if nav_row:
+            keyboard.append(nav_row)
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(message, reply_markup=reply_markup)
+        await _restore_reply_keyboard(update, context)
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in order_history_command: {str(e)}", exc_info=True)
+        await update.message.reply_text(t("order_history.error", update))
+    finally:
+        session.close()
+
+
 async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle Products button press from persistent keyboard.
@@ -253,13 +325,19 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     # Reply-keyboard buttons
     products_text = t("buttons.products", update)
     language_text = t("buttons.language", update)
+    order_history_text = t("buttons.order_history", update)
 
     # Also check common variations (in case user switched language)
     products_variations = {products_text, "🛒 Products", "🛒 Sản phẩm", "Products", "Sản phẩm"}
     language_variations = {language_text, "🌐 Language", "🌐 Ngôn ngữ", "Language", "Ngôn ngữ"}
+    order_history_variations = {order_history_text, "📋 Order History", "📋 Đơn hàng đã mua"}
 
     if message_text in products_variations:
         await products_command(update, context)
+        return
+
+    if message_text in order_history_variations:
+        await order_history_command(update, context)
         return
 
     if message_text in language_variations:

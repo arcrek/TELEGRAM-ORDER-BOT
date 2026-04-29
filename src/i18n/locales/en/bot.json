@@ -142,6 +142,30 @@
     "unauthorized": "❌ Unauthorized access.",
     "validation": "❌ Error: {error}"
   },
+  "order_history": {
+    "title": "📋 ORDER HISTORY",
+    "count": "You have {count} orders:",
+    "empty": "📭 You have no orders yet.",
+    "page": "Page {current}/{total}",
+    "detail_title": "📋 ORDER DETAILS",
+    "order_id": "🔖 Order ID: #{order_id}",
+    "date": "📅 Date: {date}",
+    "status": "🏷️ Status: {status}",
+    "items_header": "📦 ITEMS:",
+    "item_line": "・ {product} - {variation} x{qty} = {subtotal}",
+    "item_bonus": "  🎁 Bonus: +{bonus}",
+    "total": "💰 Total: {total}",
+    "discount": "💸 Discount: {discount}",
+    "paid_amount": "💵 Paid: {amount}",
+    "transaction": "🧾 Transaction: {txn_id}",
+    "back_to_list": "◀ Back to order list",
+    "error": "❌ Error loading order history.",
+    "status_pending": "⏳ Pending payment",
+    "status_paid": "✅ Paid",
+    "status_processing": "🔄 Processing",
+    "status_delivered": "📦 Delivered",
+    "status_cancelled": "❌ Cancelled"
+  },
   "buttons": {
     "next": "Next ▶️",
     "prev": "◀️ Prev",
@@ -153,7 +177,8 @@
     "clear_cart": "🗑️ Clear Cart",
     "cancel_order": "❌ Cancel Order",
     "products": "🛒 Products",
-    "language": "🌐 Language"
+    "language": "🌐 Language",
+    "order_history": "📋 Order History"
   },
   "languages": {
     "en": "🇬🇧 English",

@@ -142,6 +142,30 @@
     "unauthorized": "❌ Không có quyền truy cập.",
     "validation": "❌ Lỗi: {error}"
   },
+  "order_history": {
+    "title": "📋 LỊCH SỬ ĐƠN HÀNG",
+    "count": "Bạn có {count} đơn hàng:",
+    "empty": "📭 Bạn chưa có đơn hàng nào.",
+    "page": "Trang {current}/{total}",
+    "detail_title": "📋 CHI TIẾT ĐƠN HÀNG",
+    "order_id": "🔖 Mã đơn: #{order_id}",
+    "date": "📅 Ngày đặt: {date}",
+    "status": "🏷️ Trạng thái: {status}",
+    "items_header": "📦 SẢN PHẨM:",
+    "item_line": "・ {product} - {variation} x{qty} = {subtotal}",
+    "item_bonus": "  🎁 Tặng: +{bonus}",
+    "total": "💰 Tổng tiền: {total}",
+    "discount": "💸 Giảm giá: {discount}",
+    "paid_amount": "💵 Thanh toán: {amount}",
+    "transaction": "🧾 Mã GD: {txn_id}",
+    "back_to_list": "◀ Quay lại danh sách đơn",
+    "error": "❌ Lỗi khi tải lịch sử đơn hàng.",
+    "status_pending": "⏳ Chờ thanh toán",
+    "status_paid": "✅ Đã thanh toán",
+    "status_processing": "🔄 Đang xử lý",
+    "status_delivered": "📦 Đã giao",
+    "status_cancelled": "❌ Đã hủy"
+  },
   "buttons": {
     "next": "NEXT PAGE ▶",
     "prev": "◀ PREV PAGE",
@@ -153,7 +177,8 @@
     "clear_cart": "🗑️ Xóa giỏ",
     "cancel_order": "❌ Hủy đơn",
     "products": "🛒 Sản phẩm",
-    "language": "🌐 Ngôn ngữ"
+    "language": "🌐 Ngôn ngữ",
+    "order_history": "📋 Đơn hàng đã mua"
   },
   "languages": {
     "en": "🇬🇧 English",
