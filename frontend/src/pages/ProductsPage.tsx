@@ -512,7 +512,7 @@ function ProductModal({
   isEdit = false,
 }: ProductModalProps) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <Card className="modal-content" onClick={(e) => e?.stopPropagation()}>
         <div className="modal-header">
           <h2>{title}</h2>
@@ -603,7 +603,7 @@ interface DeleteModalProps {
 
 function DeleteModal({ productName, onConfirm, onClose }: DeleteModalProps) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <Card className="modal-content delete-modal" onClick={(e) => e?.stopPropagation()}>
         <div className="modal-header">
           <h2>Delete Product</h2>
@@ -636,7 +636,7 @@ interface ProductDetailModalProps {
 
 function ProductDetailModal({ product, onClose }: ProductDetailModalProps) {
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <Card className="modal-content detail-modal" onClick={(e) => e?.stopPropagation()}>
         <div className="modal-header">
           <h2>Product Details</h2>

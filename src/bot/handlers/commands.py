@@ -2,6 +2,7 @@
 Command handlers for the Telegram bot.
 """
 import os
+from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.database.connection import get_session_factory
@@ -10,7 +11,7 @@ from src.database.services.bot_user_service import BotUserService
 from src.database.services.order_service import OrderService
 from src.database.models.enums import OrderStatus
 from src.database.services.user_preference_service import UserPreferenceService
-from src.bot.utils.admin_check import GLOBAL_ADMIN_ID, add_admin, is_admin, remove_admin
+from src.bot.utils.admin_check import GLOBAL_ADMIN_ID, add_admin, get_admin_telegram_ids, is_admin, remove_admin
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
@@ -382,41 +383,93 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         session.close()
 
 
+async def _resolve_admin_target(
+    arg: str, update: Update
+) -> Optional[int]:
+    """
+    Resolve a /setadmin argument to a Telegram user ID.
+
+    Accepts:
+      - A numeric ID (e.g. "123456789")
+      - A @username or bare username (looked up in bot_users DB)
+
+    Returns the numeric Telegram user ID, or None if resolution failed
+    (an error reply is already sent in that case).
+    """
+    is_username = arg.startswith("@") or not arg.lstrip("-").lstrip("+").isdigit()
+    if is_username:
+        username = arg.lstrip("@")
+        session_factory = get_session_factory()
+        session = session_factory()
+        try:
+            bot_user = BotUserService(session).get_user_by_username(username)
+        finally:
+            session.close()
+        if not bot_user:
+            await update.message.reply_text(
+                t("commands.setadmin.user_not_found", update, username=arg if arg.startswith("@") else f"@{arg}")
+            )
+            return None
+        return bot_user.telegram_user_id
+    else:
+        try:
+            return int(arg)
+        except ValueError:
+            await update.message.reply_text(t("commands.setadmin.invalid_id", update))
+            return None
+
+
 async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle /setadmin command — manage dynamic admin list.
 
     Usage:
-      /setadmin <telegram_id>          — add a new admin
-      /setadmin remove <telegram_id>   — remove an admin
-      /setadmin list                   — show current admins
+      /setadmin list                        — show current admins (all admins)
+      /setadmin <id|@username>              — add a new admin (super admin only)
+      /setadmin remove <id|@username>       — remove an admin (super admin only)
 
-    Only the global admin (hardcoded) can use this command.
+    All admins can run 'list'. Add/remove is restricted to the super admin.
     """
     user = update.effective_user
-    if not user or user.id != GLOBAL_ADMIN_ID:
+    if not user or not is_admin(user.id):
         await update.message.reply_text(t("commands.setadmin.no_permission", update))
         return
 
     args = context.args or []
+    is_super_admin = user.id == GLOBAL_ADMIN_ID
 
+    # ── list ──────────────────────────────────────────────────────────────────
     if not args or args[0].lower() == "list":
-        from src.bot.utils.admin_check import get_admin_telegram_ids
         all_ids = get_admin_telegram_ids()
-        ids_text = "\n".join(f"• {uid}" for uid in all_ids)
+        session_factory = get_session_factory()
+        session = session_factory()
+        try:
+            svc = BotUserService(session)
+            lines = []
+            for uid in all_ids:
+                bot_user = svc.get_user_by_telegram_id(uid)
+                if bot_user and bot_user.username:
+                    lines.append(f"• {uid} (@{bot_user.username})")
+                else:
+                    lines.append(f"• {uid}")
+        finally:
+            session.close()
         await update.message.reply_text(
-            t("commands.setadmin.list", update, ids=ids_text or "—")
+            t("commands.setadmin.list", update, ids="\n".join(lines) or "—")
         )
+        return
+
+    # ── add / remove — super admin only ───────────────────────────────────────
+    if not is_super_admin:
+        await update.message.reply_text(t("commands.setadmin.no_permission", update))
         return
 
     if args[0].lower() == "remove":
         if len(args) < 2:
             await update.message.reply_text(t("commands.setadmin.usage", update))
             return
-        try:
-            target_id = int(args[1])
-        except ValueError:
-            await update.message.reply_text(t("commands.setadmin.invalid_id", update))
+        target_id = await _resolve_admin_target(args[1], update)
+        if target_id is None:
             return
         if remove_admin(target_id):
             await update.message.reply_text(
@@ -428,13 +481,10 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
         return
 
-    # First arg is treated as a Telegram ID to add
-    try:
-        target_id = int(args[0])
-    except ValueError:
-        await update.message.reply_text(t("commands.setadmin.usage", update))
+    # Default: add
+    target_id = await _resolve_admin_target(args[0], update)
+    if target_id is None:
         return
-
     if add_admin(target_id):
         await update.message.reply_text(
             t("commands.setadmin.added", update, user_id=target_id)

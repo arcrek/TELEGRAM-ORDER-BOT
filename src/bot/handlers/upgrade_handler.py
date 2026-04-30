@@ -21,6 +21,7 @@ Two paths share a single MessageHandler entrypoint (``handle_upgrade_message``):
      the bot copies the admin's content to the customer as an order status
      update, preceded by a header that identifies which order it relates to.
 """
+import html as html_module
 import json
 import logging
 from datetime import datetime, timezone
@@ -76,7 +77,13 @@ async def handle_upgrade_message(update: Update, context: ContextTypes.DEFAULT_T
 
 
 async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Forward the customer's account-info reply to the notification whitelist."""
+    """Forward the customer's account-info reply to the notification whitelist.
+
+    Handles two cases:
+    1. First reply — order still has awaiting_upgrade_info=True.
+    2. Additional reply — customer replies to the original prompt message after
+       awaiting_upgrade_info has been cleared. Detected via upgrade_prompt_msg_id.
+    """
     user_id = update.effective_user.id
 
     # Defer to existing state-driven flows (e.g. custom-quantity input).
@@ -89,7 +96,18 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
 
     try:
         order_service = OrderService(session)
+
+        # Case 1: initial reply — order is still awaiting account info.
         order = order_service.get_oldest_awaiting_upgrade_order(user_id)
+        is_additional = False
+
+        # Case 2: additional reply — customer explicitly replies to the prompt.
+        if not order and update.message.reply_to_message:
+            replied_msg_id = update.message.reply_to_message.message_id
+            order = order_service.get_order_by_upgrade_prompt_msg_id(user_id, replied_msg_id)
+            if order:
+                is_additional = True
+
         if not order:
             return
 
@@ -107,16 +125,26 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
         last_name = update.effective_user.last_name or ""
         full_name = " ".join(part for part in [first_name, last_name] if part).strip() or "-"
 
-        header = t(
-            "upgrade.forward_header",
-            update,
-            order_id=order.id,
-            user_id=user_id,
-            username=username,
-            name=full_name,
-            product=product_name,
-            variation=variation_name,
-        )
+        if is_additional:
+            header = get_translation(
+                "upgrade.additional_info_header",
+                "vi",
+                order_id=order.id,
+                user_id=user_id,
+                username=username,
+                name=full_name,
+            )
+        else:
+            header = t(
+                "upgrade.forward_header",
+                update,
+                order_id=order.id,
+                user_id=user_id,
+                username=username,
+                name=full_name,
+                product=product_name,
+                variation=variation_name,
+            )
 
         notification_service = NotificationSettingsService(session)
         settings = notification_service.get_settings()
@@ -134,6 +162,9 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
 
         done_button_label = get_translation("upgrade.done_button", "vi")
         done_prompt_text = get_translation("upgrade.done_prompt", "vi", order_id=order.id)
+
+        # Code block copy of the customer's text for easy admin copying.
+        customer_text = update.message.text or update.message.caption or ""
 
         forwards: list[dict] = []
         if not targets:
@@ -168,14 +199,33 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                 try:
                     header_msg = await context.bot.send_message(**send_kwargs)
                     forward_msg = await context.bot.forward_message(**forward_kwargs)
+
+                    # Send a code-block copy so admins can easily copy the credentials.
+                    if customer_text:
+                        code_kwargs: dict = {
+                            "chat_id": chat_id,
+                            "text": f"<pre>{html_module.escape(customer_text)}</pre>",
+                            "parse_mode": "HTML",
+                        }
+                        if thread_id is not None:
+                            code_kwargs["message_thread_id"] = int(thread_id)
+                        try:
+                            await context.bot.send_message(**code_kwargs)
+                        except TelegramError as e:
+                            logger.warning(
+                                f"Failed to send code-block copy for order {order.id} to {chat_id}: {e}"
+                            )
+
+                    # Done prompt is only sent on the first reply, not additional ones.
                     done_msg_id: Optional[int] = None
-                    try:
-                        done_msg = await context.bot.send_message(**done_kwargs)
-                        done_msg_id = done_msg.message_id
-                    except TelegramError as e:
-                        logger.error(
-                            f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}: {e}"
-                        )
+                    if not is_additional:
+                        try:
+                            done_msg = await context.bot.send_message(**done_kwargs)
+                            done_msg_id = done_msg.message_id
+                        except TelegramError as e:
+                            logger.error(
+                                f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}: {e}"
+                            )
                     forwards.append(
                         {
                             "chat_id": chat_id,
@@ -197,7 +247,9 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
             existing.extend(forwards)
             order.upgrade_forwards = json.dumps(existing)
 
-        order.awaiting_upgrade_info = False
+        # Clear the awaiting flag only on the initial reply.
+        if not is_additional:
+            order.awaiting_upgrade_info = False
         session.commit()
 
         try:
@@ -323,6 +375,7 @@ def _find_order_by_forward_message(session, chat_id: int, message_id: int) -> Op
             if message_id in (
                 int(entry.get("header_msg_id") or 0),
                 int(entry.get("forward_msg_id") or 0),
+                int(entry.get("done_msg_id") or 0),
             ):
                 return order
     return None

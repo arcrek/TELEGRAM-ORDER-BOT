@@ -33,6 +33,11 @@ class Order(Base):
     # by the bot once the user has replied and the message has been forwarded.
     awaiting_upgrade_info = Column(Boolean, default=False, nullable=False)
 
+    # UPGRADE delivery: Telegram message ID of the account-info prompt the bot sent
+    # to the customer. Stored so that later customer replies to that specific message
+    # (even after awaiting_upgrade_info is cleared) are still forwarded to the admin.
+    upgrade_prompt_msg_id = Column(BigInteger, nullable=True)
+
     # UPGRADE delivery: JSON list of {chat_id, thread_id, header_msg_id, forward_msg_id}
     # entries — message IDs of the bot's posts in each notification chat. Used to map
     # an admin's reply (in the notification chat) back to the originating order so the

@@ -252,6 +252,20 @@ class OrderService:
             .first()
         )
 
+    def get_order_by_upgrade_prompt_msg_id(
+        self, user_id: int, message_id: int
+    ) -> Optional[Order]:
+        """
+        Find an UPGRADE order by the Telegram message ID of the account-info
+        prompt sent to the customer. Used to relay additional customer replies
+        (sent after awaiting_upgrade_info has already been cleared).
+        """
+        return (
+            self.session.query(Order)
+            .filter_by(user_id=user_id, upgrade_prompt_msg_id=message_id)
+            .first()
+        )
+
     def get_user_orders(
         self,
         user_id: int,

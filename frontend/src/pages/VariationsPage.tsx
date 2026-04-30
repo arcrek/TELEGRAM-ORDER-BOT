@@ -925,7 +925,7 @@ export function VariationsPage() {
 
       {/* Create Modal */}
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -1007,7 +1007,7 @@ export function VariationsPage() {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -1079,7 +1079,7 @@ export function VariationsPage() {
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -1108,7 +1108,7 @@ export function VariationsPage() {
 
       {/* Bulk Delete Modal */}
       {showBulkDeleteModal && (
-        <div className="modal-overlay" onClick={() => setShowBulkDeleteModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -1137,7 +1137,7 @@ export function VariationsPage() {
 
       {/* Discount Configuration Modal */}
       {showDiscountModal && discountVariation && (
-        <div className="modal-overlay" onClick={() => setShowDiscountModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content bonus-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -1309,7 +1309,7 @@ export function VariationsPage() {
 
       {/* Bonus Configuration Modal */}
       {showBonusModal && bonusVariation && (
-        <div className="modal-overlay" onClick={() => setShowBonusModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content bonus-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>

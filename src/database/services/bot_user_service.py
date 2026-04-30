@@ -4,6 +4,7 @@ Bot user service layer for user tracking.
 import uuid
 from typing import Optional, List
 from datetime import datetime, timezone
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from src.database.models.bot_user import BotUser
 
@@ -86,6 +87,23 @@ class BotUserService:
             self.session.commit()
             self.session.refresh(user)
             return user
+
+    def get_user_by_username(self, username: str) -> Optional[BotUser]:
+        """
+        Get user by Telegram username (case-insensitive, with or without @).
+
+        Args:
+            username: Telegram username (with or without leading @)
+
+        Returns:
+            BotUser instance or None if not found
+        """
+        username_clean = username.lstrip("@").lower()
+        return (
+            self.session.query(BotUser)
+            .filter(func.lower(BotUser.username) == username_clean)
+            .first()
+        )
 
     def get_user_by_telegram_id(self, telegram_user_id: int) -> Optional[BotUser]:
         """

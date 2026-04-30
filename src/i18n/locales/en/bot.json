@@ -15,16 +15,17 @@
       "notify_all": "/notify_all <message> - Send to all users",
       "notify_user": "/notify_user <user_id> <message> - Send to specific user",
       "notify_active": "/notify_active <message> - Send to active users",
-      "setadmin": "/setadmin <id> - Add admin | /setadmin remove <id> - Remove admin | /setadmin list - List admins"
+      "setadmin": "/setadmin list — List admins (all admins) | /setadmin <id|@username> — Add | /setadmin remove <id|@username> — Remove (super admin only)"
     },
     "setadmin": {
-      "no_permission": "⛔ Only the super admin can use this command.",
-      "usage": "⚙️ Usage:\n/setadmin <telegram_id> — Add admin\n/setadmin remove <telegram_id> — Remove admin\n/setadmin list — List current admins",
+      "no_permission": "⛔ You do not have permission to use this command.",
+      "usage": "⚙️ Usage:\n/setadmin list — List current admins\n/setadmin <id|@username> — Add admin (super admin only)\n/setadmin remove <id|@username> — Remove admin (super admin only)",
       "added": "✅ Added admin: {user_id}",
       "removed": "✅ Removed admin: {user_id}",
       "already_admin": "ℹ️ {user_id} is already an admin.",
       "not_found_or_protected": "❌ {user_id} not found in the list or cannot be removed (super admin).",
       "invalid_id": "❌ Invalid ID. Please enter a number.",
+      "user_not_found": "❌ User {username} not found. They must start the bot first.",
       "list": "👥 Current admin list:\n{ids}"
     },
     "products": {
@@ -181,6 +182,8 @@
   },
   "upgrade": {
     "default_prompt": "📝 Please provide your account information for the upgrade:\n• Email/Username\n• Password\n• 2FA code (if any)\n\nYou can reply to this message with text or a screenshot.",
+    "prompt_reply_footer": "💬 You can reply to this message to provide more information.",
+    "additional_info_header": "📎 ADDITIONAL INFO\n• Order: #{order_id}\n• Customer: {name} (@{username}) — ID: {user_id}",
     "prompt_header": "🔄 Upgrade order #{order_id}\n📦 {product} - {variation}",
     "received": "✅ Information received. Our team will process order #{order_id} as soon as possible.",
     "no_pending": "❓ No upgrade order is currently awaiting your information.",
@@ -189,7 +192,7 @@
     "admin_update_sent": "✅ Update sent to customer for order #{order_id}",
     "admin_update_failed": "⚠️ Failed to send update to customer for order #{order_id}: {error}",
     "done_button": "✅ Done",
-    "done_prompt": "Press Done when upgrade order #{order_id} is fulfilled.",
+    "done_prompt": "Press Done when upgrade order #{order_id} is fulfilled.\n\n💬 You can reply to this message to provide more information to the customer.",
     "done_customer_message": "🎉 Your upgrade order #{order_id} is complete. Thank you!",
     "done_already": "This order has already been marked as done.",
     "done_footer": "\n\n✅ Completed by @{admin} at {time}",

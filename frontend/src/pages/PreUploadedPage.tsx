@@ -535,7 +535,7 @@ export function PreUploadedPage() {
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -571,7 +571,7 @@ export function PreUploadedPage() {
 
       {/* Bulk Delete Modal */}
       {showBulkDeleteModal && selectedProductIds.length > 0 && (
-        <div className="modal-overlay" onClick={() => setShowBulkDeleteModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>

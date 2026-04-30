@@ -459,7 +459,8 @@ class IPNOrderProcessor:
         body = (custom_prompt or "").strip() or get_translation(
             "upgrade.default_prompt", language
         )
-        prompt = f"{header}\n\n{body}"
+        footer = get_translation("upgrade.prompt_reply_footer", language)
+        prompt = f"{header}\n\n{body}\n\n{footer}"
 
         if not self.bot:
             logger.error(
@@ -468,7 +469,7 @@ class IPNOrderProcessor:
             return
 
         try:
-            run_async(self.bot.send_message(chat_id=user_id, text=prompt))
+            sent_msg = run_async(self.bot.send_message(chat_id=user_id, text=prompt))
         except TelegramError as e:
             logger.error(
                 f"Failed to send UPGRADE prompt for order {order_id}: {str(e)}"
@@ -476,8 +477,11 @@ class IPNOrderProcessor:
             return
 
         # Mark order as awaiting account info; flip status to PROCESSING.
+        # Also store the prompt message ID so later replies to it are forwarded.
         order.awaiting_upgrade_info = True
         order.status = OrderStatus.PROCESSING
+        if sent_msg:
+            order.upgrade_prompt_msg_id = sent_msg.message_id
         session.commit()
 
         # Notify admins that an UPGRADE order is in flight (delivery_data

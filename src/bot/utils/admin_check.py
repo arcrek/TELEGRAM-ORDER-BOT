@@ -59,10 +59,10 @@ def is_admin(telegram_user_id: int) -> bool:
 
 
 def add_admin(telegram_user_id: int) -> bool:
-    """Add a dynamic admin. Returns False if already an admin."""
-    current = _load_dynamic_admins()
-    if telegram_user_id in current or telegram_user_id == GLOBAL_ADMIN_ID:
+    """Add a dynamic admin. Returns False if already an admin (any source)."""
+    if telegram_user_id in get_admin_telegram_ids():
         return False
+    current = _load_dynamic_admins()
     current.append(telegram_user_id)
     _save_dynamic_admins(current)
     return True

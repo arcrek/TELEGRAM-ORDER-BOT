@@ -528,7 +528,7 @@ export function OrdersPage() {
 
       {/* Order Detail Modal */}
       {showDetailModal && selectedOrder && (
-        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -725,7 +725,7 @@ export function OrdersPage() {
 
       {/* Status Update Modal */}
       {showStatusModal && selectedOrder && (
-        <div className="modal-overlay" onClick={() => setShowStatusModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>

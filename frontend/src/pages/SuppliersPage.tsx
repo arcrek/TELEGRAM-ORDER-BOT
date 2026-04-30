@@ -527,7 +527,7 @@ export function SuppliersPage() {
 
       {/* Detail Modal */}
       {showDetailModal && selectedSupplier && (
-        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -583,7 +583,7 @@ export function SuppliersPage() {
 
       {/* Order History Modal */}
       {showOrderHistoryModal && selectedSupplier && (
-        <div className="modal-overlay" onClick={() => setShowOrderHistoryModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -647,7 +647,7 @@ export function SuppliersPage() {
 
       {/* Statistics Modal */}
       {showStatisticsModal && selectedSupplier && statistics && (
-        <div className="modal-overlay" onClick={() => setShowStatisticsModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -720,7 +720,7 @@ export function SuppliersPage() {
 
       {/* Product Assignments Modal */}
       {showAssignmentModal && selectedSupplier && (
-        <div className="modal-overlay" onClick={() => setShowAssignmentModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
@@ -818,7 +818,7 @@ export function SuppliersPage() {
 
       {/* Assign Product Modal */}
       {showAssignProductModal && selectedSupplier && (
-        <div className="modal-overlay" onClick={() => setShowAssignProductModal(false)}>
+        <div className="modal-overlay">
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
