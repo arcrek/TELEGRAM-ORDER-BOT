@@ -440,18 +440,22 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     # ── list ──────────────────────────────────────────────────────────────────
     if not args or args[0].lower() == "list":
-        all_ids = get_admin_telegram_ids()
         session_factory = get_session_factory()
         session = session_factory()
         try:
-            svc = BotUserService(session)
+            from src.database.services.bot_admin_service import BotAdminService
+            bot_svc = BotUserService(session)
+            ba_svc = BotAdminService(session)
+            db_records = {r.telegram_user_id: r for r in ba_svc.list_all()}
+
             lines = []
-            for uid in all_ids:
-                bot_user = svc.get_user_by_telegram_id(uid)
-                if bot_user and bot_user.username:
-                    lines.append(f"• {uid} (@{bot_user.username})")
-                else:
-                    lines.append(f"• {uid}")
+            for uid in get_admin_telegram_ids():
+                bot_user = bot_svc.get_user_by_telegram_id(uid)
+                uname = f" (@{bot_user.username})" if bot_user and bot_user.username else ""
+                source = " [super]" if uid == GLOBAL_ADMIN_ID else (
+                    " [env]" if uid not in db_records else ""
+                )
+                lines.append(f"• {uid}{uname}{source}")
         finally:
             session.close()
         await update.message.reply_text(
@@ -485,7 +489,7 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     target_id = await _resolve_admin_target(args[0], update)
     if target_id is None:
         return
-    if add_admin(target_id):
+    if add_admin(target_id, added_by=user.id):
         await update.message.reply_text(
             t("commands.setadmin.added", update, user_id=target_id)
         )

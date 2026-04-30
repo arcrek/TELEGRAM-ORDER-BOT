@@ -11,6 +11,7 @@ from src.database.models.supplier import Supplier
 from src.database.models.supplier_order import SupplierOrder
 from src.database.models.product_supplier_assignment import ProductSupplierAssignment
 from src.database.models.admin import Admin, AdminRole
+from src.database.models.bot_admin import BotAdmin
 from src.database.models.bot_user import BotUser
 from src.database.models.user_preference import UserPreference
 from src.database.models.notification_settings import NotificationSettings
@@ -36,6 +37,7 @@ __all__ = [
     "ProductSupplierAssignment",
     "Admin",
     "AdminRole",
+    "BotAdmin",
     "BotUser",
     "UserPreference",
     "NotificationSettings",
