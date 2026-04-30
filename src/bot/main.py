@@ -13,6 +13,7 @@ from src.bot.handlers.commands import (
     language_command,
     order_history_command,
     handle_products_button,
+    setadmin_command,
     unknown_command,
 )
 from src.bot.handlers.notification_commands import notify_all, notify_user, notify_active
@@ -31,8 +32,9 @@ from src.bot.handlers.callbacks import (
     handle_order_history_page,
     handle_order_detail,
     handle_back_to_order_history,
+    handle_show_products_list,
 )
-from src.bot.handlers.upgrade_handler import handle_upgrade_message
+from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -72,6 +74,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CommandHandler("orders", order_history_command))
     application.add_handler(CommandHandler("history", order_history_command))
+    application.add_handler(CommandHandler("setadmin", setadmin_command))
     
     # Register admin notification commands
     application.add_handler(CommandHandler("notify_all", notify_all))
@@ -93,6 +96,8 @@ def create_bot_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_order_history_page, pattern="^order_history"))
     application.add_handler(CallbackQueryHandler(handle_order_detail, pattern="^order_detail_"))
     application.add_handler(CallbackQueryHandler(handle_back_to_order_history, pattern="^back_to_order_history"))
+    application.add_handler(CallbackQueryHandler(handle_upgrade_done, pattern="^upgrade_done_"))
+    application.add_handler(CallbackQueryHandler(handle_show_products_list, pattern="^show_products_list$"))
     
     # Register message handlers
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button))

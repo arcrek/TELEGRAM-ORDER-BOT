@@ -8,10 +8,9 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.product_upload_service import ProductUploadService
-from src.database.services.notification_service import NotificationService
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
@@ -46,19 +45,21 @@ def _collect_upload_notification_messages(
     db: Session,
     products_data: List[Dict[str, Any]],
     result: Dict[str, Any],
-) -> List[str]:
+) -> List[Dict[str, Any]]:
     """
-    Build one notification message per unique variation that was successfully uploaded.
+    Build one notification entry per unique variation that was successfully uploaded.
 
     Must be called before the DB session closes so relationships are accessible.
+
+    Returns a list of dicts with keys: "message" (str) and "product_id" (str).
     """
     ui_settings = BotUiSettingsService(db).get_settings()
     default_header = f"📢 {os.getenv('SYSTEM_NAME', 'MUATAIKHOANPRO')} thông báo có hàng mới!"
     header = ui_settings.upload_notification_header or default_header
 
-    failed_indices = {e["index"] for e in result.get("errors", [])}
+    error_indices = {e["index"] for e in result.get("errors", [])}
     successful_items = [
-        item for idx, item in enumerate(products_data) if idx not in failed_indices
+        item for idx, item in enumerate(products_data) if idx not in error_indices
     ]
 
     # Count uploaded quantity per (product_id, variation_id)
@@ -67,7 +68,7 @@ def _collect_upload_notification_messages(
         key = (item["product_id"], item["variation_id"])
         variation_counts[key] = variation_counts.get(key, 0) + 1
 
-    messages = []
+    entries = []
     for (product_id, variation_id), uploaded_qty in variation_counts.items():
         product = db.query(Product).filter_by(id=product_id).first()
         variation = db.query(ProductVariation).filter_by(id=variation_id).first()
@@ -85,16 +86,15 @@ def _collect_upload_notification_messages(
             f"{header}\n\n"
             f"Sản phẩm: {product.name} {variation.name} {price_str}\n"
             f"➕ Đã thêm: {uploaded_qty}\n"
-            f"📦 Tổng số lượng: {total_qty}\n\n"
-            f"👉 /products để mua hàng"
+            f"📦 Tổng số lượng: {total_qty}"
         )
-        messages.append(message)
+        entries.append({"message": message, "product_id": product_id})
 
-    return messages
+    return entries
 
 
-async def _send_upload_notifications(messages: List[str]) -> None:
-    """Broadcast each upload notification message to all started users."""
+async def _send_upload_notifications(entries: List[Dict[str, Any]]) -> None:
+    """Broadcast each upload notification to all started users with action buttons."""
     try:
         bot = _get_bot_instance()
         if not bot:
@@ -102,13 +102,41 @@ async def _send_upload_notifications(messages: List[str]) -> None:
             return
 
         session_factory = get_session_factory()
-        for message in messages:
+        from src.database.services.bot_user_service import BotUserService
+
+        for entry in entries:
+            message = entry["message"]
+            product_id = entry.get("product_id", "")
+
+            keyboard = InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton(
+                        "🛒 Mua ngay / Buy now",
+                        callback_data=f"product_{product_id}",
+                    ),
+                    InlineKeyboardButton(
+                        "📋 Danh sách sản phẩm / Product list",
+                        callback_data="show_products_list",
+                    ),
+                ]
+            ])
+
             session = session_factory()
             try:
-                notification_service = NotificationService(session, bot=bot)
-                await notification_service.send_notification_to_all_started_async(message)
+                users = BotUserService(session).get_all_started_users()
+                for user in users:
+                    try:
+                        await bot.send_message(
+                            chat_id=user.telegram_user_id,
+                            text=message,
+                            reply_markup=keyboard,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to send upload notification to {user.telegram_user_id}: {e}"
+                        )
             except Exception as e:
-                logger.error(f"Failed to send upload notification: {e}", exc_info=True)
+                logger.error(f"Failed to send upload notification batch: {e}", exc_info=True)
             finally:
                 session.close()
     except Exception as e:
@@ -135,15 +163,37 @@ class ProductUploadItem(BaseModel):
     product_data: str
 
 
+class DuplicateCheckItem(BaseModel):
+    """Single item for duplicate checking."""
+    product_id: str
+    variation_id: str
+    product_data: str
+
+
+class DuplicateCheckRequest(BaseModel):
+    """Request body for duplicate check."""
+    products: List[DuplicateCheckItem]
+
+
+class DuplicateCheckResponse(BaseModel):
+    """Response for duplicate check."""
+    duplicate_count: int
+    unique_count: int
+    total: int
+    duplicates: List[dict]
+
+
 class BulkUploadRequest(BaseModel):
     """Bulk upload request schema."""
     products: List[ProductUploadItem]
+    skip_duplicates: bool = False
 
 
 class BulkUploadResponse(BaseModel):
     """Bulk upload response schema."""
     success: int
     failed: int
+    duplicates_skipped: int = 0
     errors: List[dict]
 
 
@@ -182,6 +232,36 @@ async def parse_text_content(
         )
 
 
+@router.post("/products/upload/check-duplicates", response_model=DuplicateCheckResponse)
+async def check_duplicate_products(
+    request: DuplicateCheckRequest,
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Check how many of the given products already exist in the database (unused).
+
+    Returns the count of duplicates and the list of duplicate entries so the
+    frontend can warn the admin before the actual upload.
+    """
+    service = ProductUploadService(db)
+    products_data = [
+        {
+            "product_id": p.product_id,
+            "variation_id": p.variation_id,
+            "product_data": p.product_data,
+        }
+        for p in request.products
+    ]
+    result = service.check_duplicates(products_data)
+    return DuplicateCheckResponse(
+        duplicate_count=len(result["duplicates"]),
+        unique_count=result["unique_count"],
+        total=len(products_data),
+        duplicates=result["duplicates"],
+    )
+
+
 @router.post("/products/upload", response_model=BulkUploadResponse)
 async def upload_products(
     request: BulkUploadRequest,
@@ -208,7 +288,7 @@ async def upload_products(
         for p in request.products
     ]
     
-    result = service.bulk_import_products(products_data)
+    result = service.bulk_import_products(products_data, skip_duplicates=request.skip_duplicates)
 
     if result["success"] > 0:
         messages = _collect_upload_notification_messages(db, products_data, result)
@@ -218,6 +298,7 @@ async def upload_products(
     return {
         "success": result["success"],
         "failed": result["failed"],
+        "duplicates_skipped": result.get("duplicates_skipped", 0),
         "errors": result["errors"],
     }
 

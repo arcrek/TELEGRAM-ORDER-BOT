@@ -15,7 +15,7 @@ from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
 from src.bot.states.state_manager import StateManager
-from src.database.models.enums import DeliveryType
+from src.database.models.enums import DeliveryType, OrderStatus
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +152,31 @@ def format_payment_message(order, update, session) -> tuple[str, str]:
     caption_message = "\n".join(caption_lines)
     
     return full_message, caption_message
+
+
+async def handle_show_products_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle show_products_list callback — send the full product list as a new message."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    state_manager.update_user_state(user_id, current_page=1)
+
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        product_service = ProductService(session)
+        formatter = ProductFormatter()
+        product_choose_text, _ = _get_bot_selection_prompts(session)
+
+        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        message = formatter.format_product_list(product_choose_text=product_choose_text)
+        keyboard = formatter.create_product_keyboard(products, update)
+
+        await query.edit_message_text(message, reply_markup=keyboard)
+    finally:
+        session.close()
 
 
 async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1439,7 +1464,7 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
 
     try:
         order_service = OrderService(session)
-        orders = order_service.get_user_orders(user_id, limit=200)
+        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
         message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
@@ -1451,6 +1476,7 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
 
 async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle order_detail_<order_id>_from_<page> callbacks."""
+    import html
     from src.bot.utils.language import t
 
     query = update.callback_query
@@ -1494,9 +1520,9 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         lines = [
             t("order_history.detail_title", update),
             "",
-            t("order_history.order_id", update, order_id=details["id"]),
-            t("order_history.date", update, date=date_str),
-            t("order_history.status", update, status=status_label),
+            t("order_history.order_id", update, order_id=html.escape(str(details["id"]))),
+            t("order_history.date", update, date=html.escape(str(date_str))),
+            t("order_history.status", update, status=html.escape(str(status_label))),
             "",
             t("order_history.items_header", update),
         ]
@@ -1509,13 +1535,27 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             lines.append(t(
                 "order_history.item_line",
                 update,
-                product=product_name,
-                variation=variation_name,
+                product=html.escape(str(product_name)),
+                variation=html.escape(str(variation_name)),
                 qty=qty,
                 subtotal=f"{subtotal:,}đ",
             ))
             if item.get("bonus_quantity"):
                 lines.append(t("order_history.item_bonus", update, bonus=item["bonus_quantity"]))
+
+            delivered_products = item.get("delivered_products") or []
+            if delivered_products:
+                lines.append(t("order_history.delivered_header", update))
+                for delivered in delivered_products:
+                    display_text = delivered.get("display") or ""
+                    if not display_text:
+                        continue
+                    escaped = html.escape(str(display_text))
+                    lines.append(t(
+                        "order_history.delivered_line",
+                        update,
+                        data=f"<code>{escaped}</code>",
+                    ))
 
         lines.append("")
         total = details["total_amount"]
@@ -1531,13 +1571,17 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         txn_id = details.get("payment_transaction_id")
         if txn_id:
-            lines.append(t("order_history.transaction", update, txn_id=txn_id))
+            lines.append(t("order_history.transaction", update, txn_id=html.escape(str(txn_id))))
 
         message = "\n".join(lines)
 
         back_text = t("order_history.back_to_list", update)
         keyboard = [[InlineKeyboardButton(back_text, callback_data=f"back_to_order_history_{from_page}")]]
-        await query.edit_message_text(message, reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text(
+            message,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML",
+        )
     except Exception as e:
         logger.error(f"Error in handle_order_detail: {str(e)}", exc_info=True)
         await query.answer(t("order_history.error", update), show_alert=True)
@@ -1567,7 +1611,7 @@ async def handle_back_to_order_history(update: Update, context: ContextTypes.DEF
 
     try:
         order_service = OrderService(session)
-        orders = order_service.get_user_orders(user_id, limit=200)
+        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
         message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:

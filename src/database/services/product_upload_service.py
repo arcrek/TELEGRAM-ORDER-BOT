@@ -119,9 +119,64 @@ class ProductUploadService:
         
         return True
     
+    def _normalize_product_data_str(self, product_data: Any) -> str:
+        """Return the canonical JSON string for a product_data value (same logic as bulk_import)."""
+        if isinstance(product_data, dict):
+            return json.dumps(product_data, ensure_ascii=False)
+        if isinstance(product_data, str):
+            try:
+                parsed = json.loads(product_data)
+                return json.dumps(parsed, ensure_ascii=False)
+            except json.JSONDecodeError:
+                return json.dumps({"value": product_data}, ensure_ascii=False)
+        return json.dumps({"value": str(product_data)}, ensure_ascii=False)
+
+    def check_duplicates(
+        self,
+        products_data: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """
+        Check for duplicate product_data entries in the database.
+
+        A duplicate is an unused (is_used=False) PreUploadedProduct row for the
+        same (variation_id, product_data) pair.
+
+        Returns a dict with:
+          - "duplicates": list of {"index": int, "data": ...} for each incoming
+            item that already exists in the DB (unused).
+          - "duplicate_indices": set of indices that are duplicates.
+          - "unique_count": number of non-duplicate items.
+        """
+        duplicate_entries = []
+        duplicate_indices = set()
+
+        for idx, data in enumerate(products_data):
+            variation_id = data.get("variation_id")
+            raw_product_data = data.get("product_data")
+            if not variation_id or raw_product_data is None:
+                continue
+
+            normalized = self._normalize_product_data_str(raw_product_data)
+
+            existing = (
+                self.session.query(PreUploadedProduct)
+                .filter_by(variation_id=variation_id, is_used=False, product_data=normalized)
+                .first()
+            )
+            if existing:
+                duplicate_entries.append({"index": idx, "data": data})
+                duplicate_indices.add(idx)
+
+        return {
+            "duplicates": duplicate_entries,
+            "duplicate_indices": duplicate_indices,
+            "unique_count": len(products_data) - len(duplicate_indices),
+        }
+
     def bulk_import_products(
-        self, 
-        products_data: List[Dict[str, Any]]
+        self,
+        products_data: List[Dict[str, Any]],
+        skip_duplicates: bool = False,
     ) -> Dict[str, Any]:
         """
         Bulk import products.
@@ -134,10 +189,20 @@ class ProductUploadService:
         """
         success_count = 0
         failed_count = 0
+        duplicates_skipped = 0
         errors = []
-        
+
+        duplicate_indices: set = set()
+        if skip_duplicates:
+            dup_result = self.check_duplicates(products_data)
+            duplicate_indices = dup_result["duplicate_indices"]
+
         for idx, data in enumerate(products_data):
             try:
+                if idx in duplicate_indices:
+                    duplicates_skipped += 1
+                    continue
+
                 if not self.validate_product_data(data):
                     failed_count += 1
                     errors.append({
@@ -146,22 +211,9 @@ class ProductUploadService:
                         "data": data
                     })
                     continue
-                
-                # Ensure product_data is properly JSON-serialized
-                product_data = data["product_data"]
-                if isinstance(product_data, dict):
-                    product_data_str = json.dumps(product_data, ensure_ascii=False)
-                elif isinstance(product_data, str):
-                    # If it's already a string, try to parse and re-serialize for validation
-                    try:
-                        parsed = json.loads(product_data)
-                        product_data_str = json.dumps(parsed, ensure_ascii=False)
-                    except json.JSONDecodeError:
-                        # If it's not valid JSON, treat it as a plain string value
-                        product_data_str = json.dumps({"value": product_data}, ensure_ascii=False)
-                else:
-                    product_data_str = json.dumps({"value": str(product_data)}, ensure_ascii=False)
-                
+
+                product_data_str = self._normalize_product_data_str(data["product_data"])
+
                 # Create pre-uploaded product
                 pre_uploaded = PreUploadedProduct(
                     id=f"pre_{uuid.uuid4().hex[:8]}",
@@ -170,7 +222,7 @@ class ProductUploadService:
                     product_data=product_data_str,
                     is_used=False,
                 )
-                
+
                 self.session.add(pre_uploaded)
                 success_count += 1
             except Exception as e:
@@ -180,12 +232,13 @@ class ProductUploadService:
                     "error": str(e),
                     "data": data
                 })
-        
+
         self.session.commit()
-        
+
         return {
             "success": success_count,
             "failed": failed_count,
+            "duplicates_skipped": duplicates_skipped,
             "errors": errors,
         }
     

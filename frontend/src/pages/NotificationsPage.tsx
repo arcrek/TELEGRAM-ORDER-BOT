@@ -46,6 +46,7 @@ interface OrderNotificationSettings {
   order_notify_on_created: boolean
   order_notify_on_paid: boolean
   whitelist_chat_ids: string[]
+  upgrade_chat_ids: string[]
 }
 
 export function NotificationsPage() {
@@ -60,6 +61,7 @@ export function NotificationsPage() {
 
   const [orderSettings, setOrderSettings] = useState<OrderNotificationSettings | null>(null)
   const [orderSettingsText, setOrderSettingsText] = useState('')
+  const [upgradeChatIdsText, setUpgradeChatIdsText] = useState('')
   const [loadingOrderSettings, setLoadingOrderSettings] = useState(false)
   const [savingOrderSettings, setSavingOrderSettings] = useState(false)
   const [testingOrderSettings, setTestingOrderSettings] = useState(false)
@@ -99,6 +101,7 @@ export function NotificationsPage() {
       const settings: OrderNotificationSettings = response.data
       setOrderSettings(settings)
       setOrderSettingsText((settings.whitelist_chat_ids || []).join('\n'))
+      setUpgradeChatIdsText((settings.upgrade_chat_ids || []).join('\n'))
     } catch (error: any) {
       console.error('Error fetching order notification settings:', error)
       // Don't block the rest of the page
@@ -141,6 +144,7 @@ export function NotificationsPage() {
     try {
       const token = localStorage.getItem('token')
       const whitelist_chat_ids = parseChatIds(orderSettingsText)
+      const upgrade_chat_ids = parseChatIds(upgradeChatIdsText)
 
       const response = await axios.put(
         `${API_BASE_URL}/api/notifications/order-settings`,
@@ -148,7 +152,8 @@ export function NotificationsPage() {
           order_notify_enabled: orderSettings.order_notify_enabled,
           order_notify_on_created: orderSettings.order_notify_on_created,
           order_notify_on_paid: orderSettings.order_notify_on_paid,
-          whitelist_chat_ids
+          whitelist_chat_ids,
+          upgrade_chat_ids
         },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -156,6 +161,7 @@ export function NotificationsPage() {
       const updated: OrderNotificationSettings = response.data
       setOrderSettings(updated)
       setOrderSettingsText((updated.whitelist_chat_ids || []).join('\n'))
+      setUpgradeChatIdsText((updated.upgrade_chat_ids || []).join('\n'))
       alert('Order notification settings saved')
     } catch (error: any) {
       console.error('Error saving order notification settings:', error)
@@ -330,6 +336,22 @@ export function NotificationsPage() {
                   disabled={savingOrderSettings}
                 />
                 <div className="char-count">{parseChatIds(orderSettingsText).length} IDs</div>
+              </div>
+
+              <div className="form-group">
+                <label>Upgrade account-info chat IDs</label>
+                <p style={{ opacity: 0.7, marginTop: -4, fontSize: 13 }}>
+                  Separate channel for forwarded customer account-info replies on UPGRADE orders, with a Done button. Falls back to the whitelist above when empty.
+                </p>
+                <textarea
+                  className="message-input"
+                  value={upgradeChatIdsText}
+                  onChange={(e) => setUpgradeChatIdsText(e.target.value)}
+                  placeholder={"Example:\n-1009876543210\n-1009876543210:7"}
+                  rows={4}
+                  disabled={savingOrderSettings}
+                />
+                <div className="char-count">{parseChatIds(upgradeChatIdsText).length} IDs</div>
               </div>
 
               <div className="action-buttons">

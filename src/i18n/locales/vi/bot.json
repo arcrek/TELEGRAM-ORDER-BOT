@@ -14,7 +14,18 @@
       "admin_title": "\n🔧 Lệnh Quản Trị:",
       "notify_all": "/notify_all <nội dung> - Gửi thông báo cho tất cả",
       "notify_user": "/notify_user <user_id> <nội dung> - Gửi cho người dùng cụ thể",
-      "notify_active": "/notify_active <nội dung> - Gửi cho người dùng đang hoạt động"
+      "notify_active": "/notify_active <nội dung> - Gửi cho người dùng đang hoạt động",
+      "setadmin": "/setadmin <id> - Thêm admin | /setadmin remove <id> - Xóa admin | /setadmin list - Xem danh sách"
+    },
+    "setadmin": {
+      "no_permission": "⛔ Chỉ super admin mới được dùng lệnh này.",
+      "usage": "⚙️ Cách dùng:\n/setadmin <telegram_id> — Thêm admin\n/setadmin remove <telegram_id> — Xóa admin\n/setadmin list — Xem danh sách admin",
+      "added": "✅ Đã thêm admin: {user_id}",
+      "removed": "✅ Đã xóa admin: {user_id}",
+      "already_admin": "ℹ️ {user_id} đã là admin rồi.",
+      "not_found_or_protected": "❌ Không tìm thấy {user_id} trong danh sách hoặc không thể xóa (super admin).",
+      "invalid_id": "❌ ID không hợp lệ. Vui lòng nhập số.",
+      "list": "👥 Danh sách admin hiện tại:\n{ids}"
     },
     "products": {
       "error": "❌ Lỗi khi tải sản phẩm. Vui lòng thử lại sau."
@@ -158,6 +169,8 @@
     "discount": "💸 Giảm giá: {discount}",
     "paid_amount": "💵 Thanh toán: {amount}",
     "transaction": "🧾 Mã GD: {txn_id}",
+    "delivered_header": "📨 Dữ liệu đã giao",
+    "delivered_line": "・ {data}",
     "back_to_list": "◀ Quay lại danh sách đơn",
     "error": "❌ Lỗi khi tải lịch sử đơn hàng.",
     "status_pending": "⏳ Chờ thanh toán",
@@ -174,7 +187,13 @@
     "forward_header": "🔄 YÊU CẦU NÂNG CẤP\n• Mã đơn: #{order_id}\n• Khách hàng: {name} (@{username}) — ID: {user_id}\n• Sản phẩm: {product} - {variation}\n• Thông tin tài khoản ↓",
     "admin_update_header": "📝 CẬP NHẬT TRẠNG THÁI ĐƠN #{order_id}",
     "admin_update_sent": "✅ Đã gửi cập nhật cho khách hàng đơn #{order_id}",
-    "admin_update_failed": "⚠️ Không gửi được cập nhật cho khách hàng đơn #{order_id}: {error}"
+    "admin_update_failed": "⚠️ Không gửi được cập nhật cho khách hàng đơn #{order_id}: {error}",
+    "done_button": "✅ Done",
+    "done_prompt": "Đánh dấu đơn nâng cấp #{order_id} đã hoàn tất khi bạn xử lý xong.",
+    "done_customer_message": "🎉 Đơn nâng cấp #{order_id} đã hoàn tất. Cảm ơn bạn!",
+    "done_already": "Đơn này đã được đánh dấu hoàn tất.",
+    "done_footer": "\n\n✅ Hoàn tất bởi @{admin} lúc {time}",
+    "not_admin": "⛔ Chỉ admin mới được dùng nút này."
   },
   "buttons": {
     "next": "NEXT PAGE ▶",

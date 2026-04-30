@@ -25,6 +25,10 @@ class NotificationSettings(Base):
     # JSON-encoded list of Telegram chat IDs (can be user or group IDs)
     order_notify_whitelist_chat_ids = Column(Text, nullable=True)
 
+    # Separate JSON-encoded list for UPGRADE account-info forwarding + Done button.
+    # When empty, _handle_customer_reply falls back to order_notify_whitelist_chat_ids.
+    upgrade_notify_chat_ids = Column(Text, nullable=True)
+
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime,

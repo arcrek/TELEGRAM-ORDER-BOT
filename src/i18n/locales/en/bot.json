@@ -14,7 +14,18 @@
       "admin_title": "\n🔧 Admin Commands:",
       "notify_all": "/notify_all <message> - Send to all users",
       "notify_user": "/notify_user <user_id> <message> - Send to specific user",
-      "notify_active": "/notify_active <message> - Send to active users"
+      "notify_active": "/notify_active <message> - Send to active users",
+      "setadmin": "/setadmin <id> - Add admin | /setadmin remove <id> - Remove admin | /setadmin list - List admins"
+    },
+    "setadmin": {
+      "no_permission": "⛔ Only the super admin can use this command.",
+      "usage": "⚙️ Usage:\n/setadmin <telegram_id> — Add admin\n/setadmin remove <telegram_id> — Remove admin\n/setadmin list — List current admins",
+      "added": "✅ Added admin: {user_id}",
+      "removed": "✅ Removed admin: {user_id}",
+      "already_admin": "ℹ️ {user_id} is already an admin.",
+      "not_found_or_protected": "❌ {user_id} not found in the list or cannot be removed (super admin).",
+      "invalid_id": "❌ Invalid ID. Please enter a number.",
+      "list": "👥 Current admin list:\n{ids}"
     },
     "products": {
       "error": "❌ Error loading products. Please try again later."
@@ -158,6 +169,8 @@
     "discount": "💸 Discount: {discount}",
     "paid_amount": "💵 Paid: {amount}",
     "transaction": "🧾 Transaction: {txn_id}",
+    "delivered_header": "📨 Delivered data (tap to copy):",
+    "delivered_line": "・ {data}",
     "back_to_list": "◀ Back to order list",
     "error": "❌ Error loading order history.",
     "status_pending": "⏳ Pending payment",
@@ -174,7 +187,13 @@
     "forward_header": "🔄 UPGRADE REQUEST\n• Order ID: #{order_id}\n• Customer: {name} (@{username}) — ID: {user_id}\n• Product: {product} - {variation}\n• Account info ↓",
     "admin_update_header": "📝 ORDER #{order_id} STATUS UPDATE",
     "admin_update_sent": "✅ Update sent to customer for order #{order_id}",
-    "admin_update_failed": "⚠️ Failed to send update to customer for order #{order_id}: {error}"
+    "admin_update_failed": "⚠️ Failed to send update to customer for order #{order_id}: {error}",
+    "done_button": "✅ Done",
+    "done_prompt": "Press Done when upgrade order #{order_id} is fulfilled.",
+    "done_customer_message": "🎉 Your upgrade order #{order_id} is complete. Thank you!",
+    "done_already": "This order has already been marked as done.",
+    "done_footer": "\n\n✅ Completed by @{admin} at {time}",
+    "not_admin": "⛔ Only admins can use this button."
   },
   "buttons": {
     "next": "Next ▶️",

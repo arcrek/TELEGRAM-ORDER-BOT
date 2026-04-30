@@ -32,11 +32,19 @@ interface ParsedItem {
 interface UploadResult {
   success: number
   failed: number
+  duplicates_skipped: number
   errors: Array<{
     index: number
     error: string
     data: any
   }>
+}
+
+interface DuplicateCheckResult {
+  duplicate_count: number
+  unique_count: number
+  total: number
+  duplicates: Array<{ index: number; data: any }>
 }
 
 interface Variation {
@@ -61,6 +69,8 @@ export function ProductUploadPage() {
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [previewMode, setPreviewMode] = useState(false)
+  const [duplicateCheck, setDuplicateCheck] = useState<DuplicateCheckResult | null>(null)
+  const [awaitingDuplicateDecision, setAwaitingDuplicateDecision] = useState(false)
   
   // Product and variation selection
   const [selectedProductId, setSelectedProductId] = useState<string>('')
@@ -179,6 +189,55 @@ export function ProductUploadPage() {
     setSelectedVariationId('') // Reset variation when product changes
   }
 
+  const buildUploadItems = () =>
+    parsedData.map((item) => {
+      let productData: string
+      if (typeof item === 'object') {
+        const keys = Object.keys(item)
+        if (keys.length === 1 && keys[0] === 'data') {
+          productData = String(item.data)
+        } else {
+          productData = JSON.stringify(item)
+        }
+      } else {
+        productData = String(item)
+      }
+      return {
+        product_id: selectedProductId,
+        variation_id: selectedVariationId,
+        product_data: productData,
+      }
+    })
+
+  const doUpload = async (skipDuplicates: boolean) => {
+    try {
+      setUploading(true)
+      setError(null)
+      setUploadResult(null)
+      setDuplicateCheck(null)
+      setAwaitingDuplicateDecision(false)
+
+      const token = localStorage.getItem('token')
+      const response = await axios.post(
+        `${API_BASE_URL}/api/products/upload`,
+        { products: buildUploadItems(), skip_duplicates: skipDuplicates },
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
+      )
+
+      setUploadResult(response.data)
+      setPreviewMode(false)
+      setSelectedFile(null)
+      setPasteContent('')
+      setParsedData([])
+      setSelectedProductId('')
+      setSelectedVariationId('')
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to upload products')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const handleUpload = async () => {
     if (!selectedProductId || !selectedVariationId) {
       setError('Please select both product and variation')
@@ -190,61 +249,32 @@ export function ProductUploadPage() {
       return
     }
 
+    // Step 1: check duplicates
     try {
       setUploading(true)
       setError(null)
-      setUploadResult(null)
-
-      // Convert parsed data to upload format
-      // Each parsed item needs to be converted to a string for product_data
-      const uploadItems = parsedData.map((item) => {
-        // Convert item to string (JSON if object, otherwise string)
-        let productData: string
-        if (typeof item === 'object') {
-          // If it's a single key-value object like {data: "value"}, use the value
-          const keys = Object.keys(item)
-          if (keys.length === 1 && keys[0] === 'data') {
-            productData = String(item.data)
-          } else {
-            productData = JSON.stringify(item)
-          }
-        } else {
-          productData = String(item)
-        }
-
-        return {
-          product_id: selectedProductId,
-          variation_id: selectedVariationId,
-          product_data: productData,
-        }
-      })
-
       const token = localStorage.getItem('token')
-      const response = await axios.post(
-        `${API_BASE_URL}/api/products/upload`,
-        { products: uploadItems },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
+      const checkResp = await axios.post(
+        `${API_BASE_URL}/api/products/upload/check-duplicates`,
+        { products: buildUploadItems() },
+        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       )
-
-      setUploadResult(response.data)
-      setPreviewMode(false) // Close preview after upload
-      
-      // Reset form
-      setSelectedFile(null)
-      setPasteContent('')
-      setParsedData([])
-      setSelectedProductId('')
-      setSelectedVariationId('')
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload products')
-    } finally {
+      const checkResult: DuplicateCheckResult = checkResp.data
       setUploading(false)
+
+      if (checkResult.duplicate_count > 0) {
+        setDuplicateCheck(checkResult)
+        setAwaitingDuplicateDecision(true)
+        return
+      }
+    } catch (err: any) {
+      setUploading(false)
+      setError(err.response?.data?.detail || 'Failed to check for duplicates')
+      return
     }
+
+    // No duplicates — proceed directly
+    await doUpload(false)
   }
 
   const formatIcons = {
@@ -551,6 +581,51 @@ export function ProductUploadPage() {
         </Card>
       )}
 
+      {/* Duplicate Warning */}
+      {awaitingDuplicateDecision && duplicateCheck && (
+        <Card className="result-card">
+          <div className="result-header">
+            <h2>⚠️ Duplicates Detected</h2>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <p>
+              <strong>{duplicateCheck.duplicate_count}</strong> item(s) already exist in the database (unused).{' '}
+              <strong>{duplicateCheck.unique_count}</strong> new item(s) will be added.
+            </p>
+          </div>
+          <div className="result-stats">
+            <div className="stat-item failed">
+              <XCircle size={20} />
+              <span>Duplicates: {duplicateCheck.duplicate_count}</span>
+            </div>
+            <div className="stat-item success">
+              <CheckCircle size={20} />
+              <span>Unique: {duplicateCheck.unique_count}</span>
+            </div>
+          </div>
+          <div className="preview-actions" style={{ marginTop: 16, gap: 10, display: 'flex' }}>
+            <Button
+              variant="primary"
+              onClick={() => doUpload(true)}
+              disabled={uploading || duplicateCheck.unique_count === 0}
+            >
+              {uploading ? (
+                <><RefreshCw size={16} className="spinning" /> Uploading...</>
+              ) : (
+                <><Upload size={16} /> Skip duplicates &amp; upload {duplicateCheck.unique_count} unique</>
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => { setAwaitingDuplicateDecision(false); setDuplicateCheck(null) }}
+              disabled={uploading}
+            >
+              Cancel
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Upload Result */}
       {uploadResult && (
         <Card className="result-card">
@@ -566,6 +641,12 @@ export function ProductUploadPage() {
               <XCircle size={20} />
               <span>Failed: {uploadResult.failed}</span>
             </div>
+            {uploadResult.duplicates_skipped > 0 && (
+              <div className="stat-item" style={{ opacity: 0.7 }}>
+                <AlertCircle size={20} />
+                <span>Duplicates skipped: {uploadResult.duplicates_skipped}</span>
+              </div>
+            )}
           </div>
           {uploadResult.errors.length > 0 && (
             <div className="error-list">

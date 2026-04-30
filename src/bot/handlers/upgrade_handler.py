@@ -7,30 +7,35 @@ Two paths share a single MessageHandler entrypoint (``handle_upgrade_message``):
    - Triggered after the IPN processor flips ``Order.awaiting_upgrade_info=True``
      and DMs the customer.
    - The customer's first non-command message is forwarded to every chat in the
-     notification whitelist along with a context header. The IDs of both the
-     header and the forwarded message are persisted on
-     ``Order.upgrade_forwards`` so the bot can later match an admin's reply
-     back to the originating order.
+     UPGRADE channel (``upgrade_notify_chat_ids``) along with a context header
+     and a "Done" inline button. When the upgrade list is empty we fall back to
+     the regular ``order_notify_whitelist_chat_ids``. The IDs of the header,
+     forwarded message and Done prompt are persisted on
+     ``Order.upgrade_forwards`` so the bot can later match an admin's reply or
+     Done press back to the originating order.
    - The flag is cleared so subsequent messages no longer match.
 
 2. Admin-reply path (notification chat — group/supergroup):
-   - When an admin replies (in the notification chat) to either the bot's
-     header or the forwarded customer message, the bot copies the admin's
-     content to the customer as an order status update, preceded by a header
-     that identifies which order it relates to.
+   - When an admin replies (in either the upgrade channel or the legacy
+     whitelist) to either the bot's header or the forwarded customer message,
+     the bot copies the admin's content to the customer as an order status
+     update, preceded by a header that identifies which order it relates to.
 """
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from src.bot.states.state_manager import StateManager
+from src.bot.utils.admin_check import is_admin
 from src.bot.utils.language import t
 from src.database.connection import get_session_factory
 from src.database.models import Order
+from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.notification_settings_service import NotificationSettingsService
 from src.database.services.order_service import OrderService
 from src.database.services.user_preference_service import UserPreferenceService
@@ -115,12 +120,25 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
 
         notification_service = NotificationSettingsService(session)
         settings = notification_service.get_settings()
-        targets = notification_service.get_whitelist_targets(settings)
+        targets = notification_service.get_upgrade_targets(settings)
+        if targets:
+            logger.info(
+                f"UPGRADE info for order {order.id}: routing to upgrade channel ({len(targets)} target(s))"
+            )
+        else:
+            targets = notification_service.get_whitelist_targets(settings)
+            if targets:
+                logger.info(
+                    f"UPGRADE info for order {order.id}: upgrade channel empty, falling back to whitelist ({len(targets)} target(s))"
+                )
+
+        done_button_label = get_translation("upgrade.done_button", "vi")
+        done_prompt_text = get_translation("upgrade.done_prompt", "vi", order_id=order.id)
 
         forwards: list[dict] = []
         if not targets:
             logger.warning(
-                f"UPGRADE info received for order {order.id} but notification whitelist is empty"
+                f"UPGRADE info received for order {order.id} but no upgrade or whitelist targets are configured"
             )
         else:
             for target in targets:
@@ -132,19 +150,39 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                     "from_chat_id": user_id,
                     "message_id": update.message.message_id,
                 }
+                done_kwargs = {
+                    "chat_id": chat_id,
+                    "text": done_prompt_text,
+                    "reply_markup": InlineKeyboardMarkup(
+                        [[InlineKeyboardButton(
+                            done_button_label,
+                            callback_data=f"upgrade_done_{order.id}",
+                        )]]
+                    ),
+                }
                 if thread_id is not None:
                     send_kwargs["message_thread_id"] = int(thread_id)
                     forward_kwargs["message_thread_id"] = int(thread_id)
+                    done_kwargs["message_thread_id"] = int(thread_id)
 
                 try:
                     header_msg = await context.bot.send_message(**send_kwargs)
                     forward_msg = await context.bot.forward_message(**forward_kwargs)
+                    done_msg_id: Optional[int] = None
+                    try:
+                        done_msg = await context.bot.send_message(**done_kwargs)
+                        done_msg_id = done_msg.message_id
+                    except TelegramError as e:
+                        logger.error(
+                            f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}: {e}"
+                        )
                     forwards.append(
                         {
                             "chat_id": chat_id,
                             "thread_id": int(thread_id) if thread_id is not None else None,
                             "header_msg_id": header_msg.message_id,
                             "forward_msg_id": forward_msg.message_id,
+                            "done_msg_id": done_msg_id,
                         }
                     )
                 except TelegramError as e:
@@ -194,12 +232,16 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
     session = session_factory()
 
     try:
-        # The chat must be in the configured notification whitelist; otherwise we
-        # ignore replies (avoid leaking via random groups the bot was added to).
+        # The chat must be in the configured notification whitelist or the
+        # UPGRADE channel; otherwise we ignore replies (avoid leaking via
+        # random groups the bot was added to).
         notification_service = NotificationSettingsService(session)
-        targets = notification_service.get_whitelist_targets()
-        whitelisted_chat_ids = {int(t["chat_id"]) for t in targets}
-        if chat_id not in whitelisted_chat_ids:
+        settings = notification_service.get_settings()
+        whitelist_targets = notification_service.get_whitelist_targets(settings)
+        upgrade_targets = notification_service.get_upgrade_targets(settings)
+        allowed_chat_ids = {int(t["chat_id"]) for t in whitelist_targets}
+        allowed_chat_ids.update(int(t["chat_id"]) for t in upgrade_targets)
+        if chat_id not in allowed_chat_ids:
             return
 
         order = _find_order_by_forward_message(session, chat_id, reply_target_id)
@@ -284,3 +326,132 @@ def _find_order_by_forward_message(session, chat_id: int, message_id: int) -> Op
             ):
                 return order
     return None
+
+
+# ---------------------------------------------------------------------------
+# Admin "Done" callback for the UPGRADE channel
+# ---------------------------------------------------------------------------
+
+
+async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle ``upgrade_done_<order_id>`` callbacks.
+
+    Pressed by an admin in the UPGRADE notification channel to mark a
+    customer's upgrade order as delivered. Sends a confirmation DM to the
+    customer, flips ``Order.status`` to DELIVERED, and clears the inline
+    keyboard on the prompt message.
+    """
+    query = update.callback_query
+    if query is None or query.data is None:
+        return
+
+    user = query.from_user
+    if user is None:
+        await query.answer()
+        return
+
+    if not is_admin(user.id):
+        await query.answer(get_translation("upgrade.not_admin", "vi"), show_alert=True)
+        return
+
+    raw = query.data.replace("upgrade_done_", "", 1)
+    order_id = raw.strip()
+    if not order_id:
+        await query.answer()
+        return
+
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        order = session.query(Order).filter_by(id=order_id).first()
+        if order is None:
+            await query.answer(
+                get_translation("order.not_found", "vi"),
+                show_alert=True,
+            )
+            return
+
+        first_item_delivery = None
+        if order.items:
+            product = order.items[0].product
+            if product is not None:
+                first_item_delivery = product.delivery_type
+
+        if first_item_delivery is not None and first_item_delivery != DeliveryType.UPGRADE:
+            await query.answer(
+                get_translation("upgrade.not_admin", "vi"),
+                show_alert=True,
+            )
+            return
+
+        if order.status == OrderStatus.DELIVERED:
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)
+            except TelegramError:
+                pass
+            await query.answer(
+                get_translation("upgrade.done_already", "vi"),
+                show_alert=True,
+            )
+            return
+
+        order.status = OrderStatus.DELIVERED
+        order.awaiting_upgrade_info = False
+        session.commit()
+
+        try:
+            customer_language = UserPreferenceService(session).get_user_language(order.user_id)
+        except Exception:
+            customer_language = "vi"
+
+        try:
+            await context.bot.send_message(
+                chat_id=order.user_id,
+                text=get_translation(
+                    "upgrade.done_customer_message",
+                    customer_language,
+                    order_id=order.id,
+                ),
+            )
+        except TelegramError as e:
+            logger.error(
+                f"Failed to send UPGRADE done confirmation to customer {order.user_id} for order {order.id}: {e}"
+            )
+
+        admin_handle = user.username or user.first_name or str(user.id)
+        completed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        footer = get_translation(
+            "upgrade.done_footer",
+            "vi",
+            admin=admin_handle,
+            time=completed_at,
+        )
+
+        try:
+            original_text = query.message.text if query.message else ""
+            new_text = (original_text or "") + footer
+            await query.edit_message_text(new_text, reply_markup=None)
+        except TelegramError as e:
+            logger.warning(
+                f"Failed to update UPGRADE Done prompt for order {order.id}: {e}"
+            )
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)
+            except TelegramError:
+                pass
+
+        await query.answer()
+
+    except Exception as e:
+        logger.error(f"Error in handle_upgrade_done: {str(e)}", exc_info=True)
+        session.rollback()
+        try:
+            await query.answer(
+                get_translation("upgrade.admin_update_failed", "vi", order_id=order_id, error=str(e)),
+                show_alert=True,
+            )
+        except TelegramError:
+            pass
+    finally:
+        session.close()
