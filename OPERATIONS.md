@@ -101,8 +101,6 @@ docker compose exec api python scripts/create_admin.py \
   --full-name "Administrator"
 ```
 
-
-docker compose exec api python scripts/create_admin.py --username arcrek --password REDACTED_PASSWORD --full-name "arcrek"
 ### Regular Startup
 
 If the system is already configured:
@@ -284,9 +282,9 @@ scripts\backup_database.bat my_backup_20240106
 Backups are stored in `./backups/` directory:
 ```
 backups/
-├── backup_20240106_143022.db
-├── backup_20240107_090000.db
-└── my_backup_20240106.db
+├── backup_20240106_143022.sql
+├── backup_20240107_090000.sql
+└── my_backup_20240106.sql
 ```
 
 ### Manual Backup
@@ -313,12 +311,12 @@ docker compose exec postgres pg_dump -U "$env:DB_USER" "$env:DB_NAME" > backups\
 chmod +x scripts/restore_database.sh
 
 # Restore from backup
-./scripts/restore_database.sh backups/backup_20240106_143022.sql
+./scripts/restore_database.sh backups/backup_YYYYMMDD_HHMMSS.sql
 ```
 
 **Windows:**
 ```cmd
-scripts\restore_database.bat backups\backup_20240106_143022.sql
+scripts\restore_database.bat backups\backup_YYYYMMDD_HHMMSS.sql
 ```
 
 The script will:
@@ -707,8 +705,9 @@ curl http://localhost:8001/health
 | Date | Change | By |
 |------|--------|-----|
 | 2024-01-06 | Initial operations guide | System |
-| | Added rate limiting (5/min) | System |
-| | Disabled debug mode by default | System |
+| 2024-01-06 | Added rate limiting (5/min) | System |
+| 2024-01-06 | Disabled debug mode by default | System |
+| 2026-05-01 | Removed exposed credential; fixed backup file extensions (.db → .sql) | arcrek |
 
 ---
 
