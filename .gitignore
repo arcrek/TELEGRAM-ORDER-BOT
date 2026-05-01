@@ -46,9 +46,4 @@ ENV/
 Thumbs.db
 
 *.db
-
-# Project specific
-.cursor/
-.claude/
-
 data/*
