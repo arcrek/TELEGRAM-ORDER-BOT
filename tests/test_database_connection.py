@@ -51,12 +51,16 @@ class TestDatabaseConnection:
         assert "orders" in tables
         assert "product_variations" in tables
 
-    def test_get_db_session(self):
+    def test_get_db_session(self, monkeypatch):
         """Test getting database session."""
         engine = create_engine_instance("sqlite:///:memory:")
         init_database(engine)
-        
-        session_gen = get_db_session(engine)
+
+        from src.database import connection as connection_module
+        monkeypatch.setattr(connection_module, "_engine", engine)
+        monkeypatch.setattr(connection_module, "_SessionLocal", None)
+
+        session_gen = get_db_session()
         session = next(session_gen)
         assert session is not None
         

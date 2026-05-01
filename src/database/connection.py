@@ -89,9 +89,9 @@ def init_database(engine: Engine | None = None) -> None:
     Base.metadata.create_all(engine or get_engine())
 
 
-def get_db_session(engine: Engine | None = None):
+def get_db_session():
     """FastAPI/Flask dependency — yields a session and always closes it."""
-    session: Session = get_session_factory(engine)()
+    session: Session = get_session_factory()()
     try:
         yield session
     finally:
