@@ -200,11 +200,13 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                     header_msg = await context.bot.send_message(**send_kwargs)
                     forward_msg = await context.bot.forward_message(**forward_kwargs)
 
-                    # Send a code-block copy so admins can easily copy the credentials.
+                    # Send a code-block copy of the full notification (header + account
+                    # info) so admins can tap-to-copy the entire context in one go.
                     if customer_text:
+                        full_content = f"{header}\n{customer_text}"
                         code_kwargs: dict = {
                             "chat_id": chat_id,
-                            "text": f"<pre>{html_module.escape(customer_text)}</pre>",
+                            "text": f"<pre>{html_module.escape(full_content)}</pre>",
                             "parse_mode": "HTML",
                         }
                         if thread_id is not None:

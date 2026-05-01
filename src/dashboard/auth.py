@@ -10,17 +10,9 @@ from sqlalchemy.orm import Session
 from src.database.models.admin import Admin, AdminRole
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from src.database.connection import get_session_factory
+from src.database.connection import get_db_session
 
-
-def get_db():
-    """Get database session dependency."""
-    session_factory = get_session_factory()
-    session = session_factory()
-    try:
-        yield session
-    finally:
-        session.close()
+get_db = get_db_session  # shared singleton-backed session factory
 
 # Password hashing - use bcrypt directly to avoid passlib backend detection issues
 

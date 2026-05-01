@@ -2,10 +2,13 @@
 Database connection setup.
 """
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
 from src.database.models.base import Base
+
+# Module-level singletons — one engine, one pool, shared across all requests/handlers.
+_engine: Engine | None = None
+_SessionLocal: sessionmaker | None = None
 
 
 def get_database_url() -> str:
@@ -34,62 +37,61 @@ def get_database_url() -> str:
     )
 
 
-def create_engine_instance(database_url: str | None = None):
-    """
-    Create SQLAlchemy engine instance.
-    
-    Args:
-        database_url: Database URL. If None, uses environment variable or default.
-    
-    Returns:
-        Engine instance.
-    """
+def _is_sqlite(url: str) -> bool:
+    return url.startswith("sqlite")
+
+
+def create_engine_instance(database_url: str | None = None) -> Engine:
+    """Create SQLAlchemy engine. Call once; reuse the returned instance."""
     if database_url is None:
         database_url = get_database_url()
 
-    engine = create_engine(database_url, echo=False)
-    return engine
+    if _is_sqlite(database_url):
+        # SQLite: no pool tuning needed; used only in tests
+        return create_engine(database_url, echo=False, connect_args={"check_same_thread": False})
+
+    return create_engine(
+        database_url,
+        echo=False,
+        pool_size=10,          # persistent connections kept open
+        max_overflow=20,       # extra connections allowed under burst
+        pool_recycle=1800,     # recycle connections older than 30 min (avoids stale TCP)
+        pool_pre_ping=True,    # test connection health before use
+        pool_timeout=30,       # raise after 30 s if no connection available
+    )
 
 
-def get_session_factory(engine=None):
-    """
-    Get session factory.
-    
-    Args:
-        engine: SQLAlchemy engine. If None, creates a new one.
-    
-    Returns:
-        Session factory.
-    """
-    if engine is None:
-        engine = create_engine_instance()
-    return sessionmaker(bind=engine, autocommit=False, autoflush=False)
+def get_engine() -> Engine:
+    """Return the module-level singleton engine, creating it on first call."""
+    global _engine
+    if _engine is None:
+        _engine = create_engine_instance()
+    return _engine
 
 
-def init_database(engine=None):
+def get_session_factory(engine: Engine | None = None) -> sessionmaker:
+    """Return the module-level singleton session factory.
+
+    Pass `engine` only when you need an isolated factory (e.g. tests).
+    All production code should omit the argument so the singleton is reused.
     """
-    Initialize database tables.
-    
-    Args:
-        engine: SQLAlchemy engine. If None, creates a new one.
-    """
-    if engine is None:
-        engine = create_engine_instance()
-    Base.metadata.create_all(engine)
+    global _SessionLocal
+    if engine is not None:
+        # Caller supplied an explicit engine (test isolation) — don't cache it.
+        return sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(bind=get_engine(), autocommit=False, autoflush=False)
+    return _SessionLocal
 
 
-def get_db_session(engine=None) -> Session:
-    """
-    Get database session (for dependency injection).
-    
-    Args:
-        engine: SQLAlchemy engine. If None, creates a new one.
-    
-    Yields:
-        Database session.
-    """
-    session_factory = get_session_factory(engine)
-    session = session_factory()
+def init_database(engine: Engine | None = None) -> None:
+    """Create all tables. Uses the singleton engine unless one is supplied."""
+    Base.metadata.create_all(engine or get_engine())
+
+
+def get_db_session(engine: Engine | None = None):
+    """FastAPI/Flask dependency — yields a session and always closes it."""
+    session: Session = get_session_factory(engine)()
     try:
         yield session
     finally:
