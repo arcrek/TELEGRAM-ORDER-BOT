@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Upload, FileText, CheckCircle, XCircle, AlertCircle, UploadCloud } from 'lucide-react'
+import { Upload, FileText, CheckCircle, XCircle, UploadCloud } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
 import { Tabs } from '../shared/components/Tabs'
@@ -153,11 +153,11 @@ export function ProductUploadPage() {
       if (duplicate_count > 0) {
         const ok = await confirm({
           title: t('upload.duplicateTitle', `${duplicate_count} mục trùng lặp`),
-          description: t('upload.duplicateDesc', `Có ${duplicate_count} mục đã tồn tại. ${unique_count} mục mới sẽ được thêm.`),
-          confirmLabel: t('upload.skipAndUpload', 'Bỏ qua & tải lên'),
+          description: t('upload.duplicateDesc', `Có ${duplicate_count} mục đã tồn tại (đang có hoặc đã bán). Các mục này sẽ bị từ chối. ${unique_count} mục mới sẽ được thêm.`),
+          confirmLabel: t('upload.continueUpload', 'Tiếp tục tải lên'),
         })
         if (!ok) return
-        await doUpload(true)
+        await doUpload(false)
       } else {
         await doUpload(false)
       }
@@ -358,11 +358,6 @@ export function ProductUploadPage() {
               label={t('upload.failed', 'Thất bại')}
               value={String(uploadResult.failed)}
               icon={<XCircle size={16} />}
-            />
-            <StatCard
-              label={t('upload.skipped', 'Bỏ qua trùng')}
-              value={String(uploadResult.duplicates_skipped)}
-              icon={<AlertCircle size={16} />}
             />
           </div>
           {uploadResult.errors.length > 0 && (

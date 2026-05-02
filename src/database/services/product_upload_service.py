@@ -138,12 +138,12 @@ class ProductUploadService:
         """
         Check for duplicate product_data entries in the database.
 
-        A duplicate is an unused (is_used=False) PreUploadedProduct row for the
+        A duplicate is any (available or sold) PreUploadedProduct row for the
         same (variation_id, product_data) pair.
 
         Returns a dict with:
           - "duplicates": list of {"index": int, "data": ...} for each incoming
-            item that already exists in the DB (unused).
+            item that already exists in the DB.
           - "duplicate_indices": set of indices that are duplicates.
           - "unique_count": number of non-duplicate items.
         """
@@ -160,7 +160,7 @@ class ProductUploadService:
 
             existing = (
                 self.session.query(PreUploadedProduct)
-                .filter_by(variation_id=variation_id, is_used=False, product_data=normalized)
+                .filter_by(variation_id=variation_id, product_data=normalized)
                 .first()
             )
             if existing:
@@ -192,15 +192,18 @@ class ProductUploadService:
         duplicates_skipped = 0
         errors = []
 
-        duplicate_indices: set = set()
-        if skip_duplicates:
-            dup_result = self.check_duplicates(products_data)
-            duplicate_indices = dup_result["duplicate_indices"]
+        dup_result = self.check_duplicates(products_data)
+        duplicate_indices = dup_result["duplicate_indices"]
 
         for idx, data in enumerate(products_data):
             try:
                 if idx in duplicate_indices:
-                    duplicates_skipped += 1
+                    failed_count += 1
+                    errors.append({
+                        "index": idx,
+                        "error": "Duplicate: product data already exists in database (available or sold)",
+                        "data": data,
+                    })
                     continue
 
                 if not self.validate_product_data(data):
