@@ -5,13 +5,13 @@
 ########################
 # Builder
 ########################
-FROM node:20-alpine AS builder
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Install deps using lockfile if present
+# Install deps — prefer ci (lockfile-exact) over install
 COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm ci
 
 COPY . .
 
