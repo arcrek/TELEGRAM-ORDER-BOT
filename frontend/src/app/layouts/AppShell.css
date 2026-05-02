@@ -11,9 +11,10 @@
   grid-template-areas:
     "sidebar topbar"
     "sidebar main";
-  min-height: 100dvh;
+  height: 100dvh;
   background: var(--bg-page);
   transition: grid-template-columns var(--duration-base, 180ms) ease;
+  overflow: hidden;
 }
 
 .app-shell[data-collapsed='true'] {
