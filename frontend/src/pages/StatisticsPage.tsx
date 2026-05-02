@@ -225,7 +225,7 @@ export function StatisticsPage() {
         <ChartCard
           title={t('statistics.revenueTrend', 'Xu hướng doanh thu')}
           loading={loading}
-          minHeight={260}
+          minHeight={200}
           className="stats-page__revenue-chart"
           actions={
             <Tabs
@@ -253,7 +253,7 @@ export function StatisticsPage() {
         <ChartCard
           title={t('statistics.ordersByStatus', 'Đơn theo trạng thái')}
           loading={loading}
-          minHeight={260}
+          minHeight={200}
           className="stats-page__donut-chart"
         >
           {donutData && (
@@ -273,7 +273,7 @@ export function StatisticsPage() {
         <ChartCard
           title={t('statistics.conversionFunnel', 'Phễu chuyển đổi')}
           loading={loading}
-          minHeight={200}
+          minHeight={160}
           className="stats-page__funnel-chart"
         >
           {funnelData && (
@@ -288,7 +288,7 @@ export function StatisticsPage() {
         <ChartCard
           title={t('statistics.topProducts', 'Sản phẩm bán chạy')}
           loading={loading}
-          minHeight={200}
+          minHeight={160}
           className="stats-page__top-chart"
         >
           {topData && (

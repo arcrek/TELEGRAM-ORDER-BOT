@@ -28,7 +28,7 @@
 .stats-page__bento {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--space-4);
+  gap: var(--space-3);
   grid-template-areas:
     "revenue revenue"
     "donut funnel"
