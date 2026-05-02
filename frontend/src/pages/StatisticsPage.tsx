@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp } from 'lucide-react'
+import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp, Image as ImageIcon } from 'lucide-react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -169,6 +169,14 @@ export function StatisticsPage() {
     [data],
   )
 
+  const [iotdUrl, setIotdUrl] = useState<string | null>(null)
+  const [iotdImgError, setIotdImgError] = useState(false)
+  useEffect(() => {
+    apiClient.get<{ image_url: string | null }>('/api/iotd')
+      .then(res => setIotdUrl(res.data.image_url))
+      .catch(() => {})
+  }, [])
+
   return (
     <div className="stats-page">
       <PageHeader
@@ -327,6 +335,28 @@ export function StatisticsPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Image of the Day */}
+        <div className="stats-page__iotd chart-card">
+          <div className="chart-card__header">
+            <h3 className="chart-card__title">{t('nav.iotd', 'Ảnh ngày')}</h3>
+          </div>
+          <div className="stats-iotd">
+            {iotdUrl && !iotdImgError ? (
+              <img
+                src={iotdUrl}
+                alt={t('iotd.previewAlt', 'Ảnh ngày')}
+                className="stats-iotd__img"
+                onError={() => setIotdImgError(true)}
+              />
+            ) : (
+              <div className="stats-iotd__empty">
+                <ImageIcon size={28} />
+                <span>{iotdImgError ? t('iotd.imageError', 'Không tải được ảnh') : t('iotd.noImage', 'Chưa có ảnh')}</span>
+              </div>
+            )}
           </div>
         </div>
 

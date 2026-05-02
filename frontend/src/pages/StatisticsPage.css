@@ -33,7 +33,7 @@
     "revenue revenue"
     "donut funnel"
     "top heatmap"
-    "activity activity";
+    "iotd activity";
 }
 
 .stats-page__revenue-chart  { grid-area: revenue; }
@@ -41,6 +41,7 @@
 .stats-page__funnel-chart   { grid-area: funnel; }
 .stats-page__top-chart      { grid-area: top; }
 .stats-page__heatmap        { grid-area: heatmap; }
+.stats-page__iotd           { grid-area: iotd; }
 .stats-page__activity       { grid-area: activity; }
 
 @media (max-width: 900px) {
@@ -52,6 +53,7 @@
       "funnel"
       "top"
       "heatmap"
+      "iotd"
       "activity";
   }
 }
@@ -144,4 +146,30 @@
   min-width: 70px;
   text-align: right;
   font-size: 10px;
+}
+
+/* Image of the Day */
+.stats-iotd {
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+
+.stats-iotd__img {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  display: block;
+}
+
+.stats-iotd__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-disabled);
+  font-size: var(--text-xs, 11px);
 }
