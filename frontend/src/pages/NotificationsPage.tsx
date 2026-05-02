@@ -1,22 +1,17 @@
-/**
- * Notifications page for sending custom notifications to bot users.
- * Premium Dark SaaS Design System.
- */
 import { useState, useEffect } from 'react'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { 
-  Send, 
-  Users, 
-  UserCheck,
-  CheckCircle,
-  XCircle,
-  Loader
-} from 'lucide-react'
-import axios from 'axios'
+import { Send, Users, RefreshCw, CheckCircle, XCircle, Bell } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../shared/components/PageHeader'
+import { Tabs } from '../shared/components/Tabs'
+import { Button } from '../shared/components/Button'
+import { Textarea } from '../shared/components/Textarea'
+import { Switch } from '../shared/components/Switch'
+import { Badge } from '../shared/components/Badge'
+import { FormField } from '../shared/components/FormField'
+import { Skeleton } from '../shared/components/Skeleton'
+import { useToast } from '../shared/components/Toast'
+import { apiClient, formatApiError } from '../shared/lib/api'
 import './NotificationsPage.css'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 interface BotUser {
   id: string
@@ -25,7 +20,6 @@ interface BotUser {
   first_name: string | null
   last_name: string | null
   has_started: boolean
-  started_at: string | null
   is_active: boolean
 }
 
@@ -34,11 +28,6 @@ interface NotificationResult {
   total: number
   successful: number
   failed: number
-  details?: Array<{
-    success: boolean
-    telegram_user_id: number
-    error?: string
-  }>
 }
 
 interface OrderNotificationSettings {
@@ -49,43 +38,51 @@ interface OrderNotificationSettings {
   upgrade_chat_ids: string[]
 }
 
-export function NotificationsPage() {
-  const [message, setMessage] = useState('')
-  const [users, setUsers] = useState<BotUser[]>([])
-  const [selectedUsers, setSelectedUsers] = useState<number[]>([])
-  const [loading, setLoading] = useState(false)
-  const [loadingUsers, setLoadingUsers] = useState(false)
-  const [result, setResult] = useState<NotificationResult | null>(null)
-  const [activeOnly, setActiveOnly] = useState(false)
-  const [sendToAll, setSendToAll] = useState(true)
+type AudienceMode = 'all' | 'active' | 'specific'
 
+function parseChatIds(text: string): string[] {
+  const seen = new Set<string>()
+  return text
+    .split(/[\n,]/)
+    .map(s => s.trim())
+    .filter(s => /^-?\d+(:\d+)?$/.test(s) && !seen.has(s) && seen.add(s))
+}
+
+export function NotificationsPage() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+
+  // ── Broadcast state ────────────────────────────────────────────────
+  const [message, setMessage] = useState('')
+  const [audienceMode, setAudienceMode] = useState<AudienceMode>('all')
+  const [users, setUsers] = useState<BotUser[]>([])
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set())
+  const [loadingUsers, setLoadingUsers] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendResult, setSendResult] = useState<NotificationResult | null>(null)
+
+  // ── Order notification settings state ─────────────────────────────
   const [orderSettings, setOrderSettings] = useState<OrderNotificationSettings | null>(null)
-  const [orderSettingsText, setOrderSettingsText] = useState('')
-  const [upgradeChatIdsText, setUpgradeChatIdsText] = useState('')
+  const [whitelistText, setWhitelistText] = useState('')
+  const [upgradeText, setUpgradeText] = useState('')
   const [loadingOrderSettings, setLoadingOrderSettings] = useState(false)
   const [savingOrderSettings, setSavingOrderSettings] = useState(false)
-  const [testingOrderSettings, setTestingOrderSettings] = useState(false)
-
-  useEffect(() => {
-    fetchUsers()
-  }, [activeOnly])
 
   useEffect(() => {
     fetchOrderSettings()
   }, [])
 
+  useEffect(() => {
+    if (audienceMode === 'specific') fetchUsers()
+  }, [audienceMode])
+
   const fetchUsers = async () => {
     setLoadingUsers(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_BASE_URL}/api/notifications/users`, {
-        params: { active_only: activeOnly },
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setUsers(response.data)
-    } catch (error: any) {
-      console.error('Error fetching users:', error)
-      alert('Failed to load users')
+      const res = await apiClient.get<BotUser[]>('/api/notifications/users')
+      setUsers(res.data)
+    } catch (err) {
+      toast.error(formatApiError(err, t('notifications.usersError', 'Không thể tải danh sách người dùng')))
     } finally {
       setLoadingUsers(false)
     }
@@ -94,510 +91,313 @@ export function NotificationsPage() {
   const fetchOrderSettings = async () => {
     setLoadingOrderSettings(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`${API_BASE_URL}/api/notifications/order-settings`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      const settings: OrderNotificationSettings = response.data
-      setOrderSettings(settings)
-      setOrderSettingsText((settings.whitelist_chat_ids || []).join('\n'))
-      setUpgradeChatIdsText((settings.upgrade_chat_ids || []).join('\n'))
-    } catch (error: any) {
-      console.error('Error fetching order notification settings:', error)
-      // Don't block the rest of the page
+      const res = await apiClient.get<OrderNotificationSettings>('/api/notifications/order-settings')
+      setOrderSettings(res.data)
+      setWhitelistText((res.data.whitelist_chat_ids ?? []).join('\n'))
+      setUpgradeText((res.data.upgrade_chat_ids ?? []).join('\n'))
+    } catch (err) {
+      toast.error(formatApiError(err, t('notifications.settingsError', 'Không thể tải cài đặt thông báo')))
     } finally {
       setLoadingOrderSettings(false)
     }
   }
 
-  const parseChatIds = (text: string): string[] => {
-    const parts = text.split(/[\s,]+/).map(p => p.trim()).filter(Boolean)
-    const ids: string[] = []
-    const seen = new Set<string>()
-    for (const part of parts) {
-      const normalized = part.replace(/\s+/g, '')
-      if (!normalized) continue
-
-      const matched = normalized.match(/^(-?\d+)(?::(\d+))?$/)
-      if (!matched) continue
-
-      const chatId = Number(matched[1])
-      if (!Number.isFinite(chatId) || !Number.isInteger(chatId)) continue
-
-      const threadRaw = matched[2]
-      if (threadRaw !== undefined) {
-        const threadId = Number(threadRaw)
-        if (!Number.isFinite(threadId) || !Number.isInteger(threadId) || threadId <= 0) continue
-      }
-
-      if (!seen.has(normalized)) {
-        seen.add(normalized)
-        ids.push(normalized)
-      }
+  const handleSend = async () => {
+    if (!message.trim()) {
+      toast.warning(t('notifications.emptyMessage', 'Nhập nội dung tin nhắn'))
+      return
     }
-    return ids
+    setSending(true)
+    setSendResult(null)
+    try {
+      const payload: Record<string, unknown> = { message }
+      let url = '/api/notifications/send'
+
+      if (audienceMode === 'active') {
+        url = '/api/notifications/send/active'
+      } else if (audienceMode === 'specific' && selectedUserIds.size > 0) {
+        payload.user_ids = Array.from(selectedUserIds)
+      }
+
+      const res = await apiClient.post<NotificationResult>(url, payload)
+      setSendResult(res.data)
+      if (res.data.success) {
+        setMessage('')
+        setSelectedUserIds(new Set())
+        toast.success(
+          t('notifications.sent', `Đã gửi: ${res.data.successful}/${res.data.total}`),
+        )
+      }
+    } catch (err) {
+      toast.error(formatApiError(err, t('notifications.sendError', 'Không thể gửi thông báo')))
+    } finally {
+      setSending(false)
+    }
   }
 
   const handleSaveOrderSettings = async () => {
     if (!orderSettings) return
     setSavingOrderSettings(true)
     try {
-      const token = localStorage.getItem('token')
-      const whitelist_chat_ids = parseChatIds(orderSettingsText)
-      const upgrade_chat_ids = parseChatIds(upgradeChatIdsText)
-
-      const response = await axios.put(
-        `${API_BASE_URL}/api/notifications/order-settings`,
-        {
-          order_notify_enabled: orderSettings.order_notify_enabled,
-          order_notify_on_created: orderSettings.order_notify_on_created,
-          order_notify_on_paid: orderSettings.order_notify_on_paid,
-          whitelist_chat_ids,
-          upgrade_chat_ids
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      const updated: OrderNotificationSettings = response.data
-      setOrderSettings(updated)
-      setOrderSettingsText((updated.whitelist_chat_ids || []).join('\n'))
-      setUpgradeChatIdsText((updated.upgrade_chat_ids || []).join('\n'))
-      alert('Order notification settings saved')
-    } catch (error: any) {
-      console.error('Error saving order notification settings:', error)
-      alert(error.response?.data?.detail || 'Failed to save order notification settings')
+      const res = await apiClient.put<OrderNotificationSettings>('/api/notifications/order-settings', {
+        ...orderSettings,
+        whitelist_chat_ids: parseChatIds(whitelistText),
+        upgrade_chat_ids: parseChatIds(upgradeText),
+      })
+      setOrderSettings(res.data)
+      setWhitelistText((res.data.whitelist_chat_ids ?? []).join('\n'))
+      setUpgradeText((res.data.upgrade_chat_ids ?? []).join('\n'))
+      toast.success(t('notifications.settingsSaved', 'Đã lưu cài đặt thông báo'))
+    } catch (err) {
+      toast.error(formatApiError(err, t('notifications.settingsSaveError', 'Không thể lưu cài đặt')))
     } finally {
       setSavingOrderSettings(false)
     }
   }
 
-  const handleTestOrderSettings = async () => {
-    setTestingOrderSettings(true)
-    try {
-      const token = localStorage.getItem('token')
-      const response = await axios.post(
-        `${API_BASE_URL}/api/notifications/order-settings/test`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setResult(response.data)
-    } catch (error: any) {
-      console.error('Error sending test order notification:', error)
-      alert(error.response?.data?.detail || 'Failed to send test notification')
-    } finally {
-      setTestingOrderSettings(false)
-    }
+  const toggleUser = (userId: number) => {
+    setSelectedUserIds(prev => {
+      const next = new Set(prev)
+      next.has(userId) ? next.delete(userId) : next.add(userId)
+      return next
+    })
   }
 
-  const handleSendNotification = async (targetActiveOnly: boolean = false) => {
-    if (!message.trim()) {
-      alert('Please enter a message')
-      return
-    }
-
-    setLoading(true)
-    setResult(null)
-
-    try {
-      const token = localStorage.getItem('token')
-      let response
-
-      if (targetActiveOnly) {
-        response = await axios.post(
-          `${API_BASE_URL}/api/notifications/send/active`,
-          { message },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-      } else if (sendToAll || selectedUsers.length === 0) {
-        response = await axios.post(
-          `${API_BASE_URL}/api/notifications/send`,
-          { message },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-      } else {
-        response = await axios.post(
-          `${API_BASE_URL}/api/notifications/send`,
-          { message, user_ids: selectedUsers },
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-      }
-
-      setResult(response.data)
-      
-      if (response.data.success) {
-        setMessage('')
-        setSelectedUsers([])
-      }
-    } catch (error: any) {
-      console.error('Error sending notification:', error)
-      alert(error.response?.data?.detail || 'Failed to send notification')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const toggleUserSelection = (userId: number) => {
-    setSelectedUsers(prev => 
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    )
-  }
-
-  const selectAllUsers = () => {
-    setSelectedUsers(users.map(u => u.telegram_user_id))
-  }
-
-  const deselectAllUsers = () => {
-    setSelectedUsers([])
-  }
+  const userName = (u: BotUser) =>
+    u.username ? `@${u.username}` : [u.first_name, u.last_name].filter(Boolean).join(' ') || `#${u.telegram_user_id}`
 
   return (
     <div className="notifications-page">
-      <div className="page-header">
-        <h1>Notifications</h1>
-        <p>Send custom notifications to bot users</p>
-      </div>
+      <PageHeader
+        title={t('nav.notifications', 'Thông báo')}
+        actions={
+          <Button
+            variant="secondary"
+            tone="ghost"
+            size="sm"
+            iconLeft={<RefreshCw size={14} />}
+            onClick={() => { fetchOrderSettings(); if (audienceMode === 'specific') fetchUsers() }}
+          >
+            {t('common.refresh', 'Làm mới')}
+          </Button>
+        }
+      />
 
-      <div className="notifications-content">
-        <Card className="notification-composer">
-          <h2>Order Notifications</h2>
-          <p style={{ opacity: 0.8, marginTop: -8 }}>
-            Send automatic order alerts to whitelisted Telegram chat IDs.
-          </p>
+      <Tabs
+        tabs={[
+          {
+            key: 'broadcast',
+            label: t('notifications.broadcastTab', 'Phát tin'),
+            panel: (
+              <div className="notifications-page__broadcast">
+                {/* Message compose */}
+                <div className="notifications-page__compose-card">
+                  <h3 className="notifications-page__section-title">
+                    <Send size={14} />
+                    {t('notifications.compose', 'Soạn tin nhắn')}
+                  </h3>
 
-          {loadingOrderSettings ? (
-            <div className="loading-state">
-              <Loader size={24} className="spinning" />
-              <span>Loading order notification settings...</span>
-            </div>
-          ) : !orderSettings ? (
-            <div className="empty-state">
-              <p>Order notification settings are not available.</p>
-              <Button variant="outline" onClick={fetchOrderSettings} disabled={loadingOrderSettings}>
-                Retry
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="send-options">
-                <div className="option-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={orderSettings.order_notify_enabled}
-                      onChange={(e) =>
-                        setOrderSettings({ ...orderSettings, order_notify_enabled: e.target.checked })
-                      }
-                      disabled={savingOrderSettings}
+                  <FormField label={t('notifications.message', 'Nội dung')} htmlFor="notif-msg">
+                    <Textarea
+                      id="notif-msg"
+                      value={message}
+                      onChange={e => setMessage(e.target.value)}
+                      placeholder={t('notifications.messagePlaceholder', 'Nhập nội dung thông báo...')}
+                      rows={5}
+                      autoResize
                     />
-                    <span>Enable order notifications</span>
-                  </label>
-                </div>
-              </div>
+                  </FormField>
+                  <div className="notifications-page__char-count">
+                    {message.length} {t('notifications.chars', 'ký tự')}
+                  </div>
 
-              <div className="send-options">
-                <div className="option-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={orderSettings.order_notify_on_created}
-                      onChange={(e) =>
-                        setOrderSettings({ ...orderSettings, order_notify_on_created: e.target.checked })
-                      }
-                      disabled={savingOrderSettings}
-                    />
-                    <span>Notify on order created</span>
-                  </label>
-                </div>
-                <div className="option-group">
-                  <label className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={orderSettings.order_notify_on_paid}
-                      onChange={(e) =>
-                        setOrderSettings({ ...orderSettings, order_notify_on_paid: e.target.checked })
-                      }
-                      disabled={savingOrderSettings}
-                    />
-                    <span>Notify on order paid</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Whitelisted chat IDs</label>
-                <textarea
-                  className="message-input"
-                  value={orderSettingsText}
-                  onChange={(e) => setOrderSettingsText(e.target.value)}
-                  placeholder={"Example:\n123456789\n-1001234567890\n-1001234567890:42"}
-                  rows={5}
-                  disabled={savingOrderSettings}
-                />
-                <div className="char-count">{parseChatIds(orderSettingsText).length} IDs</div>
-              </div>
-
-              <div className="form-group">
-                <label>Upgrade account-info chat IDs</label>
-                <p style={{ opacity: 0.7, marginTop: -4, fontSize: 13 }}>
-                  Separate channel for forwarded customer account-info replies on UPGRADE orders, with a Done button. Falls back to the whitelist above when empty.
-                </p>
-                <textarea
-                  className="message-input"
-                  value={upgradeChatIdsText}
-                  onChange={(e) => setUpgradeChatIdsText(e.target.value)}
-                  placeholder={"Example:\n-1009876543210\n-1009876543210:7"}
-                  rows={4}
-                  disabled={savingOrderSettings}
-                />
-                <div className="char-count">{parseChatIds(upgradeChatIdsText).length} IDs</div>
-              </div>
-
-              <div className="action-buttons">
-                <Button
-                  variant="primary"
-                  onClick={handleSaveOrderSettings}
-                  disabled={savingOrderSettings}
-                >
-                  {savingOrderSettings ? (
-                    <>
-                      <Loader size={16} className="spinning" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>Save Settings</span>
-                  )}
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={handleTestOrderSettings}
-                  disabled={testingOrderSettings || savingOrderSettings}
-                >
-                  {testingOrderSettings ? (
-                    <>
-                      <Loader size={16} className="spinning" />
-                      <span>Sending test...</span>
-                    </>
-                  ) : (
-                    <span>Send Test</span>
-                  )}
-                </Button>
-              </div>
-            </>
-          )}
-        </Card>
-
-        <Card className="notification-composer">
-          <h2>Compose Notification</h2>
-          
-          <div className="form-group">
-            <label>Message</label>
-            <textarea
-              className="message-input"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Enter your notification message..."
-              rows={6}
-            />
-            <div className="char-count">{message.length} characters</div>
-          </div>
-
-          <div className="send-options">
-            <div className="option-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={sendToAll}
-                  onChange={(e) => {
-                    setSendToAll(e.target.checked)
-                    if (e.target.checked) {
-                      setSelectedUsers([])
-                    }
-                  }}
-                />
-                <span>Send to all users</span>
-              </label>
-            </div>
-
-            <div className="action-buttons">
-              <Button
-                variant="primary"
-                onClick={() => handleSendNotification(false)}
-                disabled={loading || !message.trim()}
-              >
-                {loading ? (
-                  <>
-                    <Loader size={16} className="spinning" />
-                    <span>Sending...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={16} />
-                    <span>Send to All</span>
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="secondary"
-                onClick={() => handleSendNotification(true)}
-                disabled={loading || !message.trim()}
-              >
-                {loading ? (
-                  <>
-                    <Loader size={16} className="spinning" />
-                    <span>Sending...</span>
-                  </>
-                ) : (
-                  <>
-                    <UserCheck size={16} />
-                    <span>Send to Active Only</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        <div className="users-section">
-          <Card>
-            <div className="users-header">
-              <h2>Select Users</h2>
-              <div className="users-controls">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={activeOnly}
-                    onChange={(e) => setActiveOnly(e.target.checked)}
-                  />
-                  <span>Active users only</span>
-                </label>
-                {!sendToAll && (
-                  <>
-                    <Button variant="outline" size="small" onClick={selectAllUsers}>
-                      Select All
-                    </Button>
-                    <Button variant="outline" size="small" onClick={deselectAllUsers}>
-                      Deselect All
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {loadingUsers ? (
-              <div className="loading-state">
-                <Loader size={24} className="spinning" />
-                <span>Loading users...</span>
-              </div>
-            ) : users.length === 0 ? (
-              <div className="empty-state">
-                <Users size={48} />
-                <p>No users found</p>
-              </div>
-            ) : (
-              <>
-                <div className="users-list">
-                  {users.map(user => (
-                    <div
-                      key={user.id}
-                      className={`user-item ${selectedUsers.includes(user.telegram_user_id) ? 'selected' : ''} ${!user.is_active ? 'inactive' : ''}`}
-                      onClick={() => !sendToAll && toggleUserSelection(user.telegram_user_id)}
-                    >
-                      <div className="user-info">
-                        <div className="user-name">
-                          {user.first_name} {user.last_name || ''}
-                          {user.username && <span className="username">@{user.username}</span>}
-                        </div>
-                        <div className="user-meta">
-                          <span>ID: {user.telegram_user_id}</span>
-                          {user.is_active ? (
-                            <span className="badge active">Active</span>
-                          ) : (
-                            <span className="badge inactive">Inactive</span>
-                          )}
-                        </div>
-                      </div>
-                      {!sendToAll && (
-                        <div className="user-checkbox">
+                  {/* Audience selector */}
+                  <div className="notifications-page__audience">
+                    <h4 className="notifications-page__audience-title">
+                      <Users size={13} />
+                      {t('notifications.audience', 'Đối tượng nhận')}
+                    </h4>
+                    <div className="notifications-page__audience-options">
+                      {(['all', 'active', 'specific'] as AudienceMode[]).map(mode => (
+                        <label key={mode} className={`notifications-page__audience-option ${audienceMode === mode ? 'notifications-page__audience-option--selected' : ''}`}>
                           <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(user.telegram_user_id)}
-                            onChange={() => toggleUserSelection(user.telegram_user_id)}
-                            onClick={(e) => e.stopPropagation()}
+                            type="radio"
+                            name="audience"
+                            value={mode}
+                            checked={audienceMode === mode}
+                            onChange={() => setAudienceMode(mode)}
                           />
+                          <span>{t(`notifications.audience_${mode}`, mode === 'all' ? 'Tất cả' : mode === 'active' ? 'Đang hoạt động' : 'Chọn cụ thể')}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Specific user selector */}
+                  {audienceMode === 'specific' && (
+                    <div className="notifications-page__user-list">
+                      {loadingUsers ? (
+                        <div className="notifications-page__user-skel">
+                          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="line" height={32} />)}
                         </div>
+                      ) : (
+                        <>
+                          <div className="notifications-page__user-list-header">
+                            <span>{t('notifications.userListTitle', `${users.length} người dùng`)}</span>
+                            <div className="notifications-page__user-list-actions">
+                              <Button variant="secondary" tone="ghost" size="sm" onClick={() => setSelectedUserIds(new Set(users.map(u => u.telegram_user_id)))}>
+                                {t('notifications.selectAll', 'Chọn tất cả')}
+                              </Button>
+                              <Button variant="secondary" tone="ghost" size="sm" onClick={() => setSelectedUserIds(new Set())}>
+                                {t('notifications.deselectAll', 'Bỏ chọn')}
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="notifications-page__user-rows">
+                            {users.map(u => (
+                              <label
+                                key={u.telegram_user_id}
+                                className={`notifications-page__user-row ${selectedUserIds.has(u.telegram_user_id) ? 'notifications-page__user-row--selected' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUserIds.has(u.telegram_user_id)}
+                                  onChange={() => toggleUser(u.telegram_user_id)}
+                                />
+                                <span className="notifications-page__user-name">{userName(u)}</span>
+                                <Badge variant={u.is_active ? 'success' : 'neutral'} size="sm">
+                                  {u.is_active ? t('products.active', 'HĐ') : t('products.inactive', 'Tắt')}
+                                </Badge>
+                              </label>
+                            ))}
+                          </div>
+                        </>
                       )}
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                {!sendToAll && selectedUsers.length > 0 && (
-                  <div className="selected-count">
-                    {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+                  <div className="notifications-page__send-footer">
+                    {audienceMode === 'specific' && selectedUserIds.size > 0 && (
+                      <span className="notifications-page__selected-count">
+                        {t('notifications.selectedUsers', `${selectedUserIds.size} người được chọn`)}
+                      </span>
+                    )}
                     <Button
                       variant="primary"
-                      size="small"
-                      onClick={() => handleSendNotification(false)}
-                      disabled={loading || !message.trim()}
+                      size="sm"
+                      iconLeft={<Send size={14} />}
+                      loading={sending}
+                      onClick={handleSend}
                     >
-                      <Send size={14} />
-                      <span>Send to Selected</span>
+                      {t('notifications.send', 'Gửi thông báo')}
                     </Button>
                   </div>
-                )}
-              </>
-            )}
-          </Card>
-        </div>
+                </div>
 
-        {result && (
-          <Card className="result-card">
-            <h2>Delivery Status</h2>
-            <div className="result-stats">
-              <div className="stat-item">
-                <span className="stat-label">Total</span>
-                <span className="stat-value">{result.total}</span>
+                {/* Result */}
+                {sendResult && (
+                  <div className={`notifications-page__result ${sendResult.success ? 'notifications-page__result--success' : 'notifications-page__result--error'}`}>
+                    {sendResult.success ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                    <span>
+                      {t('notifications.result', `Gửi thành công: ${sendResult.successful}/${sendResult.total}`)}
+                      {sendResult.failed > 0 && ` · ${t('notifications.failed', `Thất bại: ${sendResult.failed}`)}`}
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="stat-item success">
-                <CheckCircle size={20} />
-                <span className="stat-label">Successful</span>
-                <span className="stat-value">{result.successful}</span>
-              </div>
-              <div className="stat-item failed">
-                <XCircle size={20} />
-                <span className="stat-label">Failed</span>
-                <span className="stat-value">{result.failed}</span>
-              </div>
-            </div>
-            {result.details && result.details.length > 0 && (
-              <div className="result-details">
-                <h3>Details</h3>
-                <div className="details-list">
-                  {result.details.slice(0, 10).map((detail, idx) => (
-                    <div key={idx} className={`detail-item ${detail.success ? 'success' : 'failed'}`}>
-                      <span>User {detail.telegram_user_id}</span>
-                      {detail.success ? (
-                        <CheckCircle size={16} />
-                      ) : (
-                        <span className="error-text">{detail.error}</span>
-                      )}
+            ),
+          },
+          {
+            key: 'order-alerts',
+            label: t('notifications.orderAlertsTab', 'Cảnh báo đơn hàng'),
+            panel: (
+              <div className="notifications-page__order-settings">
+                <div className="notifications-page__compose-card">
+                  <h3 className="notifications-page__section-title">
+                    <Bell size={14} />
+                    {t('notifications.orderSettings', 'Cài đặt thông báo đơn hàng')}
+                  </h3>
+
+                  {loadingOrderSettings ? (
+                    <div className="notifications-page__user-skel">
+                      {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="line" height={36} />)}
                     </div>
-                  ))}
-                  {result.details.length > 10 && (
-                    <div className="detail-item">
-                      <span>... and {result.details.length - 10} more</span>
+                  ) : orderSettings ? (
+                    <div className="notifications-page__order-form">
+                      <div className="notifications-page__switch-row">
+                        <Switch
+                          checked={orderSettings.order_notify_enabled}
+                          onChange={v => setOrderSettings(s => s ? { ...s, order_notify_enabled: v } : s)}
+                          label={t('notifications.enableNotify', 'Bật thông báo đơn hàng')}
+                        />
+                      </div>
+                      <div className="notifications-page__switch-row">
+                        <Switch
+                          checked={orderSettings.order_notify_on_created}
+                          onChange={v => setOrderSettings(s => s ? { ...s, order_notify_on_created: v } : s)}
+                          label={t('notifications.notifyOnCreated', 'Thông báo khi đơn mới được tạo')}
+                        />
+                      </div>
+                      <div className="notifications-page__switch-row">
+                        <Switch
+                          checked={orderSettings.order_notify_on_paid}
+                          onChange={v => setOrderSettings(s => s ? { ...s, order_notify_on_paid: v } : s)}
+                          label={t('notifications.notifyOnPaid', 'Thông báo khi đơn được thanh toán')}
+                        />
+                      </div>
+
+                      <FormField
+                        label={t('notifications.whitelistChatIds', 'Chat ID nhận thông báo đơn hàng')}
+                        htmlFor="notif-whitelist"
+                        helperText={t('notifications.chatIdsHint', 'Mỗi dòng một ID. Dạng: -1001234 hoặc -100123:456')}
+                      >
+                        <Textarea
+                          id="notif-whitelist"
+                          value={whitelistText}
+                          onChange={e => setWhitelistText(e.target.value)}
+                          placeholder="-1001234567890"
+                          rows={3}
+                        />
+                      </FormField>
+
+                      <FormField
+                        label={t('notifications.upgradeChatIds', 'Chat ID nhận thông báo nâng cấp')}
+                        htmlFor="notif-upgrade"
+                        helperText={t('notifications.chatIdsHint', 'Mỗi dòng một ID')}
+                      >
+                        <Textarea
+                          id="notif-upgrade"
+                          value={upgradeText}
+                          onChange={e => setUpgradeText(e.target.value)}
+                          placeholder="-1001234567890"
+                          rows={3}
+                        />
+                      </FormField>
+
+                      <div className="notifications-page__send-footer">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          loading={savingOrderSettings}
+                          onClick={handleSaveOrderSettings}
+                        >
+                          {t('common.save', 'Lưu cài đặt')}
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <Button variant="secondary" size="sm" onClick={fetchOrderSettings}>
+                      {t('common.retry', 'Thử lại')}
+                    </Button>
                   )}
                 </div>
               </div>
-            )}
-          </Card>
-        )}
-      </div>
+            ),
+          },
+        ]}
+        variant="underline"
+        size="md"
+      />
     </div>
   )
 }
-

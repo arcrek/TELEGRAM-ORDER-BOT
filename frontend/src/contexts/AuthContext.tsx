@@ -1,10 +1,9 @@
 /**
  * Authentication context for managing user session.
+ * All HTTP goes through shared/lib/api.ts (which injects bearer + handles 401).
  */
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import axios from 'axios'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+import { apiClient, getAuthToken, clearAuthToken } from '../shared/lib/api'
 
 interface User {
   id: string
@@ -28,9 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('token')
-  })
+  const [token, setToken] = useState<string | null>(() => getAuthToken())
   const [isLoading, setIsLoading] = useState(true)
 
   const fetchCurrentUser = async (authToken: string | null = null) => {
@@ -41,30 +38,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${tokenToUse}`,
-        },
-      })
+      const response = await apiClient.get('/api/auth/me')
       setUser(response.data)
-    } catch (error) {
-      // Token invalid, clear it
+    } catch {
       setToken(null)
       setUser(null)
-      localStorage.removeItem('token')
+      clearAuthToken()
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    // Check if user is authenticated on mount
     if (token) {
       fetchCurrentUser()
     } else {
       setIsLoading(false)
     }
-    // Only run when token changes, not when fetchCurrentUser changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -75,19 +65,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       formData.append('username', username)
       formData.append('password', password)
 
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+      const response = await apiClient.post('/api/auth/login', formData, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       })
 
       const accessToken = response.data.access_token
       setToken(accessToken)
       localStorage.setItem('token', accessToken)
-
-      // Fetch user info with the new token
       await fetchCurrentUser(accessToken)
-    } catch (error: any) {
+    } catch (error) {
       setIsLoading(false)
       throw error
     }
@@ -96,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setToken(null)
     setUser(null)
-    localStorage.removeItem('token')
+    clearAuthToken()
   }
 
   return (
@@ -122,4 +108,3 @@ export function useAuth() {
   }
   return context
 }
-

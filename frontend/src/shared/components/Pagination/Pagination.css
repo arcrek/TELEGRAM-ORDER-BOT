@@ -1,0 +1,57 @@
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.pagination__count {
+  flex: 1;
+  min-width: max-content;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+.pagination__size-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pagination__size-text {
+  color: var(--text-muted);
+}
+
+.pagination__size-select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-xs, 11px);
+  padding: 2px 4px;
+  cursor: pointer;
+  outline: none;
+}
+
+.pagination__size-select:focus-visible {
+  border-color: var(--border-focus);
+}
+
+.pagination__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pagination__pages {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary);
+  min-width: 50px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}

@@ -1,0 +1,136 @@
+/*
+ * Toast — top-right stack with semantic variants.
+ * Two aria-live regions (polite for info/success, assertive for warning/danger).
+ */
+
+.toast-stack {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - var(--space-8)));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  animation: toast-in var(--duration-base) var(--easing-emphasized);
+}
+
+.toast[data-leaving='true'] {
+  animation: toast-out var(--duration-fast) var(--easing-standard) forwards;
+}
+
+.toast-icon {
+  margin-top: 2px;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
+
+.toast[data-variant='success'] .toast-icon {
+  color: var(--success-500);
+}
+.toast[data-variant='warning'] .toast-icon {
+  color: var(--warning-500);
+}
+.toast[data-variant='error'] .toast-icon {
+  color: var(--danger-500);
+}
+.toast[data-variant='info'] .toast-icon {
+  color: var(--info-500);
+}
+
+.toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.toast-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.toast-message {
+  color: var(--text-secondary);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.toast-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.toast-action-button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--brand-500);
+  background: transparent;
+  border: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.toast-action-button:hover {
+  background: var(--bg-sunken);
+}
+
+.toast-dismiss {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+.toast-dismiss:hover {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast[data-leaving='true'] {
+    animation: none;
+  }
+}

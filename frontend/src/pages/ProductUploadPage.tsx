@@ -1,666 +1,391 @@
-/**
- * Product Upload page.
- * Premium Dark SaaS Design System.
- */
-import { useState, useEffect } from 'react'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import {
-  Upload,
-  FileText,
-  Clipboard,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  File,
-  List,
-  Key,
-  FileSpreadsheet,
-  RefreshCw,
-  Package,
-  Layers,
-} from 'lucide-react'
-import axios from 'axios'
+import { useState, useEffect, useMemo } from 'react'
+import { Upload, FileText, CheckCircle, XCircle, AlertCircle, UploadCloud } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../shared/components/PageHeader'
+import { Tabs } from '../shared/components/Tabs'
+import { FileDrop, FileChip } from '../shared/components/FileDrop'
+import { Select } from '../shared/components/Select'
+import { Textarea } from '../shared/components/Textarea'
+import { FormField } from '../shared/components/FormField'
+import { Radio } from '../shared/components/Radio'
+import { StatCard } from '../shared/components/StatCard'
+import { Table, type ColumnDef } from '../shared/components/Table'
+import { Button } from '../shared/components/Button'
+import { useToast } from '../shared/components/Toast'
+import { useConfirm } from '../shared/components/ConfirmDialog'
+import { apiClient, formatApiError } from '../shared/lib/api'
 import './ProductUploadPage.css'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
+type FormatType = 'line_separated' | 'key_value' | 'csv'
+type View = 'configure' | 'preview' | 'result'
 
-interface ParsedItem {
-  [key: string]: any
-}
-
+interface ParsedItem { [key: string]: string }
 interface UploadResult {
   success: number
   failed: number
   duplicates_skipped: number
-  errors: Array<{
-    index: number
-    error: string
-    data: any
-  }>
+  errors: Array<{ index: number; error: string; data: unknown }>
 }
+interface Variation { id: string; name: string }
+interface ProductGroup { product_id: string; product_name: string; variations: Variation[] }
+interface PreviewRow { idx: number; content: string }
 
-interface DuplicateCheckResult {
-  duplicate_count: number
-  unique_count: number
-  total: number
-  duplicates: Array<{ index: number; data: any }>
-}
-
-interface Variation {
-  id: string
-  name: string
-  product_id: string
-}
-
-interface ProductGroup {
-  product_id: string
-  product_name: string
-  variations: Variation[]
+function extractContent(item: ParsedItem): string {
+  const keys = Object.keys(item)
+  if (keys.length === 1 && keys[0] === 'data') return String(item.data)
+  return JSON.stringify(item)
 }
 
 export function ProductUploadPage() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const confirm = useConfirm()
+
+  const [view, setView] = useState<View>('configure')
   const [activeTab, setActiveTab] = useState<'file' | 'paste'>('file')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [pasteContent, setPasteContent] = useState('')
-  const [formatType, setFormatType] = useState<'line_separated' | 'key_value' | 'csv'>('line_separated')
-  const [parsedData, setParsedData] = useState<ParsedItem[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [previewMode, setPreviewMode] = useState(false)
-  const [duplicateCheck, setDuplicateCheck] = useState<DuplicateCheckResult | null>(null)
-  const [awaitingDuplicateDecision, setAwaitingDuplicateDecision] = useState(false)
-  
-  // Product and variation selection
-  const [selectedProductId, setSelectedProductId] = useState<string>('')
-  const [selectedVariationId, setSelectedVariationId] = useState<string>('')
+  const [formatType, setFormatType] = useState<FormatType>('line_separated')
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [selectedVariationId, setSelectedVariationId] = useState<string | null>(null)
   const [productGroups, setProductGroups] = useState<ProductGroup[]>([])
-  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [parsedData, setParsedData] = useState<ParsedItem[]>([])
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [groupsLoading, setGroupsLoading] = useState(false)
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      if (!file.name.endsWith('.txt')) {
-        setError('Only .txt files are supported')
-        return
-      }
-      setSelectedFile(file)
-      setError(null)
-    }
-  }
-
-  const handleParseFile = async () => {
-    if (!selectedFile) return
-
-    try {
-      setUploading(true)
-      setError(null)
-      
-      const formData = new FormData()
-      formData.append('file', selectedFile)
-      if (formatType) {
-        formData.append('format_type', formatType)
-      }
-
-      const token = localStorage.getItem('token')
-      const response = await axios.post(
-        `${API_BASE_URL}/api/products/upload/file`,
-        formData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      )
-
-      setParsedData(response.data.parsed_data || [])
-      setPreviewMode(true)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to parse file')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  const handleParsePaste = async () => {
-    if (!pasteContent.trim()) return
-
-    try {
-      setUploading(true)
-      setError(null)
-
-      const token = localStorage.getItem('token')
-      const response = await axios.post(
-        `${API_BASE_URL}/api/products/upload/parse`,
-        {
-          content: pasteContent,
-          format_type: formatType,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      setParsedData(response.data.parsed_data || [])
-      setPreviewMode(true)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to parse content')
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  // Fetch products and variations
   useEffect(() => {
-    fetchProductGroups()
+    const load = async () => {
+      setGroupsLoading(true)
+      try {
+        const res = await apiClient.get<{ items: ProductGroup[] }>('/api/variations')
+        setProductGroups(res.data.items ?? [])
+      } catch (err) {
+        toast.error(formatApiError(err, t('upload.loadError', 'Không thể tải sản phẩm')))
+      } finally {
+        setGroupsLoading(false)
+      }
+    }
+    load()
   }, [])
 
-  const fetchProductGroups = async () => {
+  const productOptions = useMemo(() =>
+    productGroups.map(g => ({ value: g.product_id, label: g.product_name })),
+    [productGroups],
+  )
+
+  const variationOptions = useMemo(() => {
+    const group = productGroups.find(g => g.product_id === selectedProductId)
+    return (group?.variations ?? []).map(v => ({ value: v.id, label: v.name }))
+  }, [productGroups, selectedProductId])
+
+  const selectedProductName = useMemo(() =>
+    productGroups.find(g => g.product_id === selectedProductId)?.product_name ?? '',
+    [productGroups, selectedProductId],
+  )
+
+  const selectedVariationName = useMemo(() => {
+    const group = productGroups.find(g => g.product_id === selectedProductId)
+    return group?.variations.find(v => v.id === selectedVariationId)?.name ?? ''
+  }, [productGroups, selectedProductId, selectedVariationId])
+
+  const canParse = !!(selectedProductId && selectedVariationId &&
+    (activeTab === 'file' ? selectedFile : pasteContent.trim()))
+
+  const handleParse = async () => {
+    if (!canParse) return
+    setLoading(true)
     try {
-      setLoadingProducts(true)
-      const token = localStorage.getItem('token')
-      const response = await axios.get(
-        `${API_BASE_URL}/api/variations`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setProductGroups(response.data.items || [])
-    } catch (err: any) {
-      console.error('Failed to load products:', err)
-      setError('Failed to load products and variations')
+      let res: { data: { parsed_data: ParsedItem[] } }
+      if (activeTab === 'file') {
+        const formData = new FormData()
+        formData.append('file', selectedFile!)
+        formData.append('format_type', formatType)
+        res = await apiClient.post('/api/products/upload/file', formData)
+      } else {
+        res = await apiClient.post('/api/products/upload/parse', {
+          content: pasteContent,
+          format_type: formatType,
+        })
+      }
+      setParsedData(res.data.parsed_data ?? [])
+      setView('preview')
+    } catch (err) {
+      toast.error(formatApiError(err, t('upload.parseError', 'Không thể phân tích dữ liệu')))
     } finally {
-      setLoadingProducts(false)
+      setLoading(false)
     }
-  }
-
-  const getAvailableVariations = () => {
-    if (!selectedProductId) return []
-    const productGroup = productGroups.find(p => p.product_id === selectedProductId)
-    return productGroup?.variations || []
-  }
-
-  const handleProductChange = (productId: string) => {
-    setSelectedProductId(productId)
-    setSelectedVariationId('') // Reset variation when product changes
   }
 
   const buildUploadItems = () =>
-    parsedData.map((item) => {
-      let productData: string
-      if (typeof item === 'object') {
-        const keys = Object.keys(item)
-        if (keys.length === 1 && keys[0] === 'data') {
-          productData = String(item.data)
-        } else {
-          productData = JSON.stringify(item)
-        }
-      } else {
-        productData = String(item)
-      }
-      return {
-        product_id: selectedProductId,
-        variation_id: selectedVariationId,
-        product_data: productData,
-      }
-    })
+    parsedData.map(item => ({
+      product_id: selectedProductId!,
+      variation_id: selectedVariationId!,
+      product_data: extractContent(item),
+    }))
 
   const doUpload = async (skipDuplicates: boolean) => {
+    setLoading(true)
     try {
-      setUploading(true)
-      setError(null)
-      setUploadResult(null)
-      setDuplicateCheck(null)
-      setAwaitingDuplicateDecision(false)
-
-      const token = localStorage.getItem('token')
-      const response = await axios.post(
-        `${API_BASE_URL}/api/products/upload`,
-        { products: buildUploadItems(), skip_duplicates: skipDuplicates },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
-      )
-
-      setUploadResult(response.data)
-      setPreviewMode(false)
-      setSelectedFile(null)
-      setPasteContent('')
-      setParsedData([])
-      setSelectedProductId('')
-      setSelectedVariationId('')
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to upload products')
+      const res = await apiClient.post<UploadResult>('/api/products/upload', {
+        products: buildUploadItems(),
+        skip_duplicates: skipDuplicates,
+      })
+      setUploadResult(res.data)
+      setView('result')
+    } catch (err) {
+      toast.error(formatApiError(err, t('upload.uploadError', 'Không thể tải lên')))
     } finally {
-      setUploading(false)
+      setLoading(false)
     }
   }
 
   const handleUpload = async () => {
-    if (!selectedProductId || !selectedVariationId) {
-      setError('Please select both product and variation')
-      return
-    }
-
-    if (parsedData.length === 0) {
-      setError('No data to upload. Please parse file or content first.')
-      return
-    }
-
-    // Step 1: check duplicates
+    setLoading(true)
     try {
-      setUploading(true)
-      setError(null)
-      const token = localStorage.getItem('token')
-      const checkResp = await axios.post(
-        `${API_BASE_URL}/api/products/upload/check-duplicates`,
+      const checkRes = await apiClient.post<{ duplicate_count: number; unique_count: number }>(
+        '/api/products/upload/check-duplicates',
         { products: buildUploadItems() },
-        { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } }
       )
-      const checkResult: DuplicateCheckResult = checkResp.data
-      setUploading(false)
+      setLoading(false)
 
-      if (checkResult.duplicate_count > 0) {
-        setDuplicateCheck(checkResult)
-        setAwaitingDuplicateDecision(true)
-        return
+      const { duplicate_count, unique_count } = checkRes.data
+      if (duplicate_count > 0) {
+        const ok = await confirm({
+          title: t('upload.duplicateTitle', `${duplicate_count} mục trùng lặp`),
+          description: t('upload.duplicateDesc', `Có ${duplicate_count} mục đã tồn tại. ${unique_count} mục mới sẽ được thêm.`),
+          confirmLabel: t('upload.skipAndUpload', 'Bỏ qua & tải lên'),
+        })
+        if (!ok) return
+        await doUpload(true)
+      } else {
+        await doUpload(false)
       }
-    } catch (err: any) {
-      setUploading(false)
-      setError(err.response?.data?.detail || 'Failed to check for duplicates')
-      return
+    } catch (err) {
+      setLoading(false)
+      toast.error(formatApiError(err, t('upload.checkError', 'Không thể kiểm tra trùng lặp')))
     }
-
-    // No duplicates — proceed directly
-    await doUpload(false)
   }
 
-  const formatIcons = {
-    line_separated: List,
-    key_value: Key,
-    csv: FileSpreadsheet,
+  const handleReset = () => {
+    setView('configure')
+    setSelectedFile(null)
+    setPasteContent('')
+    setParsedData([])
+    setUploadResult(null)
   }
+
+  const previewRows: PreviewRow[] = parsedData.slice(0, 50).map((item, i) => ({
+    idx: i + 1,
+    content: extractContent(item),
+  }))
+
+  const previewColumns: ColumnDef<PreviewRow>[] = [
+    { id: 'idx', header: '#', width: 56, mono: true, cell: row => String(row.idx) },
+    { id: 'content', header: t('upload.colContent', 'Nội dung'), mono: true, cell: row => row.content },
+  ]
+
+  const formatOptions: Array<{ value: FormatType; label: string }> = [
+    { value: 'line_separated', label: t('upload.fmtLine', 'Mỗi dòng') },
+    { value: 'key_value', label: t('upload.fmtKV', 'Key=Value') },
+    { value: 'csv', label: 'CSV' },
+  ]
+
+  const fileTabPanel = (
+    <div className="product-upload-page__tab-content">
+      {selectedFile ? (
+        <FileChip file={selectedFile} onRemove={() => setSelectedFile(null)} />
+      ) : (
+        <FileDrop
+          accept=".txt"
+          onFiles={files => setSelectedFile(files[0] ?? null)}
+          onError={msg => toast.error(msg)}
+          label={t('upload.dropLabel', 'Kéo thả file .txt hoặc click để chọn')}
+          hint={t('upload.dropHint', 'Chỉ hỗ trợ file .txt')}
+        />
+      )}
+      <div className="product-upload-page__format-group">
+        <span className="product-upload-page__format-label">{t('upload.format', 'Định dạng')}:</span>
+        {formatOptions.map(o => (
+          <Radio
+            key={o.value}
+            name="fmt-file"
+            value={o.value}
+            label={o.label}
+            checked={formatType === o.value}
+            onChange={v => setFormatType(v as FormatType)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+
+  const pasteTabPanel = (
+    <div className="product-upload-page__tab-content">
+      <FormField label={t('upload.pasteLabel', 'Dán nội dung')}>
+        <Textarea
+          value={pasteContent}
+          onChange={e => setPasteContent(e.target.value)}
+          placeholder={t('upload.pastePlaceholder', 'Dán dữ liệu vào đây...')}
+          rows={10}
+          className="product-upload-page__paste-area"
+        />
+      </FormField>
+      <div className="product-upload-page__format-group">
+        <span className="product-upload-page__format-label">{t('upload.format', 'Định dạng')}:</span>
+        {formatOptions.map(o => (
+          <Radio
+            key={o.value}
+            name="fmt-paste"
+            value={o.value}
+            label={o.label}
+            checked={formatType === o.value}
+            onChange={v => setFormatType(v as FormatType)}
+          />
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div className="product-upload-page">
-      <div className="upload-header">
-        <h1>Product Upload</h1>
-        <p>Upload products via file or paste content</p>
+      <PageHeader title={t('nav.upload', 'Tải lên sản phẩm')} />
+
+      {/* ── Target: Product + Variation ─────────────────────────── */}
+      <div className="product-upload-page__target">
+        <div className="product-upload-page__target-grid">
+          <FormField label={t('upload.product', 'Sản phẩm')}>
+            <Select
+              options={productOptions}
+              value={selectedProductId}
+              onChange={v => { setSelectedProductId(v); setSelectedVariationId(null) }}
+              placeholder={t('upload.selectProduct', 'Chọn sản phẩm')}
+              searchable
+              clearable
+              disabled={groupsLoading}
+            />
+          </FormField>
+          <FormField label={t('upload.variation', 'Biến thể')}>
+            <Select
+              options={variationOptions}
+              value={selectedVariationId}
+              onChange={setSelectedVariationId}
+              placeholder={t('upload.selectVariation', 'Chọn biến thể')}
+              disabled={!selectedProductId || groupsLoading}
+            />
+          </FormField>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <Card className="upload-tabs-card">
-        <div className="upload-tabs">
-          <button
-            className={`upload-tab ${activeTab === 'file' ? 'active' : ''}`}
-            onClick={() => setActiveTab('file')}
-          >
-            <File size={18} />
-            File Upload
-          </button>
-          <button
-            className={`upload-tab ${activeTab === 'paste' ? 'active' : ''}`}
-            onClick={() => setActiveTab('paste')}
-          >
-            <Clipboard size={18} />
-            Paste Content
-          </button>
-        </div>
-      </Card>
-
-      {/* Product and Variation Selection */}
-      <Card className="upload-content-card">
-        <div className="upload-section">
-          <div className="upload-section-header">
-            <Package size={20} />
-            <h2>Select Product & Variation</h2>
-          </div>
-          
-          <div className="selection-fields">
-            <div className="selection-field">
-              <label htmlFor="product-select">
-                <Package size={16} />
-                Product
-              </label>
-              <select
-                id="product-select"
-                value={selectedProductId}
-                onChange={(e) => handleProductChange(e.target.value)}
-                className="selection-select"
-                disabled={loadingProducts}
-              >
-                <option value="">Select a product...</option>
-                {productGroups.map((group) => (
-                  <option key={group.product_id} value={group.product_id}>
-                    {group.product_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="selection-field">
-              <label htmlFor="variation-select">
-                <Layers size={16} />
-                Variation
-              </label>
-              <select
-                id="variation-select"
-                value={selectedVariationId}
-                onChange={(e) => setSelectedVariationId(e.target.value)}
-                className="selection-select"
-                disabled={!selectedProductId || loadingProducts}
-              >
-                <option value="">Select a variation...</option>
-                {getAvailableVariations().map((variation) => (
-                  <option key={variation.id} value={variation.id}>
-                    {variation.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* File Upload Tab */}
-      {activeTab === 'file' && (
-        <Card className="upload-content-card">
-          <div className="upload-section">
-            <div className="upload-section-header">
-              <FileText size={20} />
-              <h2>Upload Text File</h2>
-            </div>
-            
-            <div className="file-upload-area">
-              <input
-                type="file"
-                id="file-input"
-                accept=".txt"
-                onChange={handleFileSelect}
-                className="file-input"
-              />
-              <label htmlFor="file-input" className="file-input-label">
-                <Upload size={24} />
-                {selectedFile ? selectedFile.name : 'Choose file or drag here'}
-              </label>
-            </div>
-
-            {selectedFile && (
-              <div className="format-selector">
-                <label>Format Type:</label>
-                <div className="format-buttons">
-                  {(['line_separated', 'key_value', 'csv'] as const).map((format) => {
-                    const Icon = formatIcons[format]
-                    return (
-                      <button
-                        key={format}
-                        className={`format-btn ${formatType === format ? 'active' : ''}`}
-                        onClick={() => setFormatType(format)}
-                      >
-                        <Icon size={16} />
-                        {format.replace('_', ' ')}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="error-banner">
-                <AlertCircle size={16} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="upload-actions">
-              <Button
-                onClick={handleParseFile}
-                disabled={!selectedFile || uploading}
-                variant="primary"
-              >
-                {uploading ? (
-                  <>
-                    <RefreshCw size={16} className="spinning" />
-                    Parsing...
-                  </>
-                ) : (
-                  <>
-                    <FileText size={16} />
-                    Parse File
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Paste Content Tab */}
-      {activeTab === 'paste' && (
-        <Card className="upload-content-card">
-          <div className="upload-section">
-            <div className="upload-section-header">
-              <Clipboard size={20} />
-              <h2>Paste Content</h2>
-            </div>
-
-            <div className="format-selector">
-              <label>Format Type:</label>
-              <div className="format-buttons">
-                {(['line_separated', 'key_value', 'csv'] as const).map((format) => {
-                  const Icon = formatIcons[format]
-                  return (
-                    <button
-                      key={format}
-                      className={`format-btn ${formatType === format ? 'active' : ''}`}
-                      onClick={() => setFormatType(format)}
-                    >
-                      <Icon size={16} />
-                      {format.replace('_', ' ')}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <textarea
-              className="paste-textarea"
-              placeholder="Paste your product data here..."
-              value={pasteContent}
-              onChange={(e) => setPasteContent(e.target.value)}
-              rows={10}
-            />
-
-            {error && (
-              <div className="error-banner">
-                <AlertCircle size={16} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <div className="upload-actions">
-              <Button
-                onClick={handleParsePaste}
-                disabled={!pasteContent.trim() || uploading}
-                variant="primary"
-              >
-                {uploading ? (
-                  <>
-                    <RefreshCw size={16} className="spinning" />
-                    Parsing...
-                  </>
-                ) : (
-                  <>
-                    <Clipboard size={16} />
-                    Parse Content
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Preview */}
-      {previewMode && parsedData.length > 0 && (
-        <Card className="preview-card">
-          <div className="preview-header">
-            <div>
-              <h2>Preview ({parsedData.length} items)</h2>
-              {selectedProductId && selectedVariationId && (
-                <p className="preview-subtitle">
-                  Product: {productGroups.find(p => p.product_id === selectedProductId)?.product_name || 'Unknown'} | 
-                  Variation: {getAvailableVariations().find(v => v.id === selectedVariationId)?.name || 'Unknown'}
-                </p>
-              )}
-            </div>
-            <Button
-              onClick={() => setPreviewMode(false)}
-              variant="secondary"
-              size="small"
-            >
-              Close Preview
-            </Button>
-          </div>
-          
-          <div className="preview-content">
-            <div className="preview-table">
-              <table>
-                <thead>
-                  <tr>
-                    {Object.keys(parsedData[0] || {}).map((key) => (
-                      <th key={key}>{key}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {parsedData.slice(0, 10).map((item, idx) => (
-                    <tr key={idx}>
-                      {Object.values(item).map((value: any, valIdx) => (
-                        <td key={valIdx}>{String(value)}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {parsedData.length > 10 && (
-                <p className="preview-note">Showing first 10 of {parsedData.length} items</p>
-              )}
-            </div>
-          </div>
-
-          <div className="preview-actions">
-            {selectedProductId && selectedVariationId ? (
-              <Button
-                onClick={handleUpload}
-                disabled={uploading}
-                variant="primary"
-              >
-                {uploading ? (
-                  <>
-                    <RefreshCw size={16} className="spinning" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={16} />
-                    Upload {parsedData.length} Items
-                  </>
-                )}
-              </Button>
-            ) : (
-              <div className="warning-banner">
-                <AlertCircle size={16} />
-                <span>Please select product and variation before uploading</span>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Duplicate Warning */}
-      {awaitingDuplicateDecision && duplicateCheck && (
-        <Card className="result-card">
-          <div className="result-header">
-            <h2>⚠️ Duplicates Detected</h2>
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <p>
-              <strong>{duplicateCheck.duplicate_count}</strong> item(s) already exist in the database (unused).{' '}
-              <strong>{duplicateCheck.unique_count}</strong> new item(s) will be added.
-            </p>
-          </div>
-          <div className="result-stats">
-            <div className="stat-item failed">
-              <XCircle size={20} />
-              <span>Duplicates: {duplicateCheck.duplicate_count}</span>
-            </div>
-            <div className="stat-item success">
-              <CheckCircle size={20} />
-              <span>Unique: {duplicateCheck.unique_count}</span>
-            </div>
-          </div>
-          <div className="preview-actions" style={{ marginTop: 16, gap: 10, display: 'flex' }}>
+      {/* ── Configure: tabs + parse ──────────────────────────────── */}
+      {view === 'configure' && (
+        <div className="product-upload-page__tabs-card">
+          <Tabs
+            tabs={[
+              { key: 'file', label: t('upload.fileTab', 'File .txt'), panel: fileTabPanel },
+              { key: 'paste', label: t('upload.pasteTab', 'Dán nội dung'), panel: pasteTabPanel },
+            ]}
+            activeKey={activeTab}
+            onChange={k => setActiveTab(k as 'file' | 'paste')}
+          />
+          <div className="product-upload-page__parse-actions">
             <Button
               variant="primary"
-              onClick={() => doUpload(true)}
-              disabled={uploading || duplicateCheck.unique_count === 0}
+              onClick={handleParse}
+              disabled={!canParse}
+              loading={loading}
+              iconLeft={<FileText size={14} />}
             >
-              {uploading ? (
-                <><RefreshCw size={16} className="spinning" /> Uploading...</>
-              ) : (
-                <><Upload size={16} /> Skip duplicates &amp; upload {duplicateCheck.unique_count} unique</>
-              )}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => { setAwaitingDuplicateDecision(false); setDuplicateCheck(null) }}
-              disabled={uploading}
-            >
-              Cancel
+              {t('upload.parse', 'Phân tích')}
             </Button>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Upload Result */}
-      {uploadResult && (
-        <Card className="result-card">
-          <div className="result-header">
-            <h2>Upload Result</h2>
-          </div>
-          <div className="result-stats">
-            <div className="stat-item success">
-              <CheckCircle size={20} />
-              <span>Success: {uploadResult.success}</span>
-            </div>
-            <div className="stat-item failed">
-              <XCircle size={20} />
-              <span>Failed: {uploadResult.failed}</span>
-            </div>
-            {uploadResult.duplicates_skipped > 0 && (
-              <div className="stat-item" style={{ opacity: 0.7 }}>
-                <AlertCircle size={20} />
-                <span>Duplicates skipped: {uploadResult.duplicates_skipped}</span>
-              </div>
+      {/* ── Preview ──────────────────────────────────────────────── */}
+      {view === 'preview' && (
+        <div className="product-upload-page__preview">
+          <div className="product-upload-page__preview-banner">
+            <span className="product-upload-page__preview-count">
+              {t('upload.parsedCount', `${parsedData.length} mục đã phân tích`)}
+            </span>
+            {selectedProductName && (
+              <span className="product-upload-page__preview-ctx">
+                {selectedProductName} / {selectedVariationName}
+              </span>
             )}
           </div>
-          {uploadResult.errors.length > 0 && (
-            <div className="error-list">
-              <h3>Errors:</h3>
-              {uploadResult.errors.map((err, idx) => (
-                <div key={idx} className="error-item">
-                  <strong>Item {err.index}:</strong> {err.error}
-                </div>
-              ))}
-            </div>
+          <div className="product-upload-page__preview-table">
+            <Table<PreviewRow>
+              columns={previewColumns}
+              data={previewRows}
+              keyFn={row => String(row.idx)}
+              stickyHeader
+              emptyTitle={t('upload.noData', 'Không có dữ liệu')}
+            />
+          </div>
+          {parsedData.length > 50 && (
+            <p className="product-upload-page__preview-note">
+              {t('upload.previewNote', `Hiển thị 50/${parsedData.length} mục đầu tiên`)}
+            </p>
           )}
-        </Card>
+          <div className="product-upload-page__preview-actions">
+            <Button variant="secondary" tone="ghost" size="sm" onClick={() => setView('configure')}>
+              {t('common.back', 'Quay lại')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleUpload}
+              loading={loading}
+              iconLeft={<Upload size={14} />}
+            >
+              {t('upload.upload', `Tải lên ${parsedData.length} mục`)}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Result ───────────────────────────────────────────────── */}
+      {view === 'result' && uploadResult && (
+        <div className="product-upload-page__result">
+          <div className="product-upload-page__result-kpi">
+            <StatCard
+              label={t('upload.success', 'Thành công')}
+              value={String(uploadResult.success)}
+              icon={<CheckCircle size={16} />}
+            />
+            <StatCard
+              label={t('upload.failed', 'Thất bại')}
+              value={String(uploadResult.failed)}
+              icon={<XCircle size={16} />}
+            />
+            <StatCard
+              label={t('upload.skipped', 'Bỏ qua trùng')}
+              value={String(uploadResult.duplicates_skipped)}
+              icon={<AlertCircle size={16} />}
+            />
+          </div>
+          {uploadResult.errors.length > 0 && (
+            <details className="product-upload-page__error-log">
+              <summary className="product-upload-page__error-summary">
+                {t('upload.errorCount', `${uploadResult.errors.length} lỗi chi tiết`)}
+              </summary>
+              <div className="product-upload-page__error-list">
+                {uploadResult.errors.map((err, i) => (
+                  <div key={i} className="product-upload-page__error-item">
+                    <strong>#{err.index}:</strong> {err.error}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          <div className="product-upload-page__reset">
+            <Button variant="primary" iconLeft={<UploadCloud size={14} />} onClick={handleReset}>
+              {t('upload.uploadMore', 'Tải lên thêm')}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   )
 }
-

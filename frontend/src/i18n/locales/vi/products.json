@@ -1,0 +1,12 @@
+{
+  "products": {
+    "title": "Sản phẩm",
+    "create": "Tạo Sản phẩm",
+    "name": "Tên Sản phẩm",
+    "description": "Mô tả",
+    "deliveryType": "Loại Giao hàng",
+    "isActive": "Hoạt động",
+    "variations": "Phân loại",
+    "noProducts": "Không tìm thấy sản phẩm"
+  }
+}

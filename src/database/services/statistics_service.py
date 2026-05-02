@@ -2,9 +2,9 @@
 Statistics service for order and sales analytics.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, extract
 from src.database.models import Order, OrderItem, Product
 from src.database.models.enums import OrderStatus
 
@@ -294,14 +294,127 @@ class StatisticsService:
             for order in orders
         ]
     
-    def get_statistics_overview(self) -> Dict[str, any]:
+    def get_funnel(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict[str, Any]]:
+        """Conversion funnel: counts per status stage in pipeline order."""
+        stages = [
+            OrderStatus.PENDING,
+            OrderStatus.PAID,
+            OrderStatus.PROCESSING,
+            OrderStatus.DELIVERED,
+            OrderStatus.CANCELLED,
+        ]
+        result = []
+        for status in stages:
+            q = self.session.query(func.count(Order.id)).filter(Order.status == status)
+            if start_date:
+                q = q.filter(Order.created_at >= start_date)
+            if end_date:
+                q = q.filter(Order.created_at <= end_date)
+            result.append({"status": status.value, "count": q.scalar() or 0})
+        return result
+
+    def get_orders_heatmap(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict[str, int]]:
+        """Hour×weekday heatmap (168 cells). Returns [{day, hour, count}]."""
+        q = self.session.query(
+            extract("dow", Order.created_at).label("day"),
+            extract("hour", Order.created_at).label("hour"),
+            func.count(Order.id).label("count"),
+        )
+        if start_date:
+            q = q.filter(Order.created_at >= start_date)
+        if end_date:
+            q = q.filter(Order.created_at <= end_date)
+        q = q.group_by("day", "hour")
+
+        # Build full 7×24 grid
+        grid: Dict[Tuple[int, int], int] = {}
+        for row in q.all():
+            grid[(int(row.day), int(row.hour))] = int(row.count)
+
+        result = []
+        for day in range(7):
+            for hour in range(24):
+                result.append({"day": day, "hour": hour, "count": grid.get((day, hour), 0)})
+        return result
+
+    def get_revenue_delta(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> Optional[float]:
+        """Revenue % change vs. equal-length prior period. None when no prior data."""
+        period_len = end_date - start_date
+        prev_start = start_date - period_len
+        prev_end = start_date
+
+        def _revenue(s: datetime, e: datetime) -> int:
+            return (
+                self.session.query(func.sum(Order.total_amount))
+                .filter(
+                    and_(
+                        Order.created_at >= s,
+                        Order.created_at < e,
+                        Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
+                    )
+                )
+                .scalar()
+                or 0
+            )
+
+        current = _revenue(start_date, end_date)
+        previous = _revenue(prev_start, prev_end)
+        if previous == 0:
+            return None
+        return round((current - previous) / previous * 100, 1)
+
+    def get_orders_delta(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> Optional[float]:
+        """Orders % change vs. equal-length prior period."""
+        period_len = end_date - start_date
+        prev_start = start_date - period_len
+        prev_end = start_date
+
+        def _count(s: datetime, e: datetime) -> int:
+            return (
+                self.session.query(func.count(Order.id))
+                .filter(and_(Order.created_at >= s, Order.created_at < e))
+                .scalar()
+                or 0
+            )
+
+        current = _count(start_date, end_date)
+        previous = _count(prev_start, prev_end)
+        if previous == 0:
+            return None
+        return round((current - previous) / previous * 100, 1)
+
+    def get_statistics_overview(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
         """
-        Get comprehensive statistics overview.
-        
+        Get comprehensive statistics overview with optional range filter.
+
+        Args:
+            start_date: Range start (None = all time)
+            end_date: Range end (None = now)
+
         Returns:
             Dictionary with all key statistics
         """
-        return {
+        base: Dict[str, Any] = {
             "total_orders": self.get_total_orders_count(),
             "total_orders_today": self.get_total_orders_count("today"),
             "total_orders_this_week": self.get_total_orders_count("this_week"),
@@ -318,5 +431,14 @@ class StatisticsService:
             "revenue_over_time_weekly": self.get_revenue_over_time(interval="weekly", days=90),
             "revenue_over_time_monthly": self.get_revenue_over_time(interval="monthly", days=365),
             "recent_orders": self.get_recent_orders(limit=10),
+            "funnel": self.get_funnel(start_date, end_date),
+            "orders_heatmap": self.get_orders_heatmap(start_date, end_date),
         }
+        if start_date and end_date:
+            base["revenue_delta"] = self.get_revenue_delta(start_date, end_date)
+            base["orders_delta"] = self.get_orders_delta(start_date, end_date)
+        else:
+            base["revenue_delta"] = None
+            base["orders_delta"] = None
+        return base
 

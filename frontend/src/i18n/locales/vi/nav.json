@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "statistics": "Thống kê",
+    "products": "Sản phẩm",
+    "variations": "Phân loại",
+    "orders": "Đơn hàng",
+    "bonusSummary": "Tổng hợp Ưu đãi",
+    "suppliers": "Nguồn",
+    "notifications": "Thông báo",
+    "botUiSettings": "Cài đặt Giao diện Bot",
+    "productUpload": "Tải lên Sản phẩm",
+    "preUploaded": "Kho hàng",
+    "iotd": "Ảnh trong Ngày",
+    "logout": "Đăng xuất",
+    "groups": {
+      "overview": "Tổng quan",
+      "catalog": "Danh mục",
+      "operations": "Vận hành",
+      "settings": "Cài đặt"
+    }
+  }
+}

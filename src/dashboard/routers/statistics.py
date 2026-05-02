@@ -1,8 +1,9 @@
 """
 Statistics router.
 """
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.statistics_service import StatisticsService
@@ -10,19 +11,45 @@ from src.database.services.statistics_service import StatisticsService
 router = APIRouter()
 
 
+def _resolve_range(
+    range_: Optional[str],
+    from_: Optional[str],
+    to_: Optional[str],
+):
+    """Resolve (start_date, end_date) from range shorthand or explicit ISO dates."""
+    now = datetime.now(timezone.utc)
+    if range_ == "today":
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, now
+    if range_ == "7d":
+        return now - timedelta(days=7), now
+    if range_ == "30d":
+        return now - timedelta(days=30), now
+    if range_ == "90d":
+        return now - timedelta(days=90), now
+    if range_ == "custom":
+        if not from_ or not to_:
+            raise HTTPException(status_code=422, detail="from and to required for custom range")
+        try:
+            return datetime.fromisoformat(from_).replace(tzinfo=timezone.utc), \
+                   datetime.fromisoformat(to_).replace(tzinfo=timezone.utc)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid date: {exc}") from exc
+    return None, None
+
+
 @router.get("/overview")
 async def get_statistics_overview(
+    range: Optional[str] = Query(None, description="Preset: today|7d|30d|90d|custom"),
+    from_date: Optional[str] = Query(None, alias="from", description="ISO date for custom range"),
+    to_date: Optional[str] = Query(None, alias="to", description="ISO date for custom range"),
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """
-    Get comprehensive statistics overview.
-    
-    Returns:
-        Dictionary with all key statistics
-    """
+    """Get comprehensive statistics overview with optional date range filter."""
+    start_date, end_date = _resolve_range(range, from_date, to_date)
     service = StatisticsService(db)
-    return service.get_statistics_overview()
+    return service.get_statistics_overview(start_date=start_date, end_date=end_date)
 
 
 @router.get("/orders/count")

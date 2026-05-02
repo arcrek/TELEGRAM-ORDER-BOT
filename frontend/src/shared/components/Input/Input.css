@@ -1,0 +1,182 @@
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.input-field__label {
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.input-field__wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.input-field__input {
+  width: 100%;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  transition:
+    border-color var(--duration-fast, 120ms) ease,
+    box-shadow var(--duration-fast, 120ms) ease;
+  outline: none;
+  appearance: none;
+}
+
+.input-field__input::placeholder {
+  color: var(--text-disabled);
+}
+
+.input-field__input:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.input-field__input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-500) 20%, transparent);
+}
+
+/* Sizes */
+.input-field--sm .input-field__input {
+  height: 30px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm, 12px);
+}
+
+.input-field--md .input-field__input {
+  height: 36px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-base, 14px);
+}
+
+.input-field--lg .input-field__input {
+  height: 44px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-lg, 16px);
+}
+
+/* Left/right icon padding */
+.input-field--sm .input-field__input--left { padding-left: 30px; }
+.input-field--md .input-field__input--left { padding-left: 36px; }
+.input-field--lg .input-field__input--left { padding-left: 44px; }
+.input-field--sm .input-field__input--right { padding-right: 30px; }
+.input-field--md .input-field__input--right { padding-right: 36px; }
+.input-field--lg .input-field__input--right { padding-right: 44px; }
+
+/* Icons */
+.input-field__icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+
+.input-field__icon--left { left: var(--space-2); }
+.input-field__icon--right { right: var(--space-2); }
+
+.input-field__icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Affixes (prefix/suffix text) */
+.input-field__affix {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  font-size: var(--text-sm, 12px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.input-field__affix--prefix {
+  border-right: none;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.input-field__affix--suffix {
+  border-left: none;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.input-field__affix--prefix ~ .input-field__input {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.input-field__input:has(~ .input-field__affix--suffix) {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+/* Clear button */
+.input-field__clear {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+
+.input-field__clear:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+}
+
+/* Error state */
+.input-field--error .input-field__input {
+  border-color: var(--danger-500);
+}
+
+.input-field--error .input-field__input:focus {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger-500) 20%, transparent);
+}
+
+/* Disabled */
+.input-field--disabled .input-field__input {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-sunken);
+}
+
+/* Helper / Error text */
+.input-field__helper {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.input-field__error {
+  font-size: var(--text-xs, 11px);
+  color: var(--danger-500);
+  margin: 0;
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input-field__input { transition: none; }
+}

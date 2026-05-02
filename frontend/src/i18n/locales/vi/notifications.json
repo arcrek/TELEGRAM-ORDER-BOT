@@ -1,0 +1,13 @@
+{
+  "notifications": {
+    "title": "Thông báo",
+    "sendToAll": "Gửi đến Tất cả Người dùng",
+    "sendToActive": "Gửi đến Người dùng Hoạt động",
+    "sendToUser": "Gửi đến Người dùng Cụ thể",
+    "message": "Tin nhắn",
+    "selectUser": "Chọn Người dùng",
+    "send": "Gửi",
+    "success": "Đã gửi thông báo thành công",
+    "error": "Gửi thông báo thất bại"
+  }
+}

@@ -1,0 +1,94 @@
+/* Minimum 44×44 touch target on all sizes */
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast, 120ms) ease,
+    color var(--duration-fast, 120ms) ease,
+    opacity var(--duration-fast, 120ms) ease;
+  flex-shrink: 0;
+}
+
+/* Hit-area expansion to meet 44×44 min while keeping visual size smaller */
+.icon-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.icon-btn:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.icon-btn:disabled,
+.icon-btn[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Sizes (visual) */
+.icon-btn--sm { width: 28px; height: 28px; }
+.icon-btn--md { width: 32px; height: 32px; }
+.icon-btn--lg { width: 40px; height: 40px; }
+
+.icon-btn__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn--sm .icon-btn__icon svg { width: 14px; height: 14px; }
+.icon-btn--md .icon-btn__icon svg { width: 16px; height: 16px; }
+.icon-btn--lg .icon-btn__icon svg { width: 20px; height: 20px; }
+
+/* Variants */
+.icon-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.icon-btn--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 7%, transparent);
+  color: var(--text-primary);
+}
+
+.icon-btn--subtle {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  color: var(--text-secondary);
+}
+.icon-btn--subtle:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text-primary) 11%, transparent);
+  color: var(--text-primary);
+}
+
+.icon-btn--solid {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+.icon-btn--solid:hover:not(:disabled) {
+  border-color: var(--brand-500);
+}
+
+.icon-btn--destructive {
+  background: transparent;
+  color: var(--text-muted);
+}
+.icon-btn--destructive:hover:not(:disabled) {
+  background: var(--danger-50);
+  color: var(--danger-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-btn { transition: none; }
+}

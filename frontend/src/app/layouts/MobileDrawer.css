@@ -1,0 +1,51 @@
+.mobile-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: var(--z-modal-backdrop, 1300);
+  animation: drawer-backdrop-in var(--duration-base, 180ms) ease;
+}
+
+@keyframes drawer-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  max-width: 85vw;
+  background: var(--bg-surface);
+  z-index: var(--z-modal, 1400);
+  display: flex;
+  flex-direction: column;
+  animation: drawer-slide-in var(--duration-base, 180ms) ease;
+  overflow: hidden;
+}
+
+@keyframes drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.mobile-drawer__close {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.mobile-drawer__sidebar {
+  flex: 1;
+  position: static !important;
+  height: auto !important;
+  width: 100% !important;
+  border-right: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-drawer-backdrop,
+  .mobile-drawer { animation: none; }
+}

@@ -1,29 +1,25 @@
-/**
- * Products page with product management UI.
- * Premium Dark SaaS Design System.
- */
-import { useState, useEffect } from 'react'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { Input } from '../components/Input'
-import { Select } from '../components/Select'
-import {
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  Package,
-  Filter,
-  X,
-} from 'lucide-react'
-import axios from 'axios'
+import { useState, useEffect, useMemo, useCallback, useId } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Search, Plus, Edit, Trash2, Eye, Package, RefreshCw } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../shared/components/PageHeader'
+import { Table, type ColumnDef, type SortState } from '../shared/components/Table'
+import { Pagination } from '../shared/components/Pagination'
+import { Badge } from '../shared/components/Badge'
+import { Modal } from '../shared/components/Modal'
+import { Button } from '../shared/components/Button'
+import { IconButton } from '../shared/components/IconButton'
+import { Input } from '../shared/components/Input'
+import { Select } from '../shared/components/Select'
+import { Switch } from '../shared/components/Switch'
+import { Tooltip } from '../shared/components/Tooltip'
+import { FormField } from '../shared/components/FormField'
+import { Textarea } from '../shared/components/Textarea'
+import { useToast } from '../shared/components/Toast'
+import { useConfirm } from '../shared/components/ConfirmDialog'
+import { apiClient, formatApiError } from '../shared/lib/api'
+import { useFormat } from '../shared/lib/format'
 import './ProductsPage.css'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 type DeliveryType = 'pre_uploaded' | 'supplier_based' | 'upgrade'
 
@@ -34,6 +30,7 @@ interface Product {
   delivery_type: DeliveryType
   upgrade_request_text: string | null
   is_active: boolean
+  variations_count?: number
   created_at: string
   updated_at: string
 }
@@ -46,660 +43,569 @@ interface ProductsResponse {
   total_pages: number
 }
 
+type FormData = {
+  name: string
+  description: string
+  delivery_type: DeliveryType
+  upgrade_request_text: string
+  is_active: boolean
+}
+
+const EMPTY_FORM: FormData = {
+  name: '',
+  description: '',
+  delivery_type: 'pre_uploaded',
+  upgrade_request_text: '',
+  is_active: true,
+}
+
+const DELIVERY_TYPE_VARIANT: Record<DeliveryType, 'info' | 'success' | 'neutral'> = {
+  pre_uploaded: 'info',
+  supplier_based: 'success',
+  upgrade: 'neutral',
+}
+
 export function ProductsPage() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const confirm = useConfirm()
+  const fmt = useFormat()
+  const formId = useId()
+
+  // ── URL-synced filters ─────────────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlSearch = searchParams.get('q') ?? ''
+  const urlActive = searchParams.get('active') ?? null
+  const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+  const urlSortId = searchParams.get('sort') ?? 'name'
+  const urlSortDir = (searchParams.get('dir') ?? 'asc') as 'asc' | 'desc'
+
+  const setParam = useCallback(
+    (updates: Record<string, string | null>) => {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        for (const [k, v] of Object.entries(updates)) {
+          if (v === null || v === '') next.delete(k)
+          else next.set(k, v)
+        }
+        return next
+      }, { replace: true })
+    },
+    [setSearchParams],
+  )
+
+  const [searchInput, setSearchInput] = useState(urlSearch)
+  useEffect(() => { setSearchInput(urlSearch) }, [urlSearch])
+
+  // ── Data state ─────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [perPage] = useState(15)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
-  
-  // Filters and search
-  const [search, setSearch] = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [onlyActive, setOnlyActive] = useState<boolean | null>(null)
-  const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-  
-  // Modal states
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showDetailModal, setShowDetailModal] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  
-  // Form states
-  const [formData, setFormData] = useState({
-    id: '',
-    name: '',
-    description: '',
-    delivery_type: 'pre_uploaded' as DeliveryType,
-    upgrade_request_text: '',
-    is_active: true,
-  })
+  const [perPage, setPerPage] = useState(15)
 
-  useEffect(() => {
-    fetchProducts()
-  }, [page, search, onlyActive, sortBy, sortOrder])
+  // ── Modals ─────────────────────────────────────────────────────────
+  const [formOpen, setFormOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Product | null>(null)
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [formSaving, setFormSaving] = useState(false)
 
-  const fetchProducts = async () => {
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null)
+
+  // ── Sort ───────────────────────────────────────────────────────────
+  const sortState: SortState = { id: urlSortId, direction: urlSortDir }
+
+  const handleSortChange = (sort: SortState) => {
+    setParam({ sort: sort.id, dir: sort.direction ?? 'asc', page: null })
+  }
+
+  // ── Fetch ──────────────────────────────────────────────────────────
+  const fetchProducts = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      const params = new URLSearchParams({
-        page: page.toString(),
-        per_page: perPage.toString(),
-        sort_by: sortBy,
-        sort_order: sortOrder,
-      })
-      
-      if (search) {
-        params.append('search', search)
+      const params: Record<string, string> = {
+        page: String(urlPage),
+        per_page: String(perPage),
+        sort_by: urlSortId,
+        sort_order: urlSortDir,
       }
-      if (onlyActive !== null) {
-        params.append('only_active', onlyActive.toString())
-      }
-      
-      const response = await axios.get<ProductsResponse>(
-        `${API_BASE_URL}/api/products/?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      
-      setProducts(response.data.items)
-      setTotalPages(response.data.total_pages)
-      setTotal(response.data.total)
-      setError(null)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load products')
-      console.error('Error fetching products:', err)
+      if (urlSearch) params.search = urlSearch
+      if (urlActive !== null) params.only_active = urlActive
+
+      const res = await apiClient.get<ProductsResponse>('/api/products/', { params })
+      setProducts(res.data.items)
+      setTotal(res.data.total)
+    } catch (err) {
+      setError(formatApiError(err, t('products.loadError', 'Không thể tải sản phẩm')))
     } finally {
       setLoading(false)
     }
-  }
+  }, [urlPage, perPage, urlSortId, urlSortDir, urlSearch, urlActive, t])
 
-  const handleSearch = () => {
-    setSearch(searchInput)
-    setPage(1)
-  }
+  useEffect(() => { fetchProducts() }, [fetchProducts])
 
-  const handleClearSearch = () => {
-    setSearchInput('')
-    setSearch('')
-    setPage(1)
-  }
-
-  const handleFilterActive = (value: boolean | null) => {
-    setOnlyActive(value)
-    setPage(1)
-  }
-
-  const handleSort = (field: 'name' | 'created_at') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortOrder('asc')
+  // ── Toggle is_active optimistically ───────────────────────────────
+  const handleToggleActive = async (product: Product, checked: boolean) => {
+    setProducts(prev =>
+      prev.map(p => p.id === product.id ? { ...p, is_active: checked } : p),
+    )
+    try {
+      await apiClient.put(`/api/products/${product.id}`, {
+        name: product.name,
+        description: product.description,
+        delivery_type: product.delivery_type,
+        upgrade_request_text: product.upgrade_request_text,
+        is_active: checked,
+      })
+      toast.success(
+        checked
+          ? t('products.activated', 'Đã kích hoạt sản phẩm')
+          : t('products.deactivated', 'Đã tắt sản phẩm'),
+      )
+    } catch (err) {
+      // Rollback
+      setProducts(prev =>
+        prev.map(p => p.id === product.id ? { ...p, is_active: !checked } : p),
+      )
+      toast.error(formatApiError(err, t('products.toggleError', 'Không thể thay đổi trạng thái')))
     }
   }
 
+  // ── Open create/edit form ──────────────────────────────────────────
   const handleCreate = () => {
-    setFormData({
-      id: '',
-      name: '',
-      description: '',
-      delivery_type: 'pre_uploaded',
-      upgrade_request_text: '',
-      is_active: true,
-    })
-    setShowCreateModal(true)
+    setEditTarget(null)
+    setFormData(EMPTY_FORM)
+    setFormError(null)
+    setFormOpen(true)
   }
 
   const handleEdit = (product: Product) => {
-    setSelectedProduct(product)
+    setEditTarget(product)
     setFormData({
-      id: product.id,
       name: product.name,
-      description: product.description || '',
+      description: product.description ?? '',
       delivery_type: product.delivery_type,
-      upgrade_request_text: product.upgrade_request_text || '',
+      upgrade_request_text: product.upgrade_request_text ?? '',
       is_active: product.is_active,
     })
-    setShowEditModal(true)
+    setFormError(null)
+    setFormOpen(true)
   }
 
-  const handleDelete = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDeleteModal(true)
-  }
-
-  const handleView = (product: Product) => {
-    setSelectedProduct(product)
-    setShowDetailModal(true)
-  }
-
-  const handleSubmitCreate = async (e: React.FormEvent) => {
+  // ── Save form ──────────────────────────────────────────────────────
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.name.trim()) {
+      setFormError(t('products.nameRequired', 'Tên sản phẩm là bắt buộc'))
+      return
+    }
+    setFormSaving(true)
+    setFormError(null)
+    const payload = {
+      ...formData,
+      description: formData.description || null,
+      upgrade_request_text: formData.delivery_type === 'upgrade' ? formData.upgrade_request_text || null : null,
+    }
     try {
-      const token = localStorage.getItem('token')
-      const payload = {
-        ...formData,
-        upgrade_request_text:
-          formData.delivery_type === 'upgrade' ? formData.upgrade_request_text || null : null,
+      if (editTarget) {
+        await apiClient.put(`/api/products/${editTarget.id}`, payload)
+        toast.success(t('products.updated', 'Đã cập nhật sản phẩm'))
+      } else {
+        await apiClient.post('/api/products/', payload)
+        toast.success(t('products.created', 'Đã tạo sản phẩm'))
       }
-      await axios.post(
-        `${API_BASE_URL}/api/products/`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      setShowCreateModal(false)
+      setFormOpen(false)
       fetchProducts()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to create product')
+    } catch (err) {
+      setFormError(formatApiError(err, t('products.saveError', 'Không thể lưu sản phẩm')))
+    } finally {
+      setFormSaving(false)
     }
   }
 
-  const handleSubmitEdit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedProduct) return
-
+  // ── Delete ─────────────────────────────────────────────────────────
+  const handleDelete = async (product: Product) => {
+    const ok = await confirm({
+      title: t('products.deleteTitle', 'Xoá sản phẩm?'),
+      description: t('products.deleteDesc', `Sản phẩm "${product.name}" sẽ bị xoá vĩnh viễn.`),
+      confirmLabel: t('common.delete', 'Xoá'),
+      variant: 'destructive',
+    })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/products/${selectedProduct.id}`,
-        {
-          name: formData.name,
-          description: formData.description,
-          delivery_type: formData.delivery_type,
-          upgrade_request_text:
-            formData.delivery_type === 'upgrade' ? formData.upgrade_request_text || null : null,
-          is_active: formData.is_active,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      setShowEditModal(false)
+      await apiClient.delete(`/api/products/${product.id}`)
+      toast.success(t('products.deleted', 'Đã xoá sản phẩm'))
       fetchProducts()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update product')
+    } catch (err) {
+      toast.error(formatApiError(err, t('products.deleteError', 'Không thể xoá sản phẩm')))
     }
   }
 
-  const handleConfirmDelete = async () => {
-    if (!selectedProduct) return
-    
-    try {
-      const token = localStorage.getItem('token')
-      await axios.delete(
-        `${API_BASE_URL}/api/products/${selectedProduct.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-      setShowDeleteModal(false)
-      fetchProducts()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete product')
-    }
-  }
+  // ── Active filter options ──────────────────────────────────────────
+  const activeOptions = useMemo(() => [
+    { value: 'true', label: t('products.active', 'Đang hoạt động') },
+    { value: 'false', label: t('products.inactive', 'Tắt') },
+  ], [t])
+
+  const deliveryTypeOptions = useMemo(() => [
+    { value: 'pre_uploaded' as DeliveryType, label: t('products.type.pre_uploaded', 'Tải trước') },
+    { value: 'supplier_based' as DeliveryType, label: t('products.type.supplier_based', 'Nhà cung cấp') },
+    { value: 'upgrade' as DeliveryType, label: t('products.type.upgrade', 'Nâng cấp') },
+  ], [t])
+
+  // ── Column definitions ─────────────────────────────────────────────
+  const columns = useMemo<ColumnDef<Product>[]>(() => [
+    {
+      id: 'name',
+      header: t('products.colName', 'Sản phẩm'),
+      sortable: true,
+      cell: row => (
+        <div className="products-page__name-cell">
+          <span className="products-page__name">{row.name}</span>
+          {row.description && (
+            <span className="products-page__desc">{row.description}</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'delivery_type',
+      header: t('products.colType', 'Loại'),
+      width: 160,
+      cell: row => (
+        <Badge variant={DELIVERY_TYPE_VARIANT[row.delivery_type]} size="sm">
+          {t(`products.type.${row.delivery_type}`, row.delivery_type)}
+        </Badge>
+      ),
+    },
+    {
+      id: 'variations_count',
+      header: t('products.colVariations', 'Phân loại'),
+      align: 'right',
+      mono: true,
+      width: 100,
+      cell: row => row.variations_count ?? '—',
+    },
+    {
+      id: 'is_active',
+      header: t('products.colActive', 'Hoạt động'),
+      width: 100,
+      align: 'center',
+      cell: row => (
+        <span onClick={e => e.stopPropagation()}>
+          <Switch
+            checked={row.is_active}
+            onChange={checked => handleToggleActive(row, checked)}
+            aria-label={t('products.toggleActive', 'Bật/tắt sản phẩm')}
+          />
+        </span>
+      ),
+    },
+    {
+      id: 'created_at',
+      header: t('products.colCreated', 'Tạo lúc'),
+      sortable: true,
+      width: 120,
+      cell: row => (
+        <Tooltip content={fmt.dateTime(row.created_at)} placement="top">
+          <span className="products-page__rel-time">{fmt.relative(row.created_at)}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      width: 100,
+      align: 'right',
+      cell: row => (
+        <div className="products-page__actions">
+          <Tooltip content={t('common.view', 'Xem')}>
+            <IconButton
+              icon={<Eye size={14} />}
+              aria-label={t('common.view', 'Xem')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); setDetailProduct(row); setDetailOpen(true) }}
+            />
+          </Tooltip>
+          <Tooltip content={t('common.edit', 'Sửa')}>
+            <IconButton
+              icon={<Edit size={14} />}
+              aria-label={t('common.edit', 'Sửa')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); handleEdit(row) }}
+            />
+          </Tooltip>
+          <Tooltip content={t('common.delete', 'Xoá')}>
+            <IconButton
+              icon={<Trash2 size={14} />}
+              aria-label={t('common.delete', 'Xoá')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); handleDelete(row) }}
+            />
+          </Tooltip>
+        </div>
+      ),
+    },
+  ], [t, fmt])
 
   return (
     <div className="products-page">
-      <div className="products-header">
-        <h1>Product Management</h1>
-        <Button onClick={handleCreate}>
-          <Plus size={18} />
-          <span>Create Product</span>
-        </Button>
+      <PageHeader
+        title={t('nav.products', 'Sản phẩm')}
+        actions={
+          <div className="products-page__header-actions">
+            <IconButton
+              icon={<RefreshCw size={14} />}
+              aria-label={t('common.refresh', 'Làm mới')}
+              variant="ghost"
+              size="sm"
+              onClick={fetchProducts}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              iconLeft={<Plus size={14} />}
+              onClick={handleCreate}
+            >
+              {t('products.create', 'Tạo sản phẩm')}
+            </Button>
+          </div>
+        }
+      />
+
+      {/* ── Filters ──────────────────────────────────────────────── */}
+      <div className="products-page__filters">
+        <Input
+          leftIcon={<Search size={14} />}
+          placeholder={t('products.searchPlaceholder', 'Tìm sản phẩm...')}
+          value={searchInput}
+          clearable
+          size="sm"
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') setParam({ q: searchInput, page: null })
+          }}
+          onBlur={() => { if (searchInput !== urlSearch) setParam({ q: searchInput, page: null }) }}
+          className="products-page__search"
+        />
+        <Select
+          options={activeOptions}
+          value={urlActive}
+          onChange={v => setParam({ active: v, page: null })}
+          placeholder={t('products.allStatus', 'Tất cả trạng thái')}
+          clearable
+          size="sm"
+          className="products-page__active-select"
+        />
       </div>
 
-      {/* Search and Filters */}
-      <Card className="products-filters">
-        <div className="filters-row">
-          <div className="search-container">
-            <div className="search-input-wrapper">
-              <Input
-                placeholder="Search products..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-            </div>
-            <div className="search-actions">
-              {search && (
-                <button onClick={handleClearSearch} className="clear-search">
-                  <X size={16} />
-                </button>
-              )}
-              <Button onClick={handleSearch} size="small">
-                <Search size={16} />
-              </Button>
-            </div>
-          </div>
-          
-          <div className="filter-group">
-            <Filter size={18} />
-            <Select
-              options={[
-                { value: null, label: 'All' },
-                { value: true, label: 'Active' },
-                { value: false, label: 'Inactive' },
-              ]}
-              value={onlyActive}
-              onChange={(value) => handleFilterActive(value as boolean | null)}
-              placeholder="Status"
-            />
-          </div>
+      {/* ── Error banner ─────────────────────────────────────────── */}
+      {error && (
+        <div className="products-page__error" role="alert">
+          <span>{error}</span>
+          <IconButton
+            icon={<RefreshCw size={14} />}
+            aria-label={t('common.retry', 'Thử lại')}
+            size="sm"
+            variant="ghost"
+            onClick={fetchProducts}
+          />
         </div>
-      </Card>
+      )}
 
-      {/* Products Table */}
-      {loading ? (
-        <Card>
-          <div className="products-loading">Loading products...</div>
-        </Card>
-      ) : error ? (
-        <Card>
-          <div className="products-error">Error: {error}</div>
-        </Card>
-      ) : (
-        <>
-          <Card className="products-table-card">
-            <table className="products-table">
-              <thead>
-                <tr>
-                  <th>
-                    <button
-                      className="sort-button"
-                      onClick={() => handleSort('name')}
-                    >
-                      Name
-                      <ArrowUpDown size={14} />
-                    </button>
-                  </th>
-                  <th>Description</th>
-                  <th>Delivery Type</th>
-                  <th>Status</th>
-                  <th>
-                    <button
-                      className="sort-button"
-                      onClick={() => handleSort('created_at')}
-                    >
-                      Created
-                      <ArrowUpDown size={14} />
-                    </button>
-                  </th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="empty-state">
-                      <Package size={48} />
-                      <p>No products found</p>
-                    </td>
-                  </tr>
-                ) : (
-                  products.map((product) => (
-                    <tr key={product.id}>
-                      <td className="product-name">{product.name}</td>
-                      <td className="product-description">
-                        {product.description || '-'}
-                      </td>
-                      <td>
-                        <span className={`delivery-badge ${product.delivery_type}`}>
-                          {product.delivery_type === 'pre_uploaded'
-                            ? 'Pre-uploaded'
-                            : product.delivery_type === 'supplier_based'
-                            ? 'Supplier-based'
-                            : 'Upgrade'}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${product.is_active ? 'active' : 'inactive'}`}>
-                          {product.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="product-date">
-                        {new Date(product.created_at).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          <button
-                            className="action-button"
-                            onClick={() => handleView(product)}
-                            title="View"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            className="action-button"
-                            onClick={() => handleEdit(product)}
-                            title="Edit"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            className="action-button danger"
-                            onClick={() => handleDelete(product)}
-                            title="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </Card>
+      {/* ── Table ─────────────────────────────────────────────────── */}
+      <div className="products-page__table-card">
+        <Table<Product>
+          columns={columns}
+          data={products}
+          keyFn={row => row.id}
+          loading={loading}
+          skeletonRows={perPage}
+          sortState={sortState}
+          onSortChange={handleSortChange}
+          stickyHeader
+          emptyIcon={<Package size={40} />}
+          emptyTitle={t('products.empty', 'Chưa có sản phẩm')}
+          emptyDescription={t('products.emptyDesc', 'Tạo sản phẩm đầu tiên để bắt đầu')}
+          emptyAction={
+            <Button variant="primary" size="sm" iconLeft={<Plus size={14} />} onClick={handleCreate}>
+              {t('products.create', 'Tạo sản phẩm')}
+            </Button>
+          }
+          onRowClick={row => { setDetailProduct(row); setDetailOpen(true) }}
+        />
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <Card className="pagination-card">
-              <div className="pagination">
-                <button
-                  className="pagination-button"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
+        <Pagination
+          page={urlPage}
+          pageSize={perPage}
+          total={total}
+          onPageChange={p => setParam({ page: String(p) })}
+          onPageSizeChange={size => { setPerPage(size); setParam({ page: null }) }}
+          className="products-page__pagination"
+        />
+      </div>
+
+      {/* ── Detail modal ─────────────────────────────────────────── */}
+      <Modal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        size="md"
+        title={detailProduct?.name ?? t('products.detailTitle', 'Chi tiết sản phẩm')}
+        footer={
+          <div className="products-page__modal-footer">
+            {detailProduct && (
+              <>
+                <Button
+                  variant="secondary"
+                  tone="subtle"
+                  size="sm"
+                  iconLeft={<Edit size={14} />}
+                  onClick={() => { setDetailOpen(false); handleEdit(detailProduct) }}
                 >
-                  <ChevronLeft size={18} />
-                  Previous
-                </button>
-                <span className="pagination-info">
-                  Page {page} of {totalPages} ({total} total)
-                </span>
-                <button
-                  className="pagination-button"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === totalPages}
+                  {t('common.edit', 'Sửa')}
+                </Button>
+                <Button
+                  variant="destructive"
+                  tone="subtle"
+                  size="sm"
+                  iconLeft={<Trash2 size={14} />}
+                  onClick={() => { setDetailOpen(false); handleDelete(detailProduct) }}
                 >
-                  Next
-                  <ChevronRight size={18} />
-                </button>
-              </div>
-            </Card>
+                  {t('common.delete', 'Xoá')}
+                </Button>
+              </>
+            )}
+            <Button variant="secondary" tone="ghost" size="sm" onClick={() => setDetailOpen(false)}>
+              {t('common.close', 'Đóng')}
+            </Button>
+          </div>
+        }
+      >
+        {detailProduct && (
+          <dl className="products-page__detail-grid">
+            <dt>{t('products.colName', 'Tên')}</dt>
+            <dd>{detailProduct.name}</dd>
+
+            <dt>{t('products.colType', 'Loại')}</dt>
+            <dd>
+              <Badge variant={DELIVERY_TYPE_VARIANT[detailProduct.delivery_type]} size="sm">
+                {t(`products.type.${detailProduct.delivery_type}`, detailProduct.delivery_type)}
+              </Badge>
+            </dd>
+
+            <dt>{t('products.colActive', 'Trạng thái')}</dt>
+            <dd>
+              <Badge variant={detailProduct.is_active ? 'success' : 'neutral'} size="sm">
+                {detailProduct.is_active ? t('products.active', 'Hoạt động') : t('products.inactive', 'Tắt')}
+              </Badge>
+            </dd>
+
+            {detailProduct.description && (
+              <>
+                <dt>{t('products.description', 'Mô tả')}</dt>
+                <dd>{detailProduct.description}</dd>
+              </>
+            )}
+
+            {detailProduct.delivery_type === 'upgrade' && detailProduct.upgrade_request_text && (
+              <>
+                <dt>{t('products.upgradeText', 'Nội dung yêu cầu')}</dt>
+                <dd>{detailProduct.upgrade_request_text}</dd>
+              </>
+            )}
+
+            <dt>{t('products.colCreated', 'Tạo lúc')}</dt>
+            <dd>{fmt.dateTime(detailProduct.created_at)}</dd>
+
+            <dt>{t('products.updatedAt', 'Cập nhật')}</dt>
+            <dd>{fmt.dateTime(detailProduct.updated_at)}</dd>
+          </dl>
+        )}
+      </Modal>
+
+      {/* ── Create / Edit modal ───────────────────────────────────── */}
+      <Modal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        size="md"
+        title={editTarget ? t('products.editTitle', 'Sửa sản phẩm') : t('products.createTitle', 'Tạo sản phẩm')}
+        footer={
+          <div className="products-page__modal-footer">
+            <Button variant="secondary" tone="ghost" size="sm" onClick={() => setFormOpen(false)}>
+              {t('common.cancel', 'Huỷ')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              form={formId}
+              loading={formSaving}
+            >
+              {editTarget ? t('common.save', 'Lưu') : t('products.create', 'Tạo')}
+            </Button>
+          </div>
+        }
+      >
+        <form id={formId} onSubmit={handleSave} className="products-page__form">
+          {formError && (
+            <div className="products-page__form-error" role="alert">{formError}</div>
           )}
-        </>
-      )}
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <ProductModal
-          title="Create Product"
-          formData={formData}
-          setFormData={setFormData}
-          onSubmit={handleSubmitCreate}
-          onClose={() => setShowCreateModal(false)}
-        />
-      )}
-
-      {/* Edit Modal */}
-      {showEditModal && selectedProduct && (
-        <ProductModal
-          title="Edit Product"
-          formData={formData}
-          setFormData={setFormData}
-          onSubmit={handleSubmitEdit}
-          onClose={() => setShowEditModal(false)}
-          isEdit={true}
-        />
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && selectedProduct && (
-        <DeleteModal
-          productName={selectedProduct.name}
-          onConfirm={handleConfirmDelete}
-          onClose={() => setShowDeleteModal(false)}
-        />
-      )}
-
-      {/* Detail Modal */}
-      {showDetailModal && selectedProduct && (
-        <ProductDetailModal
-          product={selectedProduct}
-          onClose={() => setShowDetailModal(false)}
-        />
-      )}
-    </div>
-  )
-}
-
-interface ProductModalProps {
-  title: string
-  formData: {
-    id: string
-    name: string
-    description: string
-    delivery_type: DeliveryType
-    upgrade_request_text: string
-    is_active: boolean
-  }
-  setFormData: React.Dispatch<React.SetStateAction<{
-    id: string
-    name: string
-    description: string
-    delivery_type: DeliveryType
-    upgrade_request_text: string
-    is_active: boolean
-  }>>
-  onSubmit: (e: React.FormEvent) => void
-  onClose: () => void
-  isEdit?: boolean
-}
-
-function ProductModal({
-  title,
-  formData,
-  setFormData,
-  onSubmit,
-  onClose,
-  isEdit = false,
-}: ProductModalProps) {
-  return (
-    <div className="modal-overlay">
-      <Card className="modal-content" onClick={(e) => e?.stopPropagation()}>
-        <div className="modal-header">
-          <h2>{title}</h2>
-          <button className="modal-close" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <form onSubmit={onSubmit} className="product-form">
-          {!isEdit && (
+          <FormField label={t('products.fieldName', 'Tên sản phẩm')} htmlFor={`${formId}-name`}>
             <Input
-              label="Product ID"
-              value={formData.id}
-              onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+              id={`${formId}-name`}
+              value={formData.name}
+              onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
+              placeholder={t('products.namePlaceholder', 'Nhập tên sản phẩm')}
               required
             />
-          )}
-          <Input
-            label="Product Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-          <div className="form-group">
-            <label>Description</label>
-            <textarea
-              className="form-textarea"
+          </FormField>
+
+          <FormField label={t('products.fieldDesc', 'Mô tả')} htmlFor={`${formId}-desc`}>
+            <Textarea
+              id={`${formId}-desc`}
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
+              onChange={e => setFormData(d => ({ ...d, description: e.target.value }))}
+              placeholder={t('products.descPlaceholder', 'Mô tả sản phẩm (tuỳ chọn)')}
+              rows={3}
+            />
+          </FormField>
+
+          <FormField label={t('products.fieldType', 'Loại giao hàng')} htmlFor={`${formId}-type`}>
+            <Select<DeliveryType>
+              options={deliveryTypeOptions}
+              value={formData.delivery_type}
+              onChange={v => v && setFormData(d => ({ ...d, delivery_type: v }))}
+            />
+          </FormField>
+
+          {formData.delivery_type === 'upgrade' && (
+            <FormField label={t('products.fieldUpgradeText', 'Nội dung yêu cầu nâng cấp')} htmlFor={`${formId}-upgrade`}>
+              <Textarea
+                id={`${formId}-upgrade`}
+                value={formData.upgrade_request_text}
+                onChange={e => setFormData(d => ({ ...d, upgrade_request_text: e.target.value }))}
+                placeholder={t('products.upgradePlaceholder', 'Nội dung gửi đến nhà cung cấp')}
+                rows={3}
+              />
+            </FormField>
+          )}
+
+          <div className="products-page__form-switch">
+            <Switch
+              checked={formData.is_active}
+              onChange={checked => setFormData(d => ({ ...d, is_active: checked }))}
+              label={t('products.fieldActive', 'Kích hoạt sản phẩm')}
             />
           </div>
-          <div className="form-group">
-            <label>Delivery Type</label>
-            <select
-              className="form-select"
-              value={formData.delivery_type}
-              onChange={(e) => setFormData({ ...formData, delivery_type: e.target.value as DeliveryType })}
-            >
-              <option value="pre_uploaded">Pre-uploaded</option>
-              <option value="supplier_based">Supplier-based</option>
-              <option value="upgrade">Upgrade (Nâng cấp chính chủ)</option>
-            </select>
-          </div>
-          {formData.delivery_type === 'upgrade' && (
-            <div className="form-group">
-              <label>Account Info Request Prompt</label>
-              <textarea
-                className="form-textarea"
-                value={formData.upgrade_request_text}
-                onChange={(e) => setFormData({ ...formData, upgrade_request_text: e.target.value })}
-                rows={5}
-                placeholder="Vui lòng cung cấp email, mật khẩu, mã 2FA... (để trống để dùng prompt mặc định)"
-              />
-              <small style={{ color: 'var(--text-muted, #888)', fontSize: '0.85em' }}>
-                Shown to the customer after payment. Leave empty to use the default prompt.
-              </small>
-            </div>
-          )}
-          <div className="form-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={formData.is_active}
-                onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-              />
-              <span>Active</span>
-            </label>
-          </div>
-          <div className="modal-actions">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit">
-              {isEdit ? 'Update' : 'Create'}
-            </Button>
-          </div>
         </form>
-      </Card>
-    </div>
-  )
-}
-
-interface DeleteModalProps {
-  productName: string
-  onConfirm: () => void
-  onClose: () => void
-}
-
-function DeleteModal({ productName, onConfirm, onClose }: DeleteModalProps) {
-  return (
-    <div className="modal-overlay">
-      <Card className="modal-content delete-modal" onClick={(e) => e?.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Delete Product</h2>
-          <button className="modal-close" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <div className="delete-content">
-          <Trash2 size={48} className="delete-icon" />
-          <p>Are you sure you want to delete <strong>{productName}</strong>?</p>
-          <p className="delete-warning">This will permanently delete the product. This action cannot be undone.</p>
-        </div>
-        <div className="modal-actions">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="button" variant="primary" onClick={onConfirm} className="danger-button">
-            Delete
-          </Button>
-        </div>
-      </Card>
-    </div>
-  )
-}
-
-interface ProductDetailModalProps {
-  product: Product
-  onClose: () => void
-}
-
-function ProductDetailModal({ product, onClose }: ProductDetailModalProps) {
-  return (
-    <div className="modal-overlay">
-      <Card className="modal-content detail-modal" onClick={(e) => e?.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Product Details</h2>
-          <button className="modal-close" onClick={onClose}>
-            <X size={20} />
-          </button>
-        </div>
-        <div className="detail-content">
-          <div className="detail-row">
-            <span className="detail-label">ID:</span>
-            <span className="detail-value">{product.id}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Name:</span>
-            <span className="detail-value">{product.name}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Description:</span>
-            <span className="detail-value">{product.description || '-'}</span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Delivery Type:</span>
-            <span className={`delivery-badge ${product.delivery_type}`}>
-              {product.delivery_type === 'pre_uploaded'
-                ? 'Pre-uploaded'
-                : product.delivery_type === 'supplier_based'
-                ? 'Supplier-based'
-                : 'Upgrade'}
-            </span>
-          </div>
-          {product.delivery_type === 'upgrade' && (
-            <div className="detail-row">
-              <span className="detail-label">Upgrade Prompt:</span>
-              <span className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>
-                {product.upgrade_request_text || '(default)'}
-              </span>
-            </div>
-          )}
-          <div className="detail-row">
-            <span className="detail-label">Status:</span>
-            <span className={`status-badge ${product.is_active ? 'active' : 'inactive'}`}>
-              {product.is_active ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Created:</span>
-            <span className="detail-value">
-              {new Date(product.created_at).toLocaleString()}
-            </span>
-          </div>
-          <div className="detail-row">
-            <span className="detail-label">Updated:</span>
-            <span className="detail-value">
-              {new Date(product.updated_at).toLocaleString()}
-            </span>
-          </div>
-        </div>
-        <div className="modal-actions">
-          <Button type="button" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </Card>
+      </Modal>
     </div>
   )
 }

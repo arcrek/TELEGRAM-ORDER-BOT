@@ -1,0 +1,32 @@
+{
+  "common": {
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "delete": "Xóa",
+    "edit": "Chỉnh sửa",
+    "save": "Lưu",
+    "close": "Đóng",
+    "back": "Quay lại",
+    "next": "Tiếp",
+    "previous": "Trước",
+    "search": "Tìm kiếm",
+    "filter": "Lọc",
+    "actions": "Thao tác",
+    "status": "Trạng thái",
+    "created": "Đã tạo",
+    "updated": "Đã cập nhật",
+    "refresh": "Làm mới",
+    "export": "Xuất",
+    "retry": "Thử lại",
+    "noData": "Không có dữ liệu",
+    "tryAgain": "Vui lòng thử lại"
+  },
+  "language": {
+    "select": "Chọn Ngôn ngữ",
+    "english": "Tiếng Anh",
+    "vietnamese": "Tiếng Việt"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "nav": {
+    "statistics": "Statistics",
+    "products": "Products",
+    "variations": "Variations",
+    "orders": "Orders",
+    "bonusSummary": "Benefits Summary",
+    "suppliers": "Suppliers",
+    "notifications": "Notifications",
+    "botUiSettings": "Bot UI Settings",
+    "productUpload": "Product Upload",
+    "preUploaded": "Inventory",
+    "iotd": "Image of the Day",
+    "logout": "Logout",
+    "groups": {
+      "overview": "Overview",
+      "catalog": "Catalog",
+      "operations": "Operations",
+      "settings": "Settings"
+    }
+  }
+}

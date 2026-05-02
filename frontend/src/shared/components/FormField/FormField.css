@@ -1,0 +1,30 @@
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.form-field__label {
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.form-field__required {
+  color: var(--danger-500);
+}
+
+.form-field__helper {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.form-field__error {
+  font-size: var(--text-xs, 11px);
+  color: var(--danger-500);
+  margin: 0;
+  line-height: 1.4;
+}

@@ -1,0 +1,32 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "search": "Search",
+    "filter": "Filter",
+    "actions": "Actions",
+    "status": "Status",
+    "created": "Created",
+    "updated": "Updated",
+    "refresh": "Refresh",
+    "export": "Export",
+    "retry": "Retry",
+    "noData": "No data",
+    "tryAgain": "Please try again"
+  },
+  "language": {
+    "select": "Select Language",
+    "english": "English",
+    "vietnamese": "Vietnamese"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "orders": {
+    "title": "Orders",
+    "orderId": "Order ID",
+    "userId": "User ID",
+    "totalAmount": "Total Amount",
+    "status": "Status",
+    "createdAt": "Created At",
+    "pending": "Pending",
+    "paid": "Paid",
+    "processing": "Processing",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "filterByStatus": "Filter by Status",
+    "allStatuses": "All Statuses"
+  }
+}

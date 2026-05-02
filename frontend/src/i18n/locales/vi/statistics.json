@@ -1,0 +1,9 @@
+{
+  "statistics": {
+    "title": "Thống kê",
+    "totalProducts": "Tổng Sản phẩm",
+    "totalOrders": "Tổng Đơn hàng",
+    "totalRevenue": "Tổng Doanh thu",
+    "pendingOrders": "Đơn hàng Đang chờ"
+  }
+}

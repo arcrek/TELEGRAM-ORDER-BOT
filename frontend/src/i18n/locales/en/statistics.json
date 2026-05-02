@@ -1,0 +1,9 @@
+{
+  "statistics": {
+    "title": "Statistics",
+    "totalProducts": "Total Products",
+    "totalOrders": "Total Orders",
+    "totalRevenue": "Total Revenue",
+    "pendingOrders": "Pending Orders"
+  }
+}

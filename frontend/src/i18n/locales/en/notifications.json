@@ -1,0 +1,13 @@
+{
+  "notifications": {
+    "title": "Notifications",
+    "sendToAll": "Send to All Users",
+    "sendToActive": "Send to Active Users",
+    "sendToUser": "Send to Specific User",
+    "message": "Message",
+    "selectUser": "Select User",
+    "send": "Send",
+    "success": "Notification sent successfully",
+    "error": "Failed to send notification"
+  }
+}

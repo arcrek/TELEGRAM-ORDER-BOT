@@ -1,36 +1,27 @@
-/**
- * Variations Management page.
- * Premium Dark SaaS Design System.
- */
-import { useState, useEffect } from 'react'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { Input } from '../components/Input'
-import { Select } from '../components/Select'
+import { useState, useEffect, useMemo, useCallback, useId } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
-  Package,
-  Plus,
-  Edit,
-  Trash2,
-  RefreshCw,
-  Filter,
-  X,
-  DollarSign,
-  Box,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  ChevronDown,
-  ChevronUp,
-  CheckSquare,
-  Square,
-  Gift,
-  Tag,
+  Search, Plus, Edit, Trash2, RefreshCw, Gift, Tag, Package, AlertTriangle,
 } from 'lucide-react'
-import axios from 'axios'
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../shared/components/PageHeader'
+import { Table, type ColumnDef } from '../shared/components/Table'
+import { Pagination } from '../shared/components/Pagination'
+import { Badge } from '../shared/components/Badge'
+import { Modal } from '../shared/components/Modal'
+import { Button } from '../shared/components/Button'
+import { IconButton } from '../shared/components/IconButton'
+import { Input } from '../shared/components/Input'
+import { Select } from '../shared/components/Select'
+import { Switch } from '../shared/components/Switch'
+import { Tooltip } from '../shared/components/Tooltip'
+import { FormField } from '../shared/components/FormField'
+import { Skeleton } from '../shared/components/Skeleton'
+import { useToast } from '../shared/components/Toast'
+import { useConfirm } from '../shared/components/ConfirmDialog'
+import { apiClient, formatApiError } from '../shared/lib/api'
+import { useFormat } from '../shared/lib/format'
 import './VariationsPage.css'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 interface Variation {
   id: string
@@ -39,6 +30,8 @@ interface Variation {
   stock: number
   is_active: boolean
   benefit_mode: string
+  product_id?: string
+  product_name?: string
   created_at: string
   updated_at: string
 }
@@ -47,10 +40,6 @@ interface ProductGroup {
   product_id: string
   product_name: string
   variations: Variation[]
-}
-
-interface VariationsResponse {
-  items: ProductGroup[]
 }
 
 interface Product {
@@ -64,8 +53,6 @@ interface BonusTier {
   min_quantity: number
   bonus_quantity: number
   is_active: boolean
-  created_at: string
-  updated_at: string
 }
 
 interface DiscountTier {
@@ -75,56 +62,82 @@ interface DiscountTier {
   discount_type: string
   discount_value: number
   is_active: boolean
-  created_at: string
-  updated_at: string
+}
+
+const LOW_STOCK_THRESHOLD = 5
+
+const BENEFIT_MODE_VARIANT: Record<string, 'success' | 'info' | 'neutral'> = {
+  bonus: 'success',
+  discount: 'info',
+  both: 'success',
+  none: 'neutral',
 }
 
 export function VariationsPage() {
-  const [productGroups, setProductGroups] = useState<ProductGroup[]>([])
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const confirm = useConfirm()
+  const fmt = useFormat()
+  const formId = useId()
+
+  // ── URL-synced filters ─────────────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlSearch = searchParams.get('q') ?? ''
+  const urlProductId = searchParams.get('product') ?? null
+  const urlActive = searchParams.get('active') ?? null
+  const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+
+  const setParam = useCallback(
+    (updates: Record<string, string | null>) => {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        for (const [k, v] of Object.entries(updates)) {
+          if (v === null || v === '') next.delete(k)
+          else next.set(k, v)
+        }
+        return next
+      }, { replace: true })
+    },
+    [setSearchParams],
+  )
+
+  const [searchInput, setSearchInput] = useState(urlSearch)
+  useEffect(() => { setSearchInput(urlSearch) }, [urlSearch])
+
+  // ── Data ───────────────────────────────────────────────────────────
+  const [allVariations, setAllVariations] = useState<Variation[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
-  // Filters
-  const [productFilter, setProductFilter] = useState<string | null>(null)
-  const [onlyActive, setOnlyActive] = useState<boolean | null>(null)
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set())
-  
-  // Bulk selection
-  const [selectedVariations, setSelectedVariations] = useState<Set<string>>(new Set())
-  const [showBulkActions, setShowBulkActions] = useState(false)
-  
-  // Modal states
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
-  const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null)
-  
-  // Form states
+  const [perPage, setPerPage] = useState(20)
+
+  // ── Selection ──────────────────────────────────────────────────────
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
+
+  // ── Form modal ─────────────────────────────────────────────────────
+  const [formOpen, setFormOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<Variation | null>(null)
   const [formData, setFormData] = useState({
-    id: '',
     product_id: '',
     name: '',
     price: '',
     is_active: true,
     benefit_mode: 'both',
   })
-  
-  // Bonus modal states
-  const [showBonusModal, setShowBonusModal] = useState(false)
-  const [bonusVariation, setBonusVariation] = useState<{variation: Variation, productName: string} | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [formSaving, setFormSaving] = useState(false)
+
+  // ── Bonus tier modal ───────────────────────────────────────────────
+  const [bonusOpen, setBonusOpen] = useState(false)
+  const [bonusVariation, setBonusVariation] = useState<Variation | null>(null)
   const [bonusTiers, setBonusTiers] = useState<BonusTier[]>([])
   const [bonusLoading, setBonusLoading] = useState(false)
-  const [bonusForm, setBonusForm] = useState({
-    min_quantity: '',
-    bonus_quantity: '',
-  })
-  const [editingBonusTier, setEditingBonusTier] = useState<BonusTier | null>(null)
+  const [bonusForm, setBonusForm] = useState({ min_quantity: '', bonus_quantity: '' })
+  const [editingBonus, setEditingBonus] = useState<BonusTier | null>(null)
 
-  // Discount modal states
-  const [showDiscountModal, setShowDiscountModal] = useState(false)
-  const [discountVariation, setDiscountVariation] = useState<{variation: Variation, productName: string} | null>(null)
+  // ── Discount tier modal ────────────────────────────────────────────
+  const [discountOpen, setDiscountOpen] = useState(false)
+  const [discountVariation, setDiscountVariation] = useState<Variation | null>(null)
   const [discountTiers, setDiscountTiers] = useState<DiscountTier[]>([])
   const [discountLoading, setDiscountLoading] = useState(false)
   const [discountForm, setDiscountForm] = useState({
@@ -132,1312 +145,831 @@ export function VariationsPage() {
     discount_type: 'percentage',
     discount_value: '',
   })
-  const [editingDiscountTier, setEditingDiscountTier] = useState<DiscountTier | null>(null)
-  const [benefitModeLoading, setBenefitModeLoading] = useState(false)
+  const [editingDiscount, setEditingDiscount] = useState<DiscountTier | null>(null)
+
+  // ── Fetch variations ───────────────────────────────────────────────
+  const fetchVariations = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params: Record<string, string> = {}
+      if (urlProductId) params.product_id = urlProductId
+      if (urlActive !== null) params.only_active = urlActive
+
+      const res = await apiClient.get<{ items: ProductGroup[] }>('/api/variations', { params })
+      const flat: Variation[] = []
+      for (const group of res.data.items) {
+        for (const v of group.variations) {
+          flat.push({ ...v, product_id: group.product_id, product_name: group.product_name })
+        }
+      }
+      setAllVariations(flat)
+    } catch (err) {
+      setError(formatApiError(err, t('variations.loadError', 'Không thể tải phân loại')))
+    } finally {
+      setLoading(false)
+    }
+  }, [urlProductId, urlActive, t])
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ items: Product[] }>('/api/products/', {
+        params: { page: 1, per_page: 100 },
+      })
+      setProducts(res.data.items)
+    } catch {
+      // silent — products are used for the filter dropdown
+    }
+  }, [])
 
   useEffect(() => {
     fetchVariations()
     fetchProducts()
-  }, [productFilter, onlyActive])
+  }, [fetchVariations, fetchProducts])
 
-  const fetchVariations = async () => {
+  // ── Client-side search + pagination ───────────────────────────────
+  const filtered = useMemo(() => {
+    if (!urlSearch) return allVariations
+    const q = urlSearch.toLowerCase()
+    return allVariations.filter(v =>
+      v.name.toLowerCase().includes(q) ||
+      (v.product_name ?? '').toLowerCase().includes(q) ||
+      v.id.toLowerCase().includes(q),
+    )
+  }, [allVariations, urlSearch])
+
+  const total = filtered.length
+  const paginated = useMemo(() => {
+    const start = (urlPage - 1) * perPage
+    return filtered.slice(start, start + perPage)
+  }, [filtered, urlPage, perPage])
+
+  // ── Toggle is_active optimistically ───────────────────────────────
+  const handleToggleActive = async (v: Variation, checked: boolean) => {
+    setAllVariations(prev => prev.map(x => x.id === v.id ? { ...x, is_active: checked } : x))
     try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      const params = new URLSearchParams()
-      
-      if (productFilter) {
-        params.append('product_id', productFilter)
-      }
-      if (onlyActive !== null) {
-        params.append('only_active', onlyActive.toString())
-      }
-      
-      const response = await axios.get<VariationsResponse>(
-        `${API_BASE_URL}/api/variations?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      
-      setProductGroups(response.data.items)
-      // Auto-expand all products initially
-      const allProductIds = new Set(response.data.items.map(p => p.product_id))
-      setExpandedProducts(allProductIds)
-      setError(null)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load variations')
-    } finally {
-      setLoading(false)
+      await apiClient.put(`/api/variations/${v.id}`, {
+        name: v.name,
+        price: v.price,
+        is_active: checked,
+        benefit_mode: v.benefit_mode,
+      })
+    } catch (err) {
+      setAllVariations(prev => prev.map(x => x.id === v.id ? { ...x, is_active: !checked } : x))
+      toast.error(formatApiError(err, t('variations.toggleError', 'Không thể thay đổi trạng thái')))
     }
   }
 
-  const fetchProducts = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      
-      // Fetch all products using pagination
-      const allProducts: Product[] = []
-      let page = 1
-      const perPage = 100 // Maximum allowed per page
-      let hasMore = true
-      
-      while (hasMore) {
-        const response = await axios.get<{ items: Product[], total: number, total_pages: number }>(
-          `${API_BASE_URL}/api/products?page=${page}&per_page=${perPage}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        )
-        
-        allProducts.push(...response.data.items)
-        
-        if (page >= response.data.total_pages) {
-          hasMore = false
-        } else {
-          page++
-        }
-      }
-      
-      setProducts(allProducts)
-    } catch (err: any) {
-      console.error('Failed to load products:', err)
-    }
-  }
-
-  const toggleProductExpansion = (productId: string) => {
-    const newExpanded = new Set(expandedProducts)
-    if (newExpanded.has(productId)) {
-      newExpanded.delete(productId)
-    } else {
-      newExpanded.add(productId)
-    }
-    setExpandedProducts(newExpanded)
-  }
-
+  // ── Form open/save ─────────────────────────────────────────────────
   const handleCreate = () => {
+    setEditTarget(null)
+    setFormData({ product_id: urlProductId ?? '', name: '', price: '', is_active: true, benefit_mode: 'both' })
+    setFormError(null)
+    setFormOpen(true)
+  }
+
+  const handleEdit = (v: Variation) => {
+    setEditTarget(v)
     setFormData({
-      id: '',
-      product_id: '',
-      name: '',
-      price: '',
-      is_active: true,
-      benefit_mode: 'both',
+      product_id: v.product_id ?? '',
+      name: v.name,
+      price: String(v.price),
+      is_active: v.is_active,
+      benefit_mode: v.benefit_mode ?? 'both',
     })
-    setShowCreateModal(true)
+    setFormError(null)
+    setFormOpen(true)
   }
 
-  const handleEdit = (variation: Variation, productId: string) => {
-    setSelectedVariation(variation)
-    setFormData({
-      id: variation.id,
-      product_id: productId,
-      name: variation.name,
-      price: variation.price.toString(),
-      is_active: variation.is_active,
-      benefit_mode: variation.benefit_mode || 'bonus',
-    })
-    setShowEditModal(true)
-  }
-
-  const handleDelete = (variation: Variation) => {
-    setSelectedVariation(variation)
-    setShowDeleteModal(true)
-  }
-
-  const handleSelectVariation = (variationId: string) => {
-    const newSelected = new Set(selectedVariations)
-    if (newSelected.has(variationId)) {
-      newSelected.delete(variationId)
-    } else {
-      newSelected.add(variationId)
-    }
-    setSelectedVariations(newSelected)
-    setShowBulkActions(newSelected.size > 0)
-  }
-
-  const handleSelectAll = (variationIds: string[]) => {
-    if (selectedVariations.size === variationIds.length) {
-      setSelectedVariations(new Set())
-      setShowBulkActions(false)
-    } else {
-      setSelectedVariations(new Set(variationIds))
-      setShowBulkActions(true)
-    }
-  }
-
-  const handleBulkActivate = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/variations/bulk/activate`,
-        { variation_ids: Array.from(selectedVariations) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setSelectedVariations(new Set())
-      setShowBulkActions(false)
-      fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to activate variations')
-    }
-  }
-
-  const handleBulkDeactivate = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/variations/bulk/deactivate`,
-        { variation_ids: Array.from(selectedVariations) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setSelectedVariations(new Set())
-      setShowBulkActions(false)
-      fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to deactivate variations')
-    }
-  }
-
-  const handleBulkDelete = () => {
-    setShowBulkDeleteModal(true)
-  }
-
-  const handleConfirmBulkDelete = async () => {
-    try {
-      const token = localStorage.getItem('token')
-      await axios.post(
-        `${API_BASE_URL}/api/variations/bulk/delete`,
-        { variation_ids: Array.from(selectedVariations) },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setSelectedVariations(new Set())
-      setShowBulkActions(false)
-      setShowBulkDeleteModal(false)
-      fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete variations')
-    }
-  }
-
-
-  const handleSubmitCreate = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    if (!formData.name.trim()) { setFormError(t('variations.nameRequired', 'Tên là bắt buộc')); return }
+    const price = parseInt(formData.price)
+    if (isNaN(price) || price < 0) { setFormError(t('variations.priceInvalid', 'Giá không hợp lệ')); return }
+    setFormSaving(true)
+    setFormError(null)
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(
-        `${API_BASE_URL}/api/variations`,
-        {
-          id: formData.id,
-          product_id: formData.product_id,
+      if (editTarget) {
+        await apiClient.put(`/api/variations/${editTarget.id}`, {
           name: formData.name,
-          price: parseInt(formData.price),
-          is_active: formData.is_active,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setShowCreateModal(false)
-      fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to create variation')
-    }
-  }
-
-  const handleSubmitEdit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedVariation) return
-    
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/variations/${selectedVariation.id}`,
-        {
-          name: formData.name,
-          price: parseInt(formData.price),
+          price,
           is_active: formData.is_active,
           benefit_mode: formData.benefit_mode,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setShowEditModal(false)
+        })
+        toast.success(t('variations.updated', 'Đã cập nhật'))
+      } else {
+        await apiClient.post('/api/variations', {
+          product_id: formData.product_id,
+          name: formData.name,
+          price,
+          is_active: formData.is_active,
+        })
+        toast.success(t('variations.created', 'Đã tạo phân loại'))
+      }
+      setFormOpen(false)
       fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update variation')
+    } catch (err) {
+      setFormError(formatApiError(err, t('variations.saveError', 'Không thể lưu')))
+    } finally {
+      setFormSaving(false)
     }
   }
 
-  const handleConfirmDelete = async () => {
-    if (!selectedVariation) return
-    
+  // ── Delete ─────────────────────────────────────────────────────────
+  const handleDelete = async (v: Variation) => {
+    const ok = await confirm({
+      title: t('variations.deleteTitle', 'Xoá phân loại?'),
+      description: `"${v.name}" ${t('variations.deleteDesc', 'sẽ bị xoá vĩnh viễn.')}`,
+      confirmLabel: t('common.delete', 'Xoá'),
+      variant: 'destructive',
+    })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      await axios.delete(
-        `${API_BASE_URL}/api/variations/${selectedVariation.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setShowDeleteModal(false)
+      await apiClient.delete(`/api/variations/${v.id}`)
+      toast.success(t('variations.deleted', 'Đã xoá'))
       fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete variation')
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.deleteError', 'Không thể xoá')))
     }
   }
 
-
-  const fetchLowStockVariations = async () => {
+  // ── Bulk delete ────────────────────────────────────────────────────
+  const handleBulkDelete = async () => {
+    if (selectedKeys.size === 0) return
+    const ok = await confirm({
+      title: t('variations.bulkDeleteTitle', `Xoá ${selectedKeys.size} phân loại?`),
+      description: t('variations.bulkDeleteDesc', 'Hành động này không thể hoàn tác.'),
+      confirmLabel: t('common.delete', 'Xoá'),
+      variant: 'destructive',
+    })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get<VariationsResponse>(
-        `${API_BASE_URL}/api/variations/low-stock?threshold=5`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setProductGroups(response.data.items)
-      const allProductIds = new Set(response.data.items.map(p => p.product_id))
-      setExpandedProducts(allProductIds)
-    } catch (err: any) {
-      alert('Failed to load low stock variations')
+      await apiClient.post('/api/variations/bulk/delete', { variation_ids: Array.from(selectedKeys) })
+      toast.success(t('variations.bulkDeleted', 'Đã xoá các phân loại đã chọn'))
+      setSelectedKeys(new Set())
+      fetchVariations()
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.bulkDeleteError', 'Không thể xoá')))
     }
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(price)
-  }
-
-  // Bonus management functions
-  const handleOpenBonusModal = async (variation: Variation, productName: string) => {
-    setBonusVariation({ variation, productName })
-    setShowBonusModal(true)
+  // ── Bonus tiers ────────────────────────────────────────────────────
+  const openBonusModal = async (v: Variation) => {
+    setBonusVariation(v)
+    setBonusOpen(true)
     setBonusForm({ min_quantity: '', bonus_quantity: '' })
-    setEditingBonusTier(null)
-    await fetchBonusTiers(variation.id)
-  }
-
-  const fetchBonusTiers = async (variationId: string) => {
+    setEditingBonus(null)
+    setBonusLoading(true)
     try {
-      setBonusLoading(true)
-      const token = localStorage.getItem('token')
-      const response = await axios.get<{ items: BonusTier[] }>(
-        `${API_BASE_URL}/api/variations/${variationId}/bonus-tiers?only_active=false`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await apiClient.get<{ items: BonusTier[] }>(
+        `/api/variations/${v.id}/bonus-tiers?only_active=false`,
       )
-      setBonusTiers(response.data.items)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to load bonus tiers')
+      setBonusTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.bonusLoadError', 'Không thể tải mức thưởng')))
     } finally {
       setBonusLoading(false)
     }
   }
 
-  const handleCreateBonusTier = async () => {
+  const saveBonusTier = async () => {
     if (!bonusVariation) return
-    
     const minQty = parseInt(bonusForm.min_quantity)
     const bonusQty = parseInt(bonusForm.bonus_quantity)
-    
-    if (isNaN(minQty) || minQty < 1) {
-      alert('Min quantity must be at least 1')
+    if (isNaN(minQty) || minQty < 1 || isNaN(bonusQty) || bonusQty < 1) {
+      toast.warning(t('variations.bonusInvalid', 'Số lượng không hợp lệ'))
       return
     }
-    if (isNaN(bonusQty) || bonusQty < 1) {
-      alert('Bonus quantity must be at least 1')
-      return
-    }
-    
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(
-        `${API_BASE_URL}/api/variations/${bonusVariation.variation.id}/bonus-tiers`,
-        {
-          min_quantity: minQty,
-          bonus_quantity: bonusQty,
-          is_active: true,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
+      if (editingBonus) {
+        await apiClient.put(`/api/bonus-tiers/${editingBonus.id}`, { min_quantity: minQty, bonus_quantity: bonusQty })
+      } else {
+        await apiClient.post(`/api/variations/${bonusVariation.id}/bonus-tiers`, {
+          min_quantity: minQty, bonus_quantity: bonusQty, is_active: true,
+        })
+      }
       setBonusForm({ min_quantity: '', bonus_quantity: '' })
-      await fetchBonusTiers(bonusVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to create bonus tier')
-    }
-  }
-
-  const handleUpdateBonusTier = async () => {
-    if (!editingBonusTier || !bonusVariation) return
-    
-    const minQty = parseInt(bonusForm.min_quantity)
-    const bonusQty = parseInt(bonusForm.bonus_quantity)
-    
-    if (isNaN(minQty) || minQty < 1) {
-      alert('Min quantity must be at least 1')
-      return
-    }
-    if (isNaN(bonusQty) || bonusQty < 1) {
-      alert('Bonus quantity must be at least 1')
-      return
-    }
-    
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/bonus-tiers/${editingBonusTier.id}`,
-        {
-          min_quantity: minQty,
-          bonus_quantity: bonusQty,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+      setEditingBonus(null)
+      const res = await apiClient.get<{ items: BonusTier[] }>(
+        `/api/variations/${bonusVariation.id}/bonus-tiers?only_active=false`,
       )
-      setBonusForm({ min_quantity: '', bonus_quantity: '' })
-      setEditingBonusTier(null)
-      await fetchBonusTiers(bonusVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update bonus tier')
+      setBonusTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.bonusSaveError', 'Không thể lưu mức thưởng')))
     }
   }
 
-  const handleDeleteBonusTier = async (tierId: string) => {
+  const deleteBonusTier = async (tierId: string) => {
     if (!bonusVariation) return
-    
-    if (!confirm('Are you sure you want to delete this bonus tier?')) return
-    
+    const ok = await confirm({ title: t('variations.bonusDeleteTitle', 'Xoá mức thưởng?'), variant: 'destructive', confirmLabel: t('common.delete', 'Xoá') })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      await axios.delete(
-        `${API_BASE_URL}/api/bonus-tiers/${tierId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      await fetchBonusTiers(bonusVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete bonus tier')
+      await apiClient.delete(`/api/bonus-tiers/${tierId}`)
+      const res = await apiClient.get<{ items: BonusTier[] }>(`/api/variations/${bonusVariation.id}/bonus-tiers?only_active=false`)
+      setBonusTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.bonusDeleteError', 'Không thể xoá')))
     }
   }
 
-  const handleToggleBonusTierActive = async (tier: BonusTier) => {
+  const toggleBonusTierActive = async (tier: BonusTier) => {
     if (!bonusVariation) return
-    
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/bonus-tiers/${tier.id}`,
-        { is_active: !tier.is_active },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      await fetchBonusTiers(bonusVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update bonus tier')
+      await apiClient.put(`/api/bonus-tiers/${tier.id}`, { is_active: !tier.is_active })
+      const res = await apiClient.get<{ items: BonusTier[] }>(`/api/variations/${bonusVariation.id}/bonus-tiers?only_active=false`)
+      setBonusTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.bonusToggleError', 'Không thể cập nhật')))
     }
   }
 
-  const handleEditBonusTier = (tier: BonusTier) => {
-    setEditingBonusTier(tier)
-    setBonusForm({
-      min_quantity: tier.min_quantity.toString(),
-      bonus_quantity: tier.bonus_quantity.toString(),
-    })
-  }
-
-  const handleCancelEditBonusTier = () => {
-    setEditingBonusTier(null)
-    setBonusForm({ min_quantity: '', bonus_quantity: '' })
-  }
-
-  // ── Discount tier handlers ──────────────────────────────────────────────
-
-  const handleOpenDiscountModal = async (variation: Variation, productName: string) => {
-    setDiscountVariation({ variation, productName })
-    setShowDiscountModal(true)
+  // ── Discount tiers ─────────────────────────────────────────────────
+  const openDiscountModal = async (v: Variation) => {
+    setDiscountVariation(v)
+    setDiscountOpen(true)
     setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
-    setEditingDiscountTier(null)
-    await fetchDiscountTiers(variation.id)
-  }
-
-  const fetchDiscountTiers = async (variationId: string) => {
+    setEditingDiscount(null)
+    setDiscountLoading(true)
     try {
-      setDiscountLoading(true)
-      const token = localStorage.getItem('token')
-      const response = await axios.get<{ items: DiscountTier[] }>(
-        `${API_BASE_URL}/api/variations/${variationId}/discount-tiers?only_active=false`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const res = await apiClient.get<{ items: DiscountTier[] }>(
+        `/api/variations/${v.id}/discount-tiers?only_active=false`,
       )
-      setDiscountTiers(response.data.items)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to load discount tiers')
+      setDiscountTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.discountLoadError', 'Không thể tải chiết khấu')))
     } finally {
       setDiscountLoading(false)
     }
   }
 
-  const handleCreateDiscountTier = async () => {
+  const saveDiscountTier = async () => {
     if (!discountVariation) return
     const minQty = parseInt(discountForm.min_quantity)
     const val = parseInt(discountForm.discount_value)
-    if (isNaN(minQty) || minQty < 1) { alert('Min quantity must be at least 1'); return }
-    if (isNaN(val) || val < 1) { alert('Discount value must be at least 1'); return }
-    if (discountForm.discount_type === 'percentage' && val > 100) { alert('Percentage must be 1-100'); return }
+    if (isNaN(minQty) || minQty < 1 || isNaN(val) || val < 1) {
+      toast.warning(t('variations.discountInvalid', 'Giá trị không hợp lệ'))
+      return
+    }
+    if (discountForm.discount_type === 'percentage' && val > 100) {
+      toast.warning(t('variations.discountPercentMax', 'Phần trăm tối đa là 100'))
+      return
+    }
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(
-        `${API_BASE_URL}/api/variations/${discountVariation.variation.id}/discount-tiers`,
-        { min_quantity: minQty, discount_type: discountForm.discount_type, discount_value: val, is_active: true },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
+      if (editingDiscount) {
+        await apiClient.put(`/api/discount-tiers/${editingDiscount.id}`, {
+          min_quantity: minQty, discount_type: discountForm.discount_type, discount_value: val,
+        })
+      } else {
+        await apiClient.post(`/api/variations/${discountVariation.id}/discount-tiers`, {
+          min_quantity: minQty, discount_type: discountForm.discount_type, discount_value: val, is_active: true,
+        })
+      }
       setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
-      await fetchDiscountTiers(discountVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to create discount tier')
+      setEditingDiscount(null)
+      const res = await apiClient.get<{ items: DiscountTier[] }>(`/api/variations/${discountVariation.id}/discount-tiers?only_active=false`)
+      setDiscountTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.discountSaveError', 'Không thể lưu chiết khấu')))
     }
   }
 
-  const handleUpdateDiscountTier = async () => {
-    if (!editingDiscountTier || !discountVariation) return
-    const minQty = parseInt(discountForm.min_quantity)
-    const val = parseInt(discountForm.discount_value)
-    if (isNaN(minQty) || minQty < 1) { alert('Min quantity must be at least 1'); return }
-    if (isNaN(val) || val < 1) { alert('Discount value must be at least 1'); return }
-    if (discountForm.discount_type === 'percentage' && val > 100) { alert('Percentage must be 1-100'); return }
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/discount-tiers/${editingDiscountTier.id}`,
-        { min_quantity: minQty, discount_type: discountForm.discount_type, discount_value: val },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
-      setEditingDiscountTier(null)
-      await fetchDiscountTiers(discountVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update discount tier')
-    }
-  }
-
-  const handleDeleteDiscountTier = async (tierId: string) => {
+  const deleteDiscountTier = async (tierId: string) => {
     if (!discountVariation) return
-    if (!confirm('Delete this discount tier?')) return
+    const ok = await confirm({ title: t('variations.discountDeleteTitle', 'Xoá mức chiết khấu?'), variant: 'destructive', confirmLabel: t('common.delete', 'Xoá') })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      await axios.delete(`${API_BASE_URL}/api/discount-tiers/${tierId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      await fetchDiscountTiers(discountVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete discount tier')
+      await apiClient.delete(`/api/discount-tiers/${tierId}`)
+      const res = await apiClient.get<{ items: DiscountTier[] }>(`/api/variations/${discountVariation.id}/discount-tiers?only_active=false`)
+      setDiscountTiers(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('variations.discountDeleteError', 'Không thể xoá')))
     }
   }
 
-  const handleToggleDiscountTierActive = async (tier: DiscountTier) => {
-    if (!discountVariation) return
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/discount-tiers/${tier.id}`,
-        { is_active: !tier.is_active },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      await fetchDiscountTiers(discountVariation.variation.id)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update discount tier')
-    }
-  }
+  // ── Column definitions ─────────────────────────────────────────────
+  const productOptions = useMemo(() =>
+    products.map(p => ({ value: p.id, label: p.name })),
+    [products],
+  )
 
-  const handleEditDiscountTier = (tier: DiscountTier) => {
-    setEditingDiscountTier(tier)
-    setDiscountForm({
-      min_quantity: tier.min_quantity.toString(),
-      discount_type: tier.discount_type,
-      discount_value: tier.discount_value.toString(),
-    })
-  }
+  const benefitModeOptions = useMemo(() => [
+    { value: 'both', label: t('variations.mode.both', 'Thưởng + Giảm giá') },
+    { value: 'bonus', label: t('variations.mode.bonus', 'Chỉ thưởng') },
+    { value: 'discount', label: t('variations.mode.discount', 'Chỉ giảm giá') },
+    { value: 'none', label: t('variations.mode.none', 'Không') },
+  ], [t])
 
-  const handleCancelEditDiscountTier = () => {
-    setEditingDiscountTier(null)
-    setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' })
-  }
-
-  const handleUpdateBenefitMode = async (variationId: string, mode: string) => {
-    try {
-      setBenefitModeLoading(true)
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/variations/${variationId}`,
-        { benefit_mode: mode },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      // Update local state so the badge refreshes
-      setDiscountVariation(prev => prev ? {
-        ...prev,
-        variation: { ...prev.variation, benefit_mode: mode }
-      } : prev)
-      fetchVariations()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update benefit mode')
-    } finally {
-      setBenefitModeLoading(false)
-    }
-  }
-
-  if (loading && productGroups.length === 0) {
-    return (
-      <div className="variations-page">
-        <div className="loading-state">
-          <RefreshCw className="spinning" />
-          <p>Loading variations...</p>
+  const columns = useMemo<ColumnDef<Variation>[]>(() => [
+    {
+      id: 'product',
+      header: t('variations.colProduct', 'Sản phẩm'),
+      width: 180,
+      cell: row => (
+        <span className="variations-page__product-name">{row.product_name ?? '—'}</span>
+      ),
+    },
+    {
+      id: 'name',
+      header: t('variations.colName', 'Tên phân loại'),
+      cell: row => (
+        <div className="variations-page__name-cell">
+          <span>{row.name}</span>
+          <span className="variations-page__id num">#{row.id.slice(0, 8)}</span>
         </div>
-      </div>
-    )
-  }
+      ),
+    },
+    {
+      id: 'price',
+      header: t('variations.colPrice', 'Giá'),
+      mono: true,
+      align: 'right',
+      sortable: false,
+      width: 130,
+      cell: row => fmt.currency(row.price),
+    },
+    {
+      id: 'stock',
+      header: t('variations.colStock', 'Tồn kho'),
+      mono: true,
+      align: 'right',
+      width: 100,
+      cell: row => (
+        <span className="variations-page__stock">
+          {row.stock}
+          {row.stock <= LOW_STOCK_THRESHOLD && (
+            <Tooltip content={t('variations.lowStock', 'Sắp hết hàng')}>
+              <AlertTriangle size={12} className="variations-page__low-stock-icon" />
+            </Tooltip>
+          )}
+        </span>
+      ),
+    },
+    {
+      id: 'benefit_mode',
+      header: t('variations.colMode', 'Chế độ'),
+      width: 140,
+      cell: row => (
+        <Badge variant={BENEFIT_MODE_VARIANT[row.benefit_mode] ?? 'neutral'} size="sm">
+          {t(`variations.mode.${row.benefit_mode}`, row.benefit_mode)}
+        </Badge>
+      ),
+    },
+    {
+      id: 'is_active',
+      header: t('variations.colActive', 'Hoạt động'),
+      width: 90,
+      align: 'center',
+      cell: row => (
+        <span onClick={e => e.stopPropagation()}>
+          <Switch
+            checked={row.is_active}
+            onChange={checked => handleToggleActive(row, checked)}
+            aria-label={t('variations.toggleActive', 'Bật/tắt')}
+          />
+        </span>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      width: 140,
+      align: 'right',
+      cell: row => (
+        <div className="variations-page__actions">
+          <Tooltip content={t('variations.bonusTiers', 'Mức thưởng')}>
+            <IconButton
+              icon={<Gift size={13} />}
+              aria-label={t('variations.bonusTiers', 'Mức thưởng')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); openBonusModal(row) }}
+            />
+          </Tooltip>
+          <Tooltip content={t('variations.discountTiers', 'Chiết khấu')}>
+            <IconButton
+              icon={<Tag size={13} />}
+              aria-label={t('variations.discountTiers', 'Chiết khấu')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); openDiscountModal(row) }}
+            />
+          </Tooltip>
+          <Tooltip content={t('common.edit', 'Sửa')}>
+            <IconButton
+              icon={<Edit size={13} />}
+              aria-label={t('common.edit', 'Sửa')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); handleEdit(row) }}
+            />
+          </Tooltip>
+          <Tooltip content={t('common.delete', 'Xoá')}>
+            <IconButton
+              icon={<Trash2 size={13} />}
+              aria-label={t('common.delete', 'Xoá')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); handleDelete(row) }}
+            />
+          </Tooltip>
+        </div>
+      ),
+    },
+  ], [t, fmt])
 
   return (
     <div className="variations-page">
-      <div className="page-header">
-        <h1>Variation Management</h1>
-        <div className="header-actions">
-          <Button onClick={fetchLowStockVariations} variant="secondary" size="small">
-            <AlertTriangle size={16} />
-            <span>Low Stock</span>
-          </Button>
-          {showBulkActions && (
-            <div className="bulk-actions">
-              <Button onClick={handleBulkActivate} variant="secondary" size="small">
-                <CheckCircle size={16} />
-                <span>Activate ({selectedVariations.size})</span>
-              </Button>
-              <Button onClick={handleBulkDeactivate} variant="secondary" size="small">
-                <XCircle size={16} />
-                <span>Deactivate ({selectedVariations.size})</span>
-              </Button>
-              <Button onClick={handleBulkDelete} variant="secondary" size="small">
-                <Trash2 size={16} />
-                <span>Delete ({selectedVariations.size})</span>
-              </Button>
-              <Button onClick={() => { setSelectedVariations(new Set()); setShowBulkActions(false); }} variant="secondary" size="small">
-                <X size={16} />
-                <span>Clear</span>
-              </Button>
-            </div>
-          )}
-          <Button onClick={handleCreate}>
-            <Plus size={18} />
-            <span>Create Variation</span>
-          </Button>
-        </div>
+      <PageHeader
+        title={t('nav.variations', 'Phân loại sản phẩm')}
+        actions={
+          <div className="variations-page__header-actions">
+            <IconButton
+              icon={<RefreshCw size={14} />}
+              aria-label={t('common.refresh', 'Làm mới')}
+              variant="ghost"
+              size="sm"
+              onClick={fetchVariations}
+            />
+            <Button
+              variant="primary"
+              size="sm"
+              iconLeft={<Plus size={14} />}
+              onClick={handleCreate}
+            >
+              {t('variations.create', 'Tạo phân loại')}
+            </Button>
+          </div>
+        }
+      />
+
+      {/* ── Filters ──────────────────────────────────────────────── */}
+      <div className="variations-page__filters">
+        <Input
+          leftIcon={<Search size={14} />}
+          placeholder={t('variations.searchPlaceholder', 'Tìm phân loại...')}
+          value={searchInput}
+          clearable
+          size="sm"
+          onChange={e => setSearchInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') setParam({ q: searchInput, page: null }) }}
+          onBlur={() => { if (searchInput !== urlSearch) setParam({ q: searchInput, page: null }) }}
+          className="variations-page__search"
+        />
+        <Select
+          options={productOptions}
+          value={urlProductId}
+          onChange={v => setParam({ product: v, page: null })}
+          placeholder={t('variations.allProducts', 'Tất cả sản phẩm')}
+          clearable
+          searchable
+          size="sm"
+          className="variations-page__product-select"
+        />
+        <Select
+          options={[
+            { value: 'true', label: t('products.active', 'Hoạt động') },
+            { value: 'false', label: t('products.inactive', 'Tắt') },
+          ]}
+          value={urlActive}
+          onChange={v => setParam({ active: v, page: null })}
+          placeholder={t('variations.allStatus', 'Tất cả trạng thái')}
+          clearable
+          size="sm"
+          className="variations-page__active-select"
+        />
       </div>
 
-      {/* Filters */}
-      <Card className="filters-card">
-        <div className="filters-content">
-          <div className="filter-icon-wrapper">
-            <Filter size={18} />
-          </div>
-          <div className="filter-group">
-            <Select
-              options={[
-                { value: null, label: 'All Products' },
-                ...products.map(p => ({ value: p.id, label: p.name })),
-              ]}
-              value={productFilter}
-              onChange={(value) => {
-                setProductFilter(value as string | null)
-              }}
-              placeholder="Filter by Product"
-            />
-          </div>
-          <div className="filter-group">
-            <Select
-              options={[
-                { value: null, label: 'All Status' },
-                { value: true, label: 'Active' },
-                { value: false, label: 'Inactive' },
-              ]}
-              value={onlyActive}
-              onChange={(value) => {
-                setOnlyActive(value as boolean | null)
-              }}
-              placeholder="Filter by Status"
-            />
-          </div>
+      {/* ── Bulk action bar ───────────────────────────────────────── */}
+      {selectedKeys.size > 0 && (
+        <div className="variations-page__bulk-bar">
+          <span className="variations-page__bulk-count">
+            {t('variations.selected', `Đã chọn ${selectedKeys.size}`)}
+          </span>
+          <Button variant="destructive" tone="subtle" size="sm" iconLeft={<Trash2 size={13} />} onClick={handleBulkDelete}>
+            {t('variations.bulkDelete', 'Xoá đã chọn')}
+          </Button>
         </div>
-      </Card>
+      )}
 
-      {/* Variations List */}
+      {/* ── Error ─────────────────────────────────────────────────── */}
       {error && (
-        <Card>
-          <div className="error-banner">
-            <span>{error}</span>
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        </Card>
+        <div className="variations-page__error" role="alert">
+          <span>{error}</span>
+          <IconButton icon={<RefreshCw size={14} />} aria-label={t('common.retry', 'Thử lại')} size="sm" variant="ghost" onClick={fetchVariations} />
+        </div>
       )}
 
-      {productGroups.length === 0 ? (
-        <Card>
-          <div className="empty-state">
-            <Package size={48} />
-            <p>No variations found</p>
+      {/* ── Table ─────────────────────────────────────────────────── */}
+      <div className="variations-page__table-card">
+        <Table<Variation>
+          columns={columns}
+          data={paginated}
+          keyFn={row => row.id}
+          loading={loading}
+          skeletonRows={10}
+          selectable
+          selectedKeys={selectedKeys}
+          onSelectionChange={setSelectedKeys}
+          stickyHeader
+          emptyIcon={<Package size={40} />}
+          emptyTitle={t('variations.empty', 'Chưa có phân loại')}
+          emptyDescription={t('variations.emptyDesc', 'Tạo phân loại đầu tiên cho sản phẩm')}
+        />
+        <Pagination
+          page={urlPage}
+          pageSize={perPage}
+          total={total}
+          onPageChange={p => setParam({ page: String(p) })}
+          onPageSizeChange={size => { setPerPage(size); setParam({ page: null }) }}
+          className="variations-page__pagination"
+        />
+      </div>
+
+      {/* ── Create / Edit Modal ───────────────────────────────────── */}
+      <Modal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        size="md"
+        title={editTarget ? t('variations.editTitle', 'Sửa phân loại') : t('variations.createTitle', 'Tạo phân loại')}
+        footer={
+          <div className="variations-page__modal-footer">
+            <Button variant="secondary" tone="ghost" size="sm" onClick={() => setFormOpen(false)}>{t('common.cancel', 'Huỷ')}</Button>
+            <Button variant="primary" size="sm" type="submit" form={formId} loading={formSaving}>
+              {editTarget ? t('common.save', 'Lưu') : t('variations.create', 'Tạo')}
+            </Button>
           </div>
-        </Card>
-      ) : (
-        productGroups.map((group) => (
-          <Card key={group.product_id} className="product-group-card">
-            <div
-              className="product-group-header"
-              onClick={() => toggleProductExpansion(group.product_id)}
-            >
-              <div className="product-group-title">
-                {expandedProducts.has(group.product_id) ? (
-                  <ChevronDown size={20} />
-                ) : (
-                  <ChevronUp size={20} />
-                )}
-                <Package size={20} />
-                <h2>{group.product_name}</h2>
-                <span className="variation-count">({group.variations.length} variations)</span>
-              </div>
-            </div>
-            
-            {expandedProducts.has(group.product_id) && (
-              <div className="variations-table-wrapper">
-                <table className="variations-table">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}>
-                        <button
-                          className="select-all-button"
-                          onClick={() => handleSelectAll(group.variations.map(v => v.id))}
-                          title="Select all"
-                        >
-                          {selectedVariations.size === group.variations.length && 
-                           group.variations.every(v => selectedVariations.has(v.id)) ? (
-                            <CheckSquare size={18} />
-                          ) : (
-                            <Square size={18} />
-                          )}
-                        </button>
-                      </th>
-                      <th>Name</th>
-                      <th>Price</th>
-                      <th>Stock</th>
-                      <th>Status</th>
-                      <th>Created</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.variations.map((variation) => (
-                      <tr key={variation.id} className={selectedVariations.has(variation.id) ? 'selected' : ''}>
-                        <td>
-                          <button
-                            className="select-variation-button"
-                            onClick={() => handleSelectVariation(variation.id)}
-                            title="Select variation"
-                          >
-                            {selectedVariations.has(variation.id) ? (
-                              <CheckSquare size={18} />
-                            ) : (
-                              <Square size={18} />
-                            )}
-                          </button>
-                        </td>
-                        <td className="variation-name">{variation.name}</td>
-                        <td className="variation-price">{formatPrice(variation.price)}</td>
-                        <td>
-                          <div className="stock-cell">
-                            <Box size={16} />
-                            <span className={variation.stock <= 5 ? 'low-stock' : ''}>
-                              {variation.stock}
-                            </span>
-                            {variation.stock <= 5 && (
-                              <AlertTriangle size={14} className="stock-alert-icon" />
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`status-badge ${variation.is_active ? 'active' : 'inactive'}`}>
-                            {variation.is_active ? (
-                              <>
-                                <CheckCircle size={14} />
-                                Active
-                              </>
-                            ) : (
-                              <>
-                                <XCircle size={14} />
-                                Inactive
-                              </>
-                            )}
-                          </span>
-                        </td>
-                        <td className="date-cell">
-                          {new Date(variation.created_at).toLocaleDateString()}
-                        </td>
-                        <td>
-                          <div className="action-buttons">
-                            <Button
-                              onClick={() => handleOpenBonusModal(variation, group.product_name)}
-                              variant="secondary"
-                              size="small"
-                              title="Bonus Config"
-                            >
-                              <Gift size={14} />
-                            </Button>
-                            <Button
-                              onClick={() => handleOpenDiscountModal(variation, group.product_name)}
-                              variant="secondary"
-                              size="small"
-                              title="Discount Config"
-                            >
-                              <Tag size={14} />
-                            </Button>
-                            <Button
-                              onClick={() => handleEdit(variation, group.product_id)}
-                              variant="secondary"
-                              size="small"
-                              title="Edit"
-                            >
-                              <Edit size={14} />
-                            </Button>
-                            <Button
-                              onClick={() => handleDelete(variation)}
-                              variant="secondary"
-                              size="small"
-                              title="Delete"
-                            >
-                              <Trash2 size={14} />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        }
+      >
+        <form id={formId} onSubmit={handleSave} className="variations-page__form">
+          {formError && <div className="variations-page__form-error" role="alert">{formError}</div>}
+
+          {!editTarget && (
+            <FormField label={t('variations.fieldProduct', 'Sản phẩm')} htmlFor={`${formId}-product`}>
+              <Select
+                options={productOptions}
+                value={formData.product_id || null}
+                onChange={v => setFormData(d => ({ ...d, product_id: v ?? '' }))}
+                placeholder={t('variations.selectProduct', 'Chọn sản phẩm')}
+                searchable
+              />
+            </FormField>
+          )}
+
+          <FormField label={t('variations.fieldName', 'Tên phân loại')} htmlFor={`${formId}-name`}>
+            <Input
+              id={`${formId}-name`}
+              value={formData.name}
+              onChange={e => setFormData(d => ({ ...d, name: e.target.value }))}
+              placeholder={t('variations.namePlaceholder', 'Ví dụ: 100 follow')}
+              required
+            />
+          </FormField>
+
+          <FormField label={t('variations.fieldPrice', 'Giá (VND)')} htmlFor={`${formId}-price`}>
+            <Input
+              id={`${formId}-price`}
+              type="number"
+              min="0"
+              value={formData.price}
+              onChange={e => setFormData(d => ({ ...d, price: e.target.value }))}
+              placeholder="0"
+              required
+            />
+          </FormField>
+
+          {editTarget && (
+            <FormField label={t('variations.fieldMode', 'Chế độ ưu đãi')} htmlFor={`${formId}-mode`}>
+              <Select
+                options={benefitModeOptions}
+                value={formData.benefit_mode}
+                onChange={v => v && setFormData(d => ({ ...d, benefit_mode: v }))}
+              />
+            </FormField>
+          )}
+
+          <div className="variations-page__form-switch">
+            <Switch
+              checked={formData.is_active}
+              onChange={checked => setFormData(d => ({ ...d, is_active: checked }))}
+              label={t('variations.fieldActive', 'Kích hoạt')}
+            />
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── Bonus Tiers Modal ─────────────────────────────────────── */}
+      <Modal
+        open={bonusOpen}
+        onClose={() => setBonusOpen(false)}
+        size="lg"
+        title={`${t('variations.bonusTiers', 'Mức thưởng')} — ${bonusVariation?.name ?? ''}`}
+        footer={
+          <Button variant="secondary" tone="ghost" size="sm" onClick={() => setBonusOpen(false)}>{t('common.close', 'Đóng')}</Button>
+        }
+      >
+        <div className="variations-page__tier-body">
+          {/* Add / Edit form */}
+          <div className="variations-page__tier-form">
+            <Input
+              type="number"
+              min="1"
+              placeholder={t('variations.minQty', 'SL tối thiểu')}
+              value={bonusForm.min_quantity}
+              onChange={e => setBonusForm(f => ({ ...f, min_quantity: e.target.value }))}
+              size="sm"
+            />
+            <Input
+              type="number"
+              min="1"
+              placeholder={t('variations.bonusQty', 'SL thưởng')}
+              value={bonusForm.bonus_quantity}
+              onChange={e => setBonusForm(f => ({ ...f, bonus_quantity: e.target.value }))}
+              size="sm"
+            />
+            <Button variant="primary" size="sm" onClick={saveBonusTier}>
+              {editingBonus ? t('common.save', 'Lưu') : t('common.add', 'Thêm')}
+            </Button>
+            {editingBonus && (
+              <Button variant="secondary" tone="ghost" size="sm" onClick={() => { setEditingBonus(null); setBonusForm({ min_quantity: '', bonus_quantity: '' }) }}>
+                {t('common.cancel', 'Huỷ')}
+              </Button>
             )}
-          </Card>
-        ))
-      )}
-
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Plus size={20} />
-                Create Variation
-              </h2>
-              <button onClick={() => setShowCreateModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleSubmitCreate}>
-              <div className="form-group">
-                <label>
-                  <Package size={16} />
-                  Variation ID
-                </label>
-                <Input
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  placeholder="var_1"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <Package size={16} />
-                  Product
-                </label>
-                <Select
-                  options={products.map(p => ({ value: p.id, label: p.name }))}
-                  value={formData.product_id}
-                  onChange={(value) => setFormData({ ...formData, product_id: value as string })}
-                  placeholder="Select Product"
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <Package size={16} />
-                  Name
-                </label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Pro 12M 1PCS"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <DollarSign size={16} />
-                  Price (VND)
-                </label>
-                <Input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="100000"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  />
-                  <span>Active</span>
-                </label>
-              </div>
-              <div className="modal-actions">
-                <Button type="button" variant="secondary" onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create</Button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
 
-      {/* Edit Modal */}
-      {showEditModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Edit size={20} />
-                Edit Variation
-              </h2>
-              <button onClick={() => setShowEditModal(false)}>×</button>
+          {/* Tiers table */}
+          {bonusLoading ? (
+            <div className="variations-page__tier-skel">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} variant="line" height={36} />)}
             </div>
-            <form onSubmit={handleSubmitEdit}>
-              <div className="form-group">
-                <label>
-                  <Package size={16} />
-                  Name
-                </label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>
-                  <DollarSign size={16} />
-                  Price (VND)
-                </label>
-                <Input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  required
-                />
-              </div>
-              {/* Stock is managed automatically based on pre-uploaded products; no manual editing needed here. */}
-              <div className="form-group">
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  />
-                  <span>Active</span>
-                </label>
-              </div>
-              <div className="form-group">
-                <label>
-                  <Tag size={16} />
-                  Benefit Mode
-                </label>
-                <Select
-                  options={[
-                    { value: 'bonus', label: 'Bonus only (buy X get Y free)' },
-                    { value: 'discount', label: 'Discount only (quantity threshold pricing)' },
-                    { value: 'both', label: 'Both (bonus + discount)' },
-                  ]}
-                  value={formData.benefit_mode}
-                  onChange={(value) => setFormData({ ...formData, benefit_mode: value as string })}
-                />
-              </div>
-              <div className="modal-actions">
-                <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Update</Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Trash2 size={20} />
-                Delete Variation
-              </h2>
-              <button onClick={() => setShowDeleteModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p>Are you sure you want to delete "{selectedVariation?.name}"?</p>
-              <p className="delete-warning" style={{ marginTop: '12px', color: '#EF4444', fontSize: '14px' }}>
-                This will permanently delete the variation. This action cannot be undone.
-              </p>
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={handleConfirmDelete}>
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Delete Modal */}
-      {showBulkDeleteModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Trash2 size={20} />
-                Delete Variations
-              </h2>
-              <button onClick={() => setShowBulkDeleteModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p>Are you sure you want to delete {selectedVariations.size} variation(s)?</p>
-              <p className="delete-warning" style={{ marginTop: '12px', color: '#EF4444', fontSize: '14px' }}>
-                This will permanently delete the selected variations. This action cannot be undone.
-              </p>
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={handleConfirmBulkDelete}>
-                Delete
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Discount Configuration Modal */}
-      {showDiscountModal && discountVariation && (
-        <div className="modal-overlay">
-          <div className="modal-content bonus-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Tag size={20} />
-                Discount Configuration
-              </h2>
-              <button onClick={() => setShowDiscountModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p className="bonus-variation-info">
-                <strong>Product:</strong> {discountVariation.productName}<br />
-                <strong>Variation:</strong> {discountVariation.variation.name}
-              </p>
-
-              {/* Benefit Mode selector */}
-              <div className="bonus-form" style={{ marginBottom: '16px' }}>
-                <h3>Benefit Mode</h3>
-                <p style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '8px' }}>
-                  Controls which reward system applies when a customer orders this variation.
-                </p>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {(['bonus', 'discount', 'both'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => handleUpdateBenefitMode(discountVariation.variation.id, mode)}
-                      disabled={benefitModeLoading}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: '6px',
-                        border: '1px solid',
-                        cursor: benefitModeLoading ? 'not-allowed' : 'pointer',
-                        fontSize: '13px',
-                        borderColor: discountVariation.variation.benefit_mode === mode ? '#6EA8FF' : '#374151',
-                        background: discountVariation.variation.benefit_mode === mode ? 'rgba(110,168,255,0.15)' : 'transparent',
-                        color: discountVariation.variation.benefit_mode === mode ? '#6EA8FF' : '#9CA3AF',
-                      }}
-                    >
-                      {mode === 'bonus' ? '🎁 Bonus only' : mode === 'discount' ? '🏷️ Discount only' : '✨ Both'}
-                    </button>
+          ) : bonusTiers.length === 0 ? (
+            <p className="variations-page__tier-empty">{t('variations.noBonusTiers', 'Chưa có mức thưởng')}</p>
+          ) : (
+            <div className="variations-page__tier-table-wrap">
+              <table className="variations-page__tier-table">
+                <thead>
+                  <tr>
+                    <th className="num">{t('variations.minQty', 'SL tối thiểu')}</th>
+                    <th className="num">{t('variations.bonusQty', 'SL thưởng')}</th>
+                    <th>{t('variations.colActive', 'Hoạt động')}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bonusTiers.map(tier => (
+                    <tr key={tier.id}>
+                      <td className="num">{tier.min_quantity}</td>
+                      <td className="num">{tier.bonus_quantity}</td>
+                      <td>
+                        <Switch
+                          checked={tier.is_active}
+                          onChange={() => toggleBonusTierActive(tier)}
+                          aria-label={t('variations.toggleActive', 'Bật/tắt')}
+                        />
+                      </td>
+                      <td>
+                        <div className="variations-page__tier-actions">
+                          <IconButton
+                            icon={<Edit size={13} />}
+                            aria-label={t('common.edit', 'Sửa')}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { setEditingBonus(tier); setBonusForm({ min_quantity: String(tier.min_quantity), bonus_quantity: String(tier.bonus_quantity) }) }}
+                          />
+                          <IconButton
+                            icon={<Trash2 size={13} />}
+                            aria-label={t('common.delete', 'Xoá')}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteBonusTier(tier.id)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </div>
-
-              {/* Add/Edit Discount Form */}
-              <div className="bonus-form">
-                <h3>{editingDiscountTier ? 'Edit Discount Tier' : 'Add Discount Tier'}</h3>
-                <div className="bonus-form-row" style={{ flexWrap: 'wrap', gap: '10px' }}>
-                  <div className="form-group">
-                    <label>Min Quantity</label>
-                    <Input
-                      type="number"
-                      value={discountForm.min_quantity}
-                      onChange={(e) => setDiscountForm({ ...discountForm, min_quantity: e.target.value })}
-                      placeholder="e.g., 10"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Type</label>
-                    <Select
-                      options={[
-                        { value: 'percentage', label: '% off total' },
-                        { value: 'fixed_price', label: 'Fixed price per item' },
-                      ]}
-                      value={discountForm.discount_type}
-                      onChange={(value) => setDiscountForm({ ...discountForm, discount_type: value as string })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>
-                      {discountForm.discount_type === 'percentage' ? 'Discount %' : 'Price per item (VND)'}
-                    </label>
-                    <Input
-                      type="number"
-                      value={discountForm.discount_value}
-                      onChange={(e) => setDiscountForm({ ...discountForm, discount_value: e.target.value })}
-                      placeholder={discountForm.discount_type === 'percentage' ? 'e.g., 5' : 'e.g., 10000'}
-                    />
-                  </div>
-                  <div className="bonus-form-actions">
-                    {editingDiscountTier ? (
-                      <>
-                        <Button onClick={handleUpdateDiscountTier} size="small">Update</Button>
-                        <Button onClick={handleCancelEditDiscountTier} variant="secondary" size="small">Cancel</Button>
-                      </>
-                    ) : (
-                      <Button onClick={handleCreateDiscountTier} size="small">
-                        <Plus size={14} />
-                        Add
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Discount Tiers List */}
-              <div className="bonus-tiers-list">
-                <h3>Existing Discount Tiers</h3>
-                {discountLoading ? (
-                  <p className="loading-text">Loading...</p>
-                ) : discountTiers.length === 0 ? (
-                  <p className="empty-text">No discount tiers configured for this variation.</p>
-                ) : (
-                  <table className="bonus-tiers-table">
-                    <thead>
-                      <tr>
-                        <th>Min Qty</th>
-                        <th>Type</th>
-                        <th>Value</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {discountTiers.map((tier) => (
-                        <tr key={tier.id} className={!tier.is_active ? 'inactive-row' : ''}>
-                          <td>{tier.min_quantity}+</td>
-                          <td>{tier.discount_type === 'percentage' ? '%' : 'Fixed'}</td>
-                          <td>
-                            {tier.discount_type === 'percentage'
-                              ? `${tier.discount_value}% off`
-                              : `${tier.discount_value.toLocaleString()}đ/item`}
-                          </td>
-                          <td>
-                            <span className={`status-badge ${tier.is_active ? 'active' : 'inactive'}`}>
-                              {tier.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="bonus-tier-actions">
-                              <Button
-                                onClick={() => handleToggleDiscountTierActive(tier)}
-                                variant="secondary"
-                                size="small"
-                                title={tier.is_active ? 'Deactivate' : 'Activate'}
-                              >
-                                {tier.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
-                              </Button>
-                              <Button
-                                onClick={() => handleEditDiscountTier(tier)}
-                                variant="secondary"
-                                size="small"
-                                title="Edit"
-                              >
-                                <Edit size={14} />
-                              </Button>
-                              <Button
-                                onClick={() => handleDeleteDiscountTier(tier.id)}
-                                variant="secondary"
-                                size="small"
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+                </tbody>
+              </table>
             </div>
-            <div className="modal-actions">
-              <Button type="button" onClick={() => setShowDiscountModal(false)}>Close</Button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </Modal>
 
-      {/* Bonus Configuration Modal */}
-      {showBonusModal && bonusVariation && (
-        <div className="modal-overlay">
-          <div className="modal-content bonus-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Gift size={20} />
-                Bonus Configuration
-              </h2>
-              <button onClick={() => setShowBonusModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p className="bonus-variation-info">
-                <strong>Product:</strong> {bonusVariation.productName}<br />
-                <strong>Variation:</strong> {bonusVariation.variation.name}
-              </p>
-              
-              {/* Add/Edit Bonus Form */}
-              <div className="bonus-form">
-                <h3>{editingBonusTier ? 'Edit Bonus Tier' : 'Add Bonus Tier'}</h3>
-                <div className="bonus-form-row">
-                  <div className="form-group">
-                    <label>Min Quantity</label>
-                    <Input
-                      type="number"
-                      value={bonusForm.min_quantity}
-                      onChange={(e) => setBonusForm({ ...bonusForm, min_quantity: e.target.value })}
-                      placeholder="e.g., 10"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Bonus Quantity</label>
-                    <Input
-                      type="number"
-                      value={bonusForm.bonus_quantity}
-                      onChange={(e) => setBonusForm({ ...bonusForm, bonus_quantity: e.target.value })}
-                      placeholder="e.g., 2"
-                    />
-                  </div>
-                  <div className="bonus-form-actions">
-                    {editingBonusTier ? (
-                      <>
-                        <Button onClick={handleUpdateBonusTier} size="small">
-                          Update
-                        </Button>
-                        <Button onClick={handleCancelEditBonusTier} variant="secondary" size="small">
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <Button onClick={handleCreateBonusTier} size="small">
-                        <Plus size={14} />
-                        Add
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Bonus Tiers List */}
-              <div className="bonus-tiers-list">
-                <h3>Existing Bonus Tiers</h3>
-                {bonusLoading ? (
-                  <p className="loading-text">Loading...</p>
-                ) : bonusTiers.length === 0 ? (
-                  <p className="empty-text">No bonus tiers configured for this variation.</p>
-                ) : (
-                  <table className="bonus-tiers-table">
-                    <thead>
-                      <tr>
-                        <th>Min Qty</th>
-                        <th>Bonus</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bonusTiers.map((tier) => (
-                        <tr key={tier.id} className={!tier.is_active ? 'inactive-row' : ''}>
-                          <td>{tier.min_quantity}</td>
-                          <td>+{tier.bonus_quantity}</td>
-                          <td>
-                            <span className={`status-badge ${tier.is_active ? 'active' : 'inactive'}`}>
-                              {tier.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="bonus-tier-actions">
-                              <Button
-                                onClick={() => handleToggleBonusTierActive(tier)}
-                                variant="secondary"
-                                size="small"
-                                title={tier.is_active ? 'Deactivate' : 'Activate'}
-                              >
-                                {tier.is_active ? <XCircle size={14} /> : <CheckCircle size={14} />}
-                              </Button>
-                              <Button
-                                onClick={() => handleEditBonusTier(tier)}
-                                variant="secondary"
-                                size="small"
-                                title="Edit"
-                              >
-                                <Edit size={14} />
-                              </Button>
-                              <Button
-                                onClick={() => handleDeleteBonusTier(tier.id)}
-                                variant="secondary"
-                                size="small"
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-            <div className="modal-actions">
-              <Button type="button" onClick={() => setShowBonusModal(false)}>
-                Close
+      {/* ── Discount Tiers Modal ──────────────────────────────────── */}
+      <Modal
+        open={discountOpen}
+        onClose={() => setDiscountOpen(false)}
+        size="lg"
+        title={`${t('variations.discountTiers', 'Chiết khấu')} — ${discountVariation?.name ?? ''}`}
+        footer={
+          <Button variant="secondary" tone="ghost" size="sm" onClick={() => setDiscountOpen(false)}>{t('common.close', 'Đóng')}</Button>
+        }
+      >
+        <div className="variations-page__tier-body">
+          <div className="variations-page__tier-form variations-page__tier-form--discount">
+            <Input
+              type="number"
+              min="1"
+              placeholder={t('variations.minQty', 'SL tối thiểu')}
+              value={discountForm.min_quantity}
+              onChange={e => setDiscountForm(f => ({ ...f, min_quantity: e.target.value }))}
+              size="sm"
+            />
+            <Select
+              options={[
+                { value: 'percentage', label: '%' },
+                { value: 'fixed', label: 'VND' },
+              ]}
+              value={discountForm.discount_type}
+              onChange={v => v && setDiscountForm(f => ({ ...f, discount_type: v }))}
+              size="sm"
+            />
+            <Input
+              type="number"
+              min="1"
+              placeholder={t('variations.discountValue', 'Giá trị')}
+              value={discountForm.discount_value}
+              onChange={e => setDiscountForm(f => ({ ...f, discount_value: e.target.value }))}
+              size="sm"
+            />
+            <Button variant="primary" size="sm" onClick={saveDiscountTier}>
+              {editingDiscount ? t('common.save', 'Lưu') : t('common.add', 'Thêm')}
+            </Button>
+            {editingDiscount && (
+              <Button variant="secondary" tone="ghost" size="sm" onClick={() => { setEditingDiscount(null); setDiscountForm({ min_quantity: '', discount_type: 'percentage', discount_value: '' }) }}>
+                {t('common.cancel', 'Huỷ')}
               </Button>
-            </div>
+            )}
           </div>
-        </div>
-      )}
 
+          {discountLoading ? (
+            <div className="variations-page__tier-skel">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} variant="line" height={36} />)}
+            </div>
+          ) : discountTiers.length === 0 ? (
+            <p className="variations-page__tier-empty">{t('variations.noDiscountTiers', 'Chưa có mức chiết khấu')}</p>
+          ) : (
+            <div className="variations-page__tier-table-wrap">
+              <table className="variations-page__tier-table">
+                <thead>
+                  <tr>
+                    <th className="num">{t('variations.minQty', 'SL tối thiểu')}</th>
+                    <th>{t('variations.discountType', 'Loại')}</th>
+                    <th className="num">{t('variations.discountValue', 'Giá trị')}</th>
+                    <th>{t('variations.colActive', 'HĐ')}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {discountTiers.map(tier => (
+                    <tr key={tier.id}>
+                      <td className="num">{tier.min_quantity}</td>
+                      <td>
+                        <Badge variant="info" size="sm">
+                          {tier.discount_type === 'percentage' ? '%' : 'VND'}
+                        </Badge>
+                      </td>
+                      <td className="num">
+                        {tier.discount_type === 'percentage'
+                          ? `${tier.discount_value}%`
+                          : fmt.currency(tier.discount_value)}
+                      </td>
+                      <td>
+                        <Switch
+                          checked={tier.is_active}
+                          onChange={() => {
+                            apiClient.put(`/api/discount-tiers/${tier.id}`, { is_active: !tier.is_active })
+                              .then(() => apiClient.get<{ items: DiscountTier[] }>(`/api/variations/${discountVariation!.id}/discount-tiers?only_active=false`))
+                              .then(res => setDiscountTiers(res.data.items))
+                              .catch(err => toast.error(formatApiError(err, '')))
+                          }}
+                          aria-label={t('variations.toggleActive', 'Bật/tắt')}
+                        />
+                      </td>
+                      <td>
+                        <div className="variations-page__tier-actions">
+                          <IconButton
+                            icon={<Edit size={13} />}
+                            aria-label={t('common.edit', 'Sửa')}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => { setEditingDiscount(tier); setDiscountForm({ min_quantity: String(tier.min_quantity), discount_type: tier.discount_type, discount_value: String(tier.discount_value) }) }}
+                          />
+                          <IconButton
+                            icon={<Trash2 size={13} />}
+                            aria-label={t('common.delete', 'Xoá')}
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteDiscountTier(tier.id)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   )
 }
-

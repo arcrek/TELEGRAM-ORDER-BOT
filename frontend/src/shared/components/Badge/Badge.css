@@ -1,0 +1,83 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+.badge--sm {
+  font-size: var(--text-xs, 11px);
+  padding: 2px 6px;
+}
+
+.badge--md {
+  font-size: var(--text-sm, 12px);
+  padding: 3px 8px;
+}
+
+.badge__dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Semantic variants */
+.badge--default {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.badge--neutral {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
+}
+
+.badge--success {
+  background: var(--success-50);
+  color: var(--success-600);
+}
+
+.badge--warning {
+  background: var(--warning-50);
+  color: var(--warning-600);
+}
+
+.badge--danger {
+  background: var(--danger-50);
+  color: var(--danger-600);
+}
+
+.badge--info {
+  background: var(--info-50);
+  color: var(--info-600);
+}
+
+/* Status-specific (order status tokens) */
+.badge[data-status='pending'] {
+  background: var(--status-pending-bg);
+  color: var(--status-pending-fg);
+}
+.badge[data-status='paid'] {
+  background: var(--status-paid-bg);
+  color: var(--status-paid-fg);
+}
+.badge[data-status='processing'] {
+  background: var(--status-processing-bg);
+  color: var(--status-processing-fg);
+}
+.badge[data-status='delivered'] {
+  background: var(--status-delivered-bg);
+  color: var(--status-delivered-fg);
+}
+.badge[data-status='cancelled'] {
+  background: var(--status-cancelled-bg);
+  color: var(--status-cancelled-fg);
+}

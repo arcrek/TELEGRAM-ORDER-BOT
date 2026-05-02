@@ -1,0 +1,43 @@
+/*
+ * Font tokens.
+ * Fira Sans (UI / labels) + Fira Code (numerals / IDs / timestamps).
+ * Loaded via index.html for now (Google Fonts CDN with vietnamese subset).
+ */
+
+:root {
+  --font-sans: 'Fira Sans', system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  /* Type scale */
+  --text-xs: 11px;
+  --lh-xs: 16px;
+  --text-sm: 12px;
+  --lh-sm: 18px;
+  --text-base: 14px;
+  --lh-base: 20px;
+  --text-lg: 16px;
+  --lh-lg: 24px;
+  --text-xl: 18px;
+  --lh-xl: 26px;
+  --text-2xl: 22px;
+  --lh-2xl: 30px;
+  --text-3xl: 28px;
+  --lh-3xl: 36px;
+
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+}
+
+.mono,
+.num,
+td.num,
+.stat-value,
+.timestamp,
+.id-cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}

@@ -1,37 +1,22 @@
-/**
- * Suppliers Management page.
- * Premium Dark SaaS Design System.
- * Note: Suppliers register and interact via Telegram bot only, not through dashboard.
- */
-import { useState, useEffect } from 'react'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { Select } from '../components/Select'
-import {
-  Users,
-  Info,
-  CheckCircle,
-  XCircle,
-  History,
-  BarChart3,
-  RefreshCw,
-  Filter,
-  Eye,
-  User,
-  Phone,
-  Calendar,
-  DollarSign,
-  Package,
-  Clock,
-  Link2,
-  Plus,
-  Trash2,
-  Star,
-} from 'lucide-react'
-import axios from 'axios'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Users, History, BarChart3, Link2, Plus, Trash2, RefreshCw, Star } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../shared/components/PageHeader'
+import { Table, type ColumnDef } from '../shared/components/Table'
+import { Pagination } from '../shared/components/Pagination'
+import { Badge } from '../shared/components/Badge'
+import { Modal } from '../shared/components/Modal'
+import { Button } from '../shared/components/Button'
+import { IconButton } from '../shared/components/IconButton'
+import { Select } from '../shared/components/Select'
+import { Switch } from '../shared/components/Switch'
+import { Tooltip } from '../shared/components/Tooltip'
+import { Skeleton } from '../shared/components/Skeleton'
+import { useToast } from '../shared/components/Toast'
+import { useConfirm } from '../shared/components/ConfirmDialog'
+import { apiClient, formatApiError } from '../shared/lib/api'
+import { useFormat } from '../shared/lib/format'
 import './SuppliersPage.css'
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 interface Supplier {
   id: string
@@ -39,10 +24,6 @@ interface Supplier {
   name: string
   is_active: boolean
   created_at: string
-}
-
-interface SuppliersResponse {
-  items: Supplier[]
 }
 
 interface SupplierOrder {
@@ -55,27 +36,12 @@ interface SupplierOrder {
   updated_at: string
 }
 
-interface SupplierOrderHistoryResponse {
-  items: SupplierOrder[]
-}
-
 interface SupplierStatistics {
-  supplier_id: string
-  supplier_name: string
   total_orders: number
   pending_orders: number
-  in_progress_orders: number
   delivered_orders: number
   cancelled_orders: number
   total_revenue: number
-}
-
-interface Product {
-  id: string
-  name: string
-  description: string | null
-  delivery_type: 'pre_uploaded' | 'supplier_based'
-  is_active: boolean
 }
 
 interface AssignedProduct {
@@ -86,808 +52,454 @@ interface AssignedProduct {
   created_at: string
 }
 
-interface AssignedProductResponse {
-  items: AssignedProduct[]
+interface AvailableProduct {
+  id: string
+  name: string
+  delivery_type: string
+  is_active: boolean
 }
 
 export function SuppliersPage() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const confirm = useConfirm()
+  const fmt = useFormat()
+
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  
-  // Filters
-  const [onlyActive, setOnlyActive] = useState<boolean | null>(null)
-  
-  // Modal states
-  const [showDetailModal, setShowDetailModal] = useState(false)
-  const [showOrderHistoryModal, setShowOrderHistoryModal] = useState(false)
-  const [showStatisticsModal, setShowStatisticsModal] = useState(false)
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false)
-  const [showAssignProductModal, setShowAssignProductModal] = useState(false)
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
-  const [orderHistory, setOrderHistory] = useState<SupplierOrder[]>([])
-  const [statistics, setStatistics] = useState<SupplierStatistics | null>(null)
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+
+  // ── Detail / history / stats / assignments modals ──────────────────
+  const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyOrders, setHistoryOrders] = useState<SupplierOrder[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [stats, setStats] = useState<SupplierStatistics | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+
+  const [assignOpen, setAssignOpen] = useState(false)
   const [assignedProducts, setAssignedProducts] = useState<AssignedProduct[]>([])
-  const [allProducts, setAllProducts] = useState<Product[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
-  const [loadingStatistics, setLoadingStatistics] = useState(false)
-  const [loadingAssignments, setLoadingAssignments] = useState(false)
-  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [assignLoading, setAssignLoading] = useState(false)
 
-  useEffect(() => {
-    fetchSuppliers()
-  }, [onlyActive])
+  const [addProductOpen, setAddProductOpen] = useState(false)
+  const [allProducts, setAllProducts] = useState<AvailableProduct[]>([])
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [isPrimary, setIsPrimary] = useState(false)
+  const [addLoading, setAddLoading] = useState(false)
 
-  const fetchSuppliers = async () => {
+  const fetchSuppliers = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      const params = new URLSearchParams()
-      
-      if (onlyActive !== null) {
-        params.append('only_active', onlyActive.toString())
-      }
-      
-      const response = await axios.get<SuppliersResponse>(
-        `${API_BASE_URL}/api/suppliers?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      
-      setSuppliers(response.data.items)
-      setError(null)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load suppliers')
-      console.error('Error fetching suppliers:', err)
+      const params: Record<string, string> = {}
+      if (activeFilter !== null) params.only_active = activeFilter
+      const res = await apiClient.get<{ items: Supplier[] }>('/api/suppliers', { params })
+      setSuppliers(res.data.items)
+    } catch (err) {
+      setError(formatApiError(err, t('suppliers.loadError', 'Không thể tải nhà cung cấp')))
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeFilter, t])
 
-  const handleViewDetails = (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setShowDetailModal(true)
-  }
+  useEffect(() => { fetchSuppliers() }, [fetchSuppliers])
 
-  const handleViewOrderHistory = async (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setShowOrderHistoryModal(true)
-    setLoadingHistory(true)
-    
+  // ── Toggle active optimistically ───────────────────────────────────
+  const handleToggleActive = async (supplier: Supplier) => {
+    const newActive = !supplier.is_active
+    const action = newActive ? t('suppliers.activate', 'kích hoạt') : t('suppliers.deactivate', 'tắt')
+    const ok = await confirm({
+      title: t('suppliers.toggleTitle', `${action} ${supplier.name}?`),
+      variant: newActive ? 'default' : 'destructive',
+      confirmLabel: action,
+    })
+    if (!ok) return
+    setSuppliers(prev => prev.map(s => s.id === supplier.id ? { ...s, is_active: newActive } : s))
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get<SupplierOrderHistoryResponse>(
-        `${API_BASE_URL}/api/suppliers/${supplier.id}/orders`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setOrderHistory(response.data.items)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to load order history')
+      await apiClient.put(`/api/suppliers/${supplier.id}/status`, { is_active: newActive })
+      toast.success(t('suppliers.toggled', `Đã ${action} nhà cung cấp`))
+    } catch (err) {
+      setSuppliers(prev => prev.map(s => s.id === supplier.id ? { ...s, is_active: !newActive } : s))
+      toast.error(formatApiError(err, t('suppliers.toggleError', 'Không thể thay đổi trạng thái')))
+    }
+  }
+
+  // ── Order history ──────────────────────────────────────────────────
+  const openHistory = async (supplier: Supplier) => {
+    setDetailSupplier(supplier)
+    setHistoryOpen(true)
+    setHistoryLoading(true)
+    try {
+      const res = await apiClient.get<{ items: SupplierOrder[] }>(`/api/suppliers/${supplier.id}/orders`)
+      setHistoryOrders(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('suppliers.historyError', 'Không thể tải lịch sử')))
     } finally {
-      setLoadingHistory(false)
+      setHistoryLoading(false)
     }
   }
 
-  const handleViewStatistics = async (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setShowStatisticsModal(true)
-    setLoadingStatistics(true)
-    
+  // ── Statistics ─────────────────────────────────────────────────────
+  const openStats = async (supplier: Supplier) => {
+    setDetailSupplier(supplier)
+    setStatsOpen(true)
+    setStatsLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get<SupplierStatistics>(
-        `${API_BASE_URL}/api/suppliers/${supplier.id}/statistics`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setStatistics(response.data)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to load statistics')
+      const res = await apiClient.get<SupplierStatistics>(`/api/suppliers/${supplier.id}/statistics`)
+      setStats(res.data)
+    } catch (err) {
+      toast.error(formatApiError(err, t('suppliers.statsError', 'Không thể tải thống kê')))
     } finally {
-      setLoadingStatistics(false)
+      setStatsLoading(false)
     }
   }
 
-  const handleToggleStatus = async (supplier: Supplier) => {
-    if (!confirm(`Are you sure you want to ${supplier.is_active ? 'deactivate' : 'activate'} ${supplier.name}?`)) {
-      return
-    }
-    
+  // ── Assigned products ──────────────────────────────────────────────
+  const openAssignments = async (supplier: Supplier) => {
+    setDetailSupplier(supplier)
+    setAssignOpen(true)
+    setAssignLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/suppliers/${supplier.id}/status`,
-        { is_active: !supplier.is_active },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      fetchSuppliers()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update supplier status')
-    }
-  }
-
-  const handleViewAssignments = async (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setShowAssignmentModal(true)
-    setLoadingAssignments(true)
-    
-    try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get<AssignedProductResponse>(
-        `${API_BASE_URL}/api/suppliers/${supplier.id}/products`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setAssignedProducts(response.data.items)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to load assigned products')
+      const res = await apiClient.get<{ items: AssignedProduct[] }>(`/api/suppliers/${supplier.id}/products`)
+      setAssignedProducts(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('suppliers.assignError', 'Không thể tải phân công')))
     } finally {
-      setLoadingAssignments(false)
+      setAssignLoading(false)
     }
   }
 
-  const handleAssignProduct = async (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setShowAssignProductModal(true)
-    setLoadingProducts(true)
-    
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    if (!detailSupplier) return
+    const ok = await confirm({ title: t('suppliers.removeAssignTitle', 'Xoá phân công?'), variant: 'destructive', confirmLabel: t('common.delete', 'Xoá') })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      // Fetch all products
-      const allProductsList: Product[] = []
-      let page = 1
-      const perPage = 100
-      let hasMore = true
-      
-      while (hasMore) {
-        const response = await axios.get<{ items: Product[], total: number, total_pages: number }>(
-          `${API_BASE_URL}/api/products?page=${page}&per_page=${perPage}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        )
-        
-        allProductsList.push(...response.data.items)
-        
-        if (page >= response.data.total_pages) {
-          hasMore = false
-        } else {
-          page++
-        }
+      await apiClient.delete(`/api/suppliers/assignments/${assignmentId}`)
+      const res = await apiClient.get<{ items: AssignedProduct[] }>(`/api/suppliers/${detailSupplier.id}/products`)
+      setAssignedProducts(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('suppliers.removeAssignError', 'Không thể xoá phân công')))
+    }
+  }
+
+  // ── Add product assignment ─────────────────────────────────────────
+  const openAddProduct = async () => {
+    setAddProductOpen(true)
+    setSelectedProductId(null)
+    setIsPrimary(false)
+    if (allProducts.length === 0) {
+      setAddLoading(true)
+      try {
+        const res = await apiClient.get<{ items: AvailableProduct[] }>('/api/products/', {
+          params: { page: 1, per_page: 100, only_active: 'true' },
+        })
+        setAllProducts(res.data.items.filter(p => p.delivery_type === 'supplier_based'))
+      } catch (err) {
+        toast.error(formatApiError(err, t('suppliers.productsError', 'Không thể tải sản phẩm')))
+      } finally {
+        setAddLoading(false)
       }
-      
-      // Filter to only supplier_based products
-      setAllProducts(allProductsList.filter(p => p.delivery_type === 'supplier_based' && p.is_active))
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to load products')
-    } finally {
-      setLoadingProducts(false)
     }
   }
 
-  const handleCreateAssignment = async (productId: string, isPrimary: boolean) => {
-    if (!selectedSupplier) return
-    
+  const handleAddAssignment = async () => {
+    if (!detailSupplier || !selectedProductId) return
     try {
-      const token = localStorage.getItem('token')
-      await axios.post(
-        `${API_BASE_URL}/api/suppliers/assignments`,
-        {
-          product_id: productId,
-          supplier_id: selectedSupplier.id,
-          is_primary: isPrimary,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      alert('Product assigned successfully')
-      setShowAssignProductModal(false)
-      if (showAssignmentModal) {
-        handleViewAssignments(selectedSupplier)
-      }
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to assign product')
+      await apiClient.post(`/api/suppliers/${detailSupplier.id}/products`, {
+        product_id: selectedProductId,
+        is_primary: isPrimary,
+      })
+      toast.success(t('suppliers.assigned', 'Đã phân công sản phẩm'))
+      setAddProductOpen(false)
+      const res = await apiClient.get<{ items: AssignedProduct[] }>(`/api/suppliers/${detailSupplier.id}/products`)
+      setAssignedProducts(res.data.items)
+    } catch (err) {
+      toast.error(formatApiError(err, t('suppliers.assignSaveError', 'Không thể phân công')))
     }
   }
 
-  const handleDeleteAssignment = async (productId: string) => {
-    if (!selectedSupplier) return
-    if (!confirm('Are you sure you want to remove this product assignment?')) {
-      return
-    }
-    
-    try {
-      const token = localStorage.getItem('token')
-      await axios.delete(
-        `${API_BASE_URL}/api/suppliers/assignments?product_id=${productId}&supplier_id=${selectedSupplier.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      alert('Assignment removed successfully')
-      handleViewAssignments(selectedSupplier)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to remove assignment')
-    }
-  }
+  // ── Table columns ──────────────────────────────────────────────────
+  const activeOptions = useMemo(() => [
+    { value: 'true', label: t('suppliers.active', 'Đang hoạt động') },
+    { value: 'false', label: t('suppliers.inactive', 'Tắt') },
+  ], [t])
 
-  const handleSetPrimary = async (productId: string) => {
-    if (!selectedSupplier) return
-    
-    try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/suppliers/assignments`,
-        {
-          product_id: productId,
-          supplier_id: selectedSupplier.id,
-          is_primary: true,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      alert('Primary supplier updated')
-      handleViewAssignments(selectedSupplier)
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to update primary supplier')
-    }
-  }
+  const productOptions = useMemo(() =>
+    allProducts.map(p => ({ value: p.id, label: p.name })),
+    [allProducts],
+  )
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(price)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('vi-VN')
-  }
-
-  if (loading && suppliers.length === 0) {
-    return (
-      <div className="suppliers-page">
-        <div className="loading-state">
-          <RefreshCw className="spinning" />
-          <p>Loading suppliers...</p>
+  const columns = useMemo<ColumnDef<Supplier>[]>(() => [
+    {
+      id: 'name',
+      header: t('suppliers.colName', 'Tên NCC'),
+      sortable: false,
+      cell: row => (
+        <div className="suppliers-page__name-cell">
+          <span className="suppliers-page__name">{row.name}</span>
+          <span className="suppliers-page__tgid num">TG: {row.telegram_user_id}</span>
         </div>
-      </div>
-    )
-  }
+      ),
+    },
+    {
+      id: 'is_active',
+      header: t('suppliers.colActive', 'Trạng thái'),
+      width: 110,
+      align: 'center',
+      cell: row => (
+        <span onClick={e => e.stopPropagation()}>
+          <Switch
+            checked={row.is_active}
+            onChange={() => handleToggleActive(row)}
+            aria-label={t('suppliers.toggleActive', 'Bật/tắt')}
+          />
+        </span>
+      ),
+    },
+    {
+      id: 'created_at',
+      header: t('suppliers.colCreated', 'Tham gia'),
+      width: 120,
+      cell: row => (
+        <Tooltip content={fmt.dateTime(row.created_at)}>
+          <span className="suppliers-page__rel-time">{fmt.relative(row.created_at)}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      width: 140,
+      align: 'right',
+      cell: row => (
+        <div className="suppliers-page__actions">
+          <Tooltip content={t('suppliers.history', 'Lịch sử đơn')}>
+            <IconButton icon={<History size={13} />} aria-label={t('suppliers.history', 'Lịch sử')} size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openHistory(row) }} />
+          </Tooltip>
+          <Tooltip content={t('suppliers.stats', 'Thống kê')}>
+            <IconButton icon={<BarChart3 size={13} />} aria-label={t('suppliers.stats', 'Thống kê')} size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openStats(row) }} />
+          </Tooltip>
+          <Tooltip content={t('suppliers.assignments', 'Phân công sản phẩm')}>
+            <IconButton icon={<Link2 size={13} />} aria-label={t('suppliers.assignments', 'Phân công')} size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openAssignments(row) }} />
+          </Tooltip>
+        </div>
+      ),
+    },
+  ], [t, fmt])
+
+  const paginated = suppliers.slice((page - 1) * perPage, page * perPage)
 
   return (
     <div className="suppliers-page">
-      <div className="page-header">
-        <h1>Supplier Management</h1>
-        <div className="header-actions">
-          <Button onClick={fetchSuppliers} variant="secondary" size="small">
-            <RefreshCw size={16} />
-            <span>Refresh</span>
-          </Button>
-        </div>
+      <PageHeader
+        title={t('nav.suppliers', 'Nhà cung cấp')}
+        actions={
+          <IconButton
+            icon={<RefreshCw size={14} />}
+            aria-label={t('common.refresh', 'Làm mới')}
+            variant="ghost"
+            size="sm"
+            onClick={fetchSuppliers}
+          />
+        }
+      />
+
+      <div className="suppliers-page__filters">
+        <Select
+          options={activeOptions}
+          value={activeFilter}
+          onChange={v => setActiveFilter(v)}
+          placeholder={t('suppliers.allStatus', 'Tất cả trạng thái')}
+          clearable
+          size="sm"
+          className="suppliers-page__active-select"
+        />
       </div>
 
-      {/* Info Banner */}
-      <Card className="info-banner">
-        <div className="info-content">
-          <Info size={18} />
-          <p>
-            <strong>Note:</strong> Suppliers register and interact via Telegram bot only, not through dashboard.
-            This page is read-only for viewing supplier information and managing status.
-          </p>
-        </div>
-      </Card>
+      {error && <div className="suppliers-page__error" role="alert">{error}</div>}
 
-      {/* Filters */}
-      <Card className="filters-card">
-        <div className="filters-content">
-          <div className="filter-icon-wrapper">
-            <Filter size={18} />
+      <div className="suppliers-page__table-card">
+        <Table<Supplier>
+          columns={columns}
+          data={paginated}
+          keyFn={row => row.id}
+          loading={loading}
+          skeletonRows={10}
+          stickyHeader
+          emptyIcon={<Users size={40} />}
+          emptyTitle={t('suppliers.empty', 'Chưa có nhà cung cấp')}
+          emptyDescription={t('suppliers.emptyDesc', 'Nhà cung cấp đăng ký qua bot Telegram')}
+        />
+        <Pagination
+          page={page}
+          pageSize={perPage}
+          total={suppliers.length}
+          onPageChange={setPage}
+          onPageSizeChange={size => { setPerPage(size); setPage(1) }}
+          className="suppliers-page__pagination"
+        />
+      </div>
+
+      {/* ── Order history modal ────────────────────────────────── */}
+      <Modal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        size="lg"
+        title={`${t('suppliers.history', 'Lịch sử đơn')} — ${detailSupplier?.name ?? ''}`}
+        footer={<Button variant="secondary" tone="ghost" size="sm" onClick={() => setHistoryOpen(false)}>{t('common.close', 'Đóng')}</Button>}
+      >
+        {historyLoading ? (
+          <div className="suppliers-page__modal-skel">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="line" height={36} />)}
           </div>
-          <div className="filter-group">
+        ) : historyOrders.length === 0 ? (
+          <p className="suppliers-page__modal-empty">{t('suppliers.noHistory', 'Chưa có lịch sử đơn hàng')}</p>
+        ) : (
+          <div className="suppliers-page__inner-table-wrap">
+            <table className="suppliers-page__inner-table">
+              <thead>
+                <tr>
+                  <th>{t('orders.colId', 'Mã đơn')}</th>
+                  <th>{t('orders.colStatus', 'Trạng thái')}</th>
+                  <th className="num">{t('orders.colTotal', 'Tổng tiền')}</th>
+                  <th>{t('orders.colCreated', 'Thời gian')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyOrders.map(o => (
+                  <tr key={o.supplier_order_id}>
+                    <td className="num">#{o.order_id.slice(0, 8)}</td>
+                    <td><Badge variant="info" size="sm">{o.status}</Badge></td>
+                    <td className="num">{fmt.currency(o.total_amount)}</td>
+                    <td>{fmt.dateTime(o.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Stats modal ────────────────────────────────────────── */}
+      <Modal
+        open={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        size="sm"
+        title={`${t('suppliers.stats', 'Thống kê')} — ${detailSupplier?.name ?? ''}`}
+        footer={<Button variant="secondary" tone="ghost" size="sm" onClick={() => setStatsOpen(false)}>{t('common.close', 'Đóng')}</Button>}
+      >
+        {statsLoading ? (
+          <div className="suppliers-page__modal-skel">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} variant="line" height={24} />)}
+          </div>
+        ) : stats ? (
+          <dl className="suppliers-page__stats-grid">
+            <dt>{t('suppliers.totalOrders', 'Tổng đơn')}</dt><dd className="num">{stats.total_orders}</dd>
+            <dt>{t('suppliers.pendingOrders', 'Chờ xử lý')}</dt><dd className="num">{stats.pending_orders}</dd>
+            <dt>{t('suppliers.deliveredOrders', 'Đã giao')}</dt><dd className="num">{stats.delivered_orders}</dd>
+            <dt>{t('suppliers.cancelledOrders', 'Đã huỷ')}</dt><dd className="num">{stats.cancelled_orders}</dd>
+            <dt>{t('suppliers.totalRevenue', 'Tổng doanh thu')}</dt><dd className="num">{fmt.currency(stats.total_revenue)}</dd>
+          </dl>
+        ) : null}
+      </Modal>
+
+      {/* ── Assignments modal ──────────────────────────────────── */}
+      <Modal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        size="md"
+        title={`${t('suppliers.assignments', 'Phân công')} — ${detailSupplier?.name ?? ''}`}
+        footer={
+          <div className="suppliers-page__modal-footer">
+            <Button variant="primary" size="sm" iconLeft={<Plus size={13} />} onClick={openAddProduct}>
+              {t('suppliers.addProduct', 'Thêm sản phẩm')}
+            </Button>
+            <Button variant="secondary" tone="ghost" size="sm" onClick={() => setAssignOpen(false)}>{t('common.close', 'Đóng')}</Button>
+          </div>
+        }
+      >
+        {assignLoading ? (
+          <div className="suppliers-page__modal-skel">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} variant="line" height={36} />)}
+          </div>
+        ) : assignedProducts.length === 0 ? (
+          <p className="suppliers-page__modal-empty">{t('suppliers.noAssignments', 'Chưa có sản phẩm phân công')}</p>
+        ) : (
+          <div className="suppliers-page__inner-table-wrap">
+            <table className="suppliers-page__inner-table">
+              <thead>
+                <tr>
+                  <th>{t('products.colName', 'Sản phẩm')}</th>
+                  <th>{t('suppliers.isPrimary', 'Chính')}</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignedProducts.map(ap => (
+                  <tr key={ap.assignment_id}>
+                    <td>{ap.product_name}</td>
+                    <td>
+                      {ap.is_primary && <Star size={13} className="suppliers-page__primary-star" />}
+                    </td>
+                    <td>
+                      <IconButton
+                        icon={<Trash2 size={13} />}
+                        aria-label={t('common.delete', 'Xoá')}
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleRemoveAssignment(ap.assignment_id)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Add product assignment modal ───────────────────────── */}
+      <Modal
+        open={addProductOpen}
+        onClose={() => setAddProductOpen(false)}
+        size="sm"
+        title={t('suppliers.addProduct', 'Thêm sản phẩm')}
+        footer={
+          <div className="suppliers-page__modal-footer">
+            <Button variant="secondary" tone="ghost" size="sm" onClick={() => setAddProductOpen(false)}>{t('common.cancel', 'Huỷ')}</Button>
+            <Button variant="primary" size="sm" disabled={!selectedProductId} onClick={handleAddAssignment}>
+              {t('suppliers.assign', 'Phân công')}
+            </Button>
+          </div>
+        }
+      >
+        <div className="suppliers-page__add-form">
+          {addLoading ? (
+            <Skeleton variant="rect" height={40} radius="8px" />
+          ) : (
             <Select
-              options={[
-                { value: null, label: 'All Status' },
-                { value: true, label: 'Active' },
-                { value: false, label: 'Inactive' },
-              ]}
-              value={onlyActive}
-              onChange={(value) => {
-                setOnlyActive(value as boolean | null)
-              }}
-              placeholder="Filter by Status"
+              options={productOptions}
+              value={selectedProductId}
+              onChange={setSelectedProductId}
+              placeholder={t('suppliers.selectProduct', 'Chọn sản phẩm')}
+              searchable
             />
-          </div>
+          )}
+          <label className="suppliers-page__primary-label">
+            <input
+              type="checkbox"
+              checked={isPrimary}
+              onChange={e => setIsPrimary(e.target.checked)}
+            />
+            <span>{t('suppliers.isPrimary', 'Đặt làm nhà cung cấp chính')}</span>
+          </label>
         </div>
-      </Card>
-
-      {/* Suppliers List */}
-      {error && (
-        <Card>
-          <div className="error-banner">
-            <span>{error}</span>
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        </Card>
-      )}
-
-      {suppliers.length === 0 ? (
-        <Card>
-          <div className="empty-state">
-            <Users size={48} />
-            <p>No suppliers found</p>
-          </div>
-        </Card>
-      ) : (
-        <div className="suppliers-grid">
-          {suppliers.map((supplier) => (
-            <Card key={supplier.id} className="supplier-card">
-              <div className="supplier-header">
-                <div className="supplier-info">
-                  <User size={20} />
-                  <h3>{supplier.name}</h3>
-                  <span className={`status-badge ${supplier.is_active ? 'active' : 'inactive'}`}>
-                    {supplier.is_active ? (
-                      <>
-                        <CheckCircle size={14} />
-                        Active
-                      </>
-                    ) : (
-                      <>
-                        <XCircle size={14} />
-                        Inactive
-                      </>
-                    )}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="supplier-details">
-                <div className="detail-item">
-                  <Phone size={16} />
-                  <span className="label">Telegram ID:</span>
-                  <span className="value">{supplier.telegram_user_id}</span>
-                </div>
-                <div className="detail-item">
-                  <Calendar size={16} />
-                  <span className="label">Registered:</span>
-                  <span className="value">{formatDate(supplier.created_at)}</span>
-                </div>
-              </div>
-              
-              <div className="supplier-actions">
-                <Button
-                  onClick={() => handleViewDetails(supplier)}
-                  variant="secondary"
-                  size="small"
-                  title="View Details"
-                >
-                  <Eye size={14} />
-                  <span>Details</span>
-                </Button>
-                <Button
-                  onClick={() => handleViewOrderHistory(supplier)}
-                  variant="secondary"
-                  size="small"
-                  title="Order History"
-                >
-                  <History size={14} />
-                  <span>Orders</span>
-                </Button>
-                <Button
-                  onClick={() => handleViewStatistics(supplier)}
-                  variant="secondary"
-                  size="small"
-                  title="Statistics"
-                >
-                  <BarChart3 size={14} />
-                  <span>Stats</span>
-                </Button>
-                <Button
-                  onClick={() => handleViewAssignments(supplier)}
-                  variant="secondary"
-                  size="small"
-                  title="Product Assignments"
-                >
-                  <Link2 size={14} />
-                  <span>Products</span>
-                </Button>
-                <Button
-                  onClick={() => handleToggleStatus(supplier)}
-                  variant={supplier.is_active ? "secondary" : "primary"}
-                  size="small"
-                  title={supplier.is_active ? "Deactivate" : "Activate"}
-                >
-                  {supplier.is_active ? (
-                    <>
-                      <XCircle size={14} />
-                      <span>Deactivate</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle size={14} />
-                      <span>Activate</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Detail Modal */}
-      {showDetailModal && selectedSupplier && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Info size={20} />
-                Supplier Details
-              </h2>
-              <button onClick={() => setShowDetailModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <div className="detail-section">
-                <div className="detail-row">
-                  <span className="label">Supplier ID:</span>
-                  <span className="value">{selectedSupplier.id}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="label">Name:</span>
-                  <span className="value">{selectedSupplier.name}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="label">Telegram User ID:</span>
-                  <span className="value">{selectedSupplier.telegram_user_id}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="label">Status:</span>
-                  <span className={`status-badge ${selectedSupplier.is_active ? 'active' : 'inactive'}`}>
-                    {selectedSupplier.is_active ? (
-                      <>
-                        <CheckCircle size={14} />
-                        Active
-                      </>
-                    ) : (
-                      <>
-                        <XCircle size={14} />
-                        Inactive
-                      </>
-                    )}
-                  </span>
-                </div>
-                <div className="detail-row">
-                  <span className="label">Registered:</span>
-                  <span className="value">{formatDate(selectedSupplier.created_at)}</span>
-                </div>
-              </div>
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowDetailModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Order History Modal */}
-      {showOrderHistoryModal && selectedSupplier && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <History size={20} />
-                Order History - {selectedSupplier.name}
-              </h2>
-              <button onClick={() => setShowOrderHistoryModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              {loadingHistory ? (
-                <div className="loading-state">
-                  <RefreshCw className="spinning" />
-                  <p>Loading order history...</p>
-                </div>
-              ) : orderHistory.length === 0 ? (
-                <div className="empty-state">
-                  <Package size={48} />
-                  <p>No orders found</p>
-                </div>
-              ) : (
-                <table className="orders-table">
-                  <thead>
-                    <tr>
-                      <th>Order ID</th>
-                      <th>Status</th>
-                      <th>Order Status</th>
-                      <th>Amount</th>
-                      <th>Created</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orderHistory.map((order) => (
-                      <tr key={order.supplier_order_id}>
-                        <td>{order.order_id}</td>
-                        <td>
-                          <span className={`status-badge ${order.status.toLowerCase()}`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge ${order.order_status.toLowerCase()}`}>
-                            {order.order_status}
-                          </span>
-                        </td>
-                        <td>{formatPrice(order.total_amount)}</td>
-                        <td>{formatDate(order.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowOrderHistoryModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Statistics Modal */}
-      {showStatisticsModal && selectedSupplier && statistics && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <BarChart3 size={20} />
-                Performance Statistics - {selectedSupplier.name}
-              </h2>
-              <button onClick={() => setShowStatisticsModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              {loadingStatistics ? (
-                <div className="loading-state">
-                  <RefreshCw className="spinning" />
-                  <p>Loading statistics...</p>
-                </div>
-              ) : (
-                <div className="statistics-grid">
-                  <div className="stat-card">
-                    <Package size={24} />
-                    <div className="stat-content">
-                      <span className="stat-label">Total Orders</span>
-                      <span className="stat-value">{statistics.total_orders}</span>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <Clock size={24} />
-                    <div className="stat-content">
-                      <span className="stat-label">Pending</span>
-                      <span className="stat-value">{statistics.pending_orders}</span>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <RefreshCw size={24} />
-                    <div className="stat-content">
-                      <span className="stat-label">In Progress</span>
-                      <span className="stat-value">{statistics.in_progress_orders}</span>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <CheckCircle size={24} />
-                    <div className="stat-content">
-                      <span className="stat-label">Delivered</span>
-                      <span className="stat-value">{statistics.delivered_orders}</span>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <XCircle size={24} />
-                    <div className="stat-content">
-                      <span className="stat-label">Cancelled</span>
-                      <span className="stat-value">{statistics.cancelled_orders}</span>
-                    </div>
-                  </div>
-                  <div className="stat-card highlight">
-                    <DollarSign size={24} />
-                    <div className="stat-content">
-                      <span className="stat-label">Total Revenue</span>
-                      <span className="stat-value">{formatPrice(statistics.total_revenue)}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowStatisticsModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Product Assignments Modal */}
-      {showAssignmentModal && selectedSupplier && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Link2 size={20} />
-                Product Assignments - {selectedSupplier.name}
-              </h2>
-              <button onClick={() => setShowAssignmentModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              {loadingAssignments ? (
-                <div className="loading-state">
-                  <RefreshCw className="spinning" />
-                  <p>Loading assignments...</p>
-                </div>
-              ) : (
-                <>
-                  <div className="modal-actions-top">
-                    <Button
-                      onClick={() => handleAssignProduct(selectedSupplier)}
-                      variant="primary"
-                      size="small"
-                    >
-                      <Plus size={14} />
-                      <span>Assign Product</span>
-                    </Button>
-                  </div>
-                  {assignedProducts.length === 0 ? (
-                    <div className="empty-state">
-                      <Package size={48} />
-                      <p>No products assigned</p>
-                    </div>
-                  ) : (
-                    <table className="assignments-table">
-                      <thead>
-                        <tr>
-                          <th>Product Name</th>
-                          <th>Primary</th>
-                          <th>Assigned</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {assignedProducts.map((assignment) => (
-                          <tr key={assignment.assignment_id}>
-                            <td>{assignment.product_name}</td>
-                            <td>
-                              {assignment.is_primary ? (
-                                <span className="status-badge active">
-                                  <Star size={14} />
-                                  Primary
-                                </span>
-                              ) : (
-                                <span className="status-badge inactive">Secondary</span>
-                              )}
-                            </td>
-                            <td>{formatDate(assignment.created_at)}</td>
-                            <td>
-                              <div className="action-buttons">
-                                {!assignment.is_primary && (
-                                  <Button
-                                    onClick={() => handleSetPrimary(assignment.product_id)}
-                                    variant="secondary"
-                                    size="small"
-                                    title="Set as Primary"
-                                  >
-                                    <Star size={12} />
-                                  </Button>
-                                )}
-                                <Button
-                                  onClick={() => handleDeleteAssignment(assignment.product_id)}
-                                  variant="secondary"
-                                  size="small"
-                                  title="Remove"
-                                >
-                                  <Trash2 size={12} />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowAssignmentModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Product Modal */}
-      {showAssignProductModal && selectedSupplier && (
-        <div className="modal-overlay">
-          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Plus size={20} />
-                Assign Product to {selectedSupplier.name}
-              </h2>
-              <button onClick={() => setShowAssignProductModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              {loadingProducts ? (
-                <div className="loading-state">
-                  <RefreshCw className="spinning" />
-                  <p>Loading products...</p>
-                </div>
-              ) : allProducts.length === 0 ? (
-                <div className="empty-state">
-                  <Package size={48} />
-                  <p>No supplier-based products available</p>
-                </div>
-              ) : (
-                <div className="products-list">
-                  {allProducts
-                    .filter(p => !assignedProducts.some(ap => ap.product_id === p.id))
-                    .map((product) => (
-                      <Card key={product.id} className="product-assignment-card">
-                        <div className="product-info">
-                          <h4>{product.name}</h4>
-                          {product.description && (
-                            <p className="product-description">{product.description}</p>
-                          )}
-                        </div>
-                        <div className="assignment-actions">
-                          <Button
-                            onClick={() => handleCreateAssignment(product.id, true)}
-                            variant="primary"
-                            size="small"
-                          >
-                            <Star size={14} />
-                            <span>Assign as Primary</span>
-                          </Button>
-                          <Button
-                            onClick={() => handleCreateAssignment(product.id, false)}
-                            variant="secondary"
-                            size="small"
-                          >
-                            <Plus size={14} />
-                            <span>Assign</span>
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
-                  {allProducts.filter(p => !assignedProducts.some(ap => ap.product_id === p.id)).length === 0 && (
-                    <div className="empty-state">
-                      <Package size={48} />
-                      <p>All available products are already assigned</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowAssignProductModal(false)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   )
 }
-

@@ -1,37 +1,29 @@
-/**
- * Kho hàng (Inventory) Management page.
- * Premium Dark SaaS Design System.
- */
-import { useState, useEffect } from 'react'
-import { Card } from '../components/Card'
-import { Button } from '../components/Button'
-import { Select } from '../components/Select'
-import {
-  Package,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Filter,
-  Trash2,
-  Copy,
-  Download,
-} from 'lucide-react'
-import axios from 'axios'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Package, RefreshCw, Trash2, Copy, Check, Download, CheckCircle, XCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { PageHeader } from '../shared/components/PageHeader'
+import { StatCard } from '../shared/components/StatCard'
+import { Table, type ColumnDef } from '../shared/components/Table'
+import { Pagination } from '../shared/components/Pagination'
+import { Badge } from '../shared/components/Badge'
+import { Button } from '../shared/components/Button'
+import { IconButton } from '../shared/components/IconButton'
+import { Select } from '../shared/components/Select'
+import { Tooltip } from '../shared/components/Tooltip'
+import { useToast } from '../shared/components/Toast'
+import { useConfirm } from '../shared/components/ConfirmDialog'
+import { apiClient, formatApiError } from '../shared/lib/api'
+import { useFormat } from '../shared/lib/format'
 import './PreUploadedPage.css'
 
 function extractProductData(raw: string): string {
   try {
     const parsed = JSON.parse(raw)
-    if (typeof parsed === 'object' && parsed !== null && 'value' in parsed) {
-      return String(parsed.value)
-    }
+    if (typeof parsed === 'object' && parsed !== null && 'value' in parsed) return String(parsed.value)
     return raw
-  } catch {
-    return raw
-  }
+  } catch { return raw }
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'
 
 interface PreUploadedProduct {
   id: string
@@ -50,580 +42,331 @@ interface Statistics {
   total: number
   used: number
   available: number
-  by_product: {
-    [key: string]: {
-      product_id: string
-      product_name: string
-      total: number
-      used: number
-      available: number
-    }
-  }
+  by_product: Record<string, { product_id: string; product_name: string; total: number; used: number; available: number }>
 }
 
 export function PreUploadedPage() {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+  const confirm = useConfirm()
+  const fmt = useFormat()
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const urlProductId = searchParams.get('product') ?? null
+  const urlUsed = searchParams.get('used') ?? null
+  const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+
+  const setParam = useCallback(
+    (updates: Record<string, string | null>) => {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev)
+        for (const [k, v] of Object.entries(updates)) {
+          if (v === null || v === '') next.delete(k); else next.set(k, v)
+        }
+        return next
+      }, { replace: true })
+    },
+    [setSearchParams],
+  )
+
   const [products, setProducts] = useState<PreUploadedProduct[]>([])
   const [statistics, setStatistics] = useState<Statistics | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [perPage] = useState(15)
-  const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  
-  // Filters
-  const [productFilter, setProductFilter] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<boolean | null>(null)
-  
-  // Available products for filters
-  const [availableProducts, setAvailableProducts] = useState<Array<{id: string, name: string}>>([])
-  
-  // Delete modal state
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [selectedProduct, setSelectedProduct] = useState<PreUploadedProduct | null>(null)
-
-  // Bulk selection & delete state
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
-  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
-
-  // Copy-to-clipboard feedback state
+  const [perPage, setPerPage] = useState(15)
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set())
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchData()
-    fetchStatistics()
-  }, [page, productFilter, statusFilter])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    setLoading(true)
     try {
-      setLoading(true)
-      const token = localStorage.getItem('token')
-      const params = new URLSearchParams({
-        page: page.toString(),
-        per_page: perPage.toString(),
-      })
-      
-      if (productFilter) {
-        params.append('product_id', productFilter)
+      const params: Record<string, string> = {
+        page: String(urlPage),
+        per_page: String(perPage),
       }
-      if (statusFilter !== null) {
-        params.append('is_used', statusFilter.toString())
-      }
-      
-      const response = await axios.get(
-        `${API_BASE_URL}/api/pre-uploaded-products?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      
-      setProducts(response.data.items)
-      setTotalPages(response.data.total_pages)
-      setTotal(response.data.total)
-      setSelectedProductIds([])
-      setError(null)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load pre-uploaded products')
+      if (urlProductId) params.product_id = urlProductId
+      if (urlUsed !== null) params.is_used = urlUsed
+
+      const [dataRes, statsRes] = await Promise.all([
+        apiClient.get<{ items: PreUploadedProduct[]; total: number; total_pages: number }>('/api/pre-uploaded-products', { params }),
+        apiClient.get<Statistics>('/api/pre-uploaded-products/statistics'),
+      ])
+      setProducts(dataRes.data.items)
+      setTotal(dataRes.data.total)
+      setStatistics(statsRes.data)
+      setSelectedKeys(new Set())
+    } catch (err) {
+      toast.error(formatApiError(err, t('preUploaded.loadError', 'Không thể tải kho hàng')))
     } finally {
       setLoading(false)
     }
-  }
+  }, [urlPage, perPage, urlProductId, urlUsed, t])
 
-  const fetchStatistics = async () => {
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const handleMarkUsed = async (id: string) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(
-        `${API_BASE_URL}/api/pre-uploaded-products/statistics`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setStatistics(response.data)
-      
-      // Extract products and variations for filters
-      const productsList = Object.values(response.data.by_product || {}).map((p: any) => ({
-        id: p.product_id,
-        name: p.product_name,
-      }))
-      setAvailableProducts(productsList)
-    } catch (err: any) {
-      console.error('Failed to load statistics:', err)
+      await apiClient.put(`/api/pre-uploaded-products/${id}/mark-used`, {})
+      fetchData()
+    } catch (err) {
+      toast.error(formatApiError(err, t('preUploaded.markUsedError', 'Không thể cập nhật')))
     }
   }
 
-  const handleMarkUsed = async (productId: string) => {
+  const handleMarkUnused = async (id: string) => {
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/pre-uploaded-products/${productId}/mark-used`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      await fetchData()
-      await fetchStatistics()
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to mark product as sold')
+      await apiClient.put(`/api/pre-uploaded-products/${id}/mark-unused`, {})
+      fetchData()
+    } catch (err) {
+      toast.error(formatApiError(err, t('preUploaded.markUnusedError', 'Không thể cập nhật')))
     }
   }
 
-  const handleMarkUnused = async (productId: string) => {
+  const handleDelete = async (item: PreUploadedProduct) => {
+    const ok = await confirm({
+      title: t('preUploaded.deleteTitle', 'Xoá sản phẩm?'),
+      description: t('preUploaded.deleteDesc', 'Hành động này không thể hoàn tác.'),
+      confirmLabel: t('common.delete', 'Xoá'),
+      variant: 'destructive',
+    })
+    if (!ok) return
     try {
-      const token = localStorage.getItem('token')
-      await axios.put(
-        `${API_BASE_URL}/api/pre-uploaded-products/${productId}/mark-unused`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      await fetchData()
-      await fetchStatistics()
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to mark product as available')
+      await apiClient.delete(`/api/pre-uploaded-products/${item.id}`)
+      toast.success(t('preUploaded.deleted', 'Đã xoá'))
+      fetchData()
+    } catch (err) {
+      toast.error(formatApiError(err, t('preUploaded.deleteError', 'Không thể xoá')))
     }
   }
 
-  const handleDelete = (product: PreUploadedProduct) => {
-    setSelectedProduct(product)
-    setShowDeleteModal(true)
-  }
-
-  const handleToggleSelectAll = () => {
-    if (selectedProductIds.length === products.length) {
-      setSelectedProductIds([])
-    } else {
-      setSelectedProductIds(products.map((p) => p.id))
+  const handleBulkDelete = async () => {
+    if (selectedKeys.size === 0) return
+    const ok = await confirm({
+      title: t('preUploaded.bulkDeleteTitle', `Xoá ${selectedKeys.size} mục?`),
+      variant: 'destructive',
+      confirmLabel: t('common.delete', 'Xoá'),
+    })
+    if (!ok) return
+    try {
+      await Promise.all(Array.from(selectedKeys).map(id => apiClient.delete(`/api/pre-uploaded-products/${id}`)))
+      toast.success(t('preUploaded.bulkDeleted', 'Đã xoá các mục đã chọn'))
+      setSelectedKeys(new Set())
+      fetchData()
+    } catch (err) {
+      toast.error(formatApiError(err, t('preUploaded.bulkDeleteError', 'Không thể xoá')))
     }
   }
 
-  const handleToggleSelectOne = (productId: string) => {
-    setSelectedProductIds((prev) =>
-      prev.includes(productId) ? prev.filter((id) => id !== productId) : [...prev, productId]
-    )
-  }
-
-  const handleBulkDelete = () => {
-    if (!selectedProductIds.length) return
-    setShowBulkDeleteModal(true)
-  }
-
-  const handleCopyProductData = async (id: string, raw: string) => {
-    await navigator.clipboard.writeText(extractProductData(raw))
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
+  const handleCopy = async (item: PreUploadedProduct) => {
+    await navigator.clipboard.writeText(extractProductData(item.product_data))
+    setCopiedId(item.id)
+    setTimeout(() => setCopiedId(null), 1500)
   }
 
   const handleDownloadSelected = () => {
-    const selectedProducts = products.filter((p) => selectedProductIds.includes(p.id))
-    const content = selectedProducts.map((p) => extractProductData(p.product_data)).join('\n')
+    const selected = products.filter(p => selectedKeys.has(p.id))
+    const content = selected.map(p => extractProductData(p.product_data)).join('\n')
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `products_${new Date().toISOString().slice(0, 10)}.txt`
+    a.download = `inventory_${new Date().toISOString().slice(0, 10)}.txt`
     document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
+    a.remove()
     URL.revokeObjectURL(url)
   }
 
-  const handleConfirmDelete = async () => {
-    if (!selectedProduct) return
-    
-    try {
-      const token = localStorage.getItem('token')
-      await axios.delete(
-        `${API_BASE_URL}/api/pre-uploaded-products/${selectedProduct.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      )
-      setShowDeleteModal(false)
-      setSelectedProductIds((prev) => prev.filter((id) => id !== selectedProduct.id))
-      await fetchData()
-      await fetchStatistics()
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to delete product')
-    }
-  }
+  // ── Product filter options ─────────────────────────────────────────
+  const productOptions = useMemo(() => {
+    if (!statistics) return []
+    return Object.values(statistics.by_product).map(p => ({ value: p.product_id, label: p.product_name }))
+  }, [statistics])
 
-  if (loading && !products.length) {
-    return (
-      <div className="pre-uploaded-page">
-        <div className="loading-state">
-          <RefreshCw className="spinning" />
-          <p>Đang tải kho hàng...</p>
+  const columns = useMemo<ColumnDef<PreUploadedProduct>[]>(() => [
+    {
+      id: 'product',
+      header: t('preUploaded.colProduct', 'Sản phẩm'),
+      cell: row => (
+        <div className="pre-uploaded-page__product-cell">
+          <span>{row.product_name}</span>
+          <span className="pre-uploaded-page__variation">{row.variation_name}</span>
         </div>
-      </div>
-    )
-  }
+      ),
+    },
+    {
+      id: 'product_data',
+      header: t('preUploaded.colData', 'Dữ liệu'),
+      mono: true,
+      cell: row => (
+        <div className="pre-uploaded-page__data-cell">
+          <span className="pre-uploaded-page__data-preview">{extractProductData(row.product_data).slice(0, 32)}&hellip;</span>
+          <Tooltip content={copiedId === row.id ? t('common.copied', 'Đã sao chép!') : t('common.copy', 'Sao chép')}>
+            <IconButton
+              icon={copiedId === row.id ? <Check size={13} /> : <Copy size={13} />}
+              aria-label={t('common.copy', 'Sao chép')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); handleCopy(row) }}
+            />
+          </Tooltip>
+        </div>
+      ),
+    },
+    {
+      id: 'status',
+      header: t('preUploaded.colStatus', 'Trạng thái'),
+      width: 110,
+      cell: row => (
+        <Badge variant={row.is_used ? 'neutral' : 'success'} size="sm">
+          {row.is_used ? t('preUploaded.sold', 'Đã bán') : t('preUploaded.available', 'Có hàng')}
+        </Badge>
+      ),
+    },
+    {
+      id: 'used_at',
+      header: t('preUploaded.colUsedAt', 'Thời gian bán'),
+      width: 130,
+      cell: row => row.used_at ? (
+        <Tooltip content={fmt.dateTime(row.used_at)}>
+          <span className="pre-uploaded-page__rel-time">{fmt.relative(row.used_at)}</span>
+        </Tooltip>
+      ) : '—',
+    },
+    {
+      id: 'order',
+      header: t('preUploaded.colOrder', 'Đơn hàng'),
+      mono: true,
+      width: 110,
+      cell: row => row.used_by_order_id ? `#${row.used_by_order_id.slice(0, 8)}` : '—',
+    },
+    {
+      id: 'created_at',
+      header: t('preUploaded.colCreated', 'Tạo lúc'),
+      width: 120,
+      cell: row => (
+        <Tooltip content={fmt.dateTime(row.created_at)}>
+          <span className="pre-uploaded-page__rel-time">{fmt.relative(row.created_at)}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      width: 110,
+      align: 'right',
+      cell: row => (
+        <div className="pre-uploaded-page__actions">
+          <Tooltip content={row.is_used ? t('preUploaded.markAvailable', 'Đánh dấu có hàng') : t('preUploaded.markSold', 'Đánh dấu đã bán')}>
+            <IconButton
+              icon={row.is_used ? <XCircle size={13} /> : <CheckCircle size={13} />}
+              aria-label={row.is_used ? t('preUploaded.markAvailable', 'Đánh dấu có hàng') : t('preUploaded.markSold', 'Đánh dấu đã bán')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); row.is_used ? handleMarkUnused(row.id) : handleMarkUsed(row.id) }}
+            />
+          </Tooltip>
+          <Tooltip content={t('common.delete', 'Xoá')}>
+            <IconButton
+              icon={<Trash2 size={13} />}
+              aria-label={t('common.delete', 'Xoá')}
+              size="sm"
+              variant="ghost"
+              onClick={e => { e.stopPropagation(); handleDelete(row) }}
+            />
+          </Tooltip>
+        </div>
+      ),
+    },
+  ], [t, fmt, copiedId])
 
   return (
     <div className="pre-uploaded-page">
-      <div className="page-header">
-        <h1>Kho hàng</h1>
-        <p>Quản lý kho sản phẩm</p>
-      </div>
+      <PageHeader
+        title={t('nav.preUploaded', 'Kho hàng')}
+        actions={
+          <IconButton
+            icon={<RefreshCw size={14} />}
+            aria-label={t('common.refresh', 'Làm mới')}
+            variant="ghost"
+            size="sm"
+            onClick={fetchData}
+          />
+        }
+      />
 
-      {/* Statistics */}
+      {/* KPI row */}
       {statistics && (
-        <div className="statistics-grid">
-          <Card className="stat-card">
-            <div className="stat-content">
-              <div className="stat-icon total">
-                <Package size={24} />
-              </div>
-              <div className="stat-info">
-                <h3>Tổng cộng</h3>
-                <p className="stat-value">{statistics.total}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="stat-card">
-            <div className="stat-content">
-              <div className="stat-icon available">
-                <CheckCircle size={24} />
-              </div>
-              <div className="stat-info">
-                <h3>Còn hàng</h3>
-                <p className="stat-value">{statistics.available}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="stat-card">
-            <div className="stat-content">
-              <div className="stat-icon sold">
-                <XCircle size={24} />
-              </div>
-              <div className="stat-info">
-                <h3>Đã bán</h3>
-                <p className="stat-value">{statistics.used}</p>
-              </div>
-            </div>
-          </Card>
+        <div className="pre-uploaded-page__kpi-row">
+          <StatCard label={t('preUploaded.total', 'Tổng cộng')} value={String(statistics.total)} icon={<Package size={16} />} loading={loading} />
+          <StatCard label={t('preUploaded.available', 'Có hàng')} value={String(statistics.available)} icon={<CheckCircle size={16} />} loading={loading} />
+          <StatCard label={t('preUploaded.sold', 'Đã bán')} value={String(statistics.used)} icon={<XCircle size={16} />} loading={loading} />
         </div>
       )}
 
       {/* Filters */}
-      <Card className="filters-card">
-        <div className="filters-content">
-          <div className="filter-icon-wrapper">
-            <Filter size={18} />
-          </div>
-          <div className="filter-group">
-            <Select
-              options={[
-                { value: null, label: 'Tất cả sản phẩm' },
-                ...availableProducts.map(p => ({ value: p.id, label: p.name })),
-              ]}
-              value={productFilter}
-              onChange={(value) => {
-                setProductFilter(value as string | null)
-                setPage(1)
-              }}
-              placeholder="Lọc theo sản phẩm"
-            />
-          </div>
-          <div className="filter-group">
-            <Select
-              options={[
-                { value: null, label: 'Tất cả trạng thái' },
-                { value: false, label: 'Còn hàng' },
-                { value: true, label: 'Đã bán' },
-              ]}
-              value={statusFilter}
-              onChange={(value) => {
-                setStatusFilter(value as boolean | null)
-                setPage(1)
-              }}
-              placeholder="Lọc theo trạng thái"
-            />
-          </div>
-        </div>
-      </Card>
+      <div className="pre-uploaded-page__filters">
+        <Select
+          options={productOptions}
+          value={urlProductId}
+          onChange={v => setParam({ product: v, page: null })}
+          placeholder={t('preUploaded.allProducts', 'Tất cả sản phẩm')}
+          clearable
+          searchable
+          size="sm"
+          className="pre-uploaded-page__product-select"
+        />
+        <Select
+          options={[
+            { value: 'false', label: t('preUploaded.available', 'Có hàng') },
+            { value: 'true', label: t('preUploaded.sold', 'Đã bán') },
+          ]}
+          value={urlUsed}
+          onChange={v => setParam({ used: v, page: null })}
+          placeholder={t('preUploaded.allStatus', 'Tất cả trạng thái')}
+          clearable
+          size="sm"
+          className="pre-uploaded-page__status-select"
+        />
+      </div>
 
-      {/* Products List */}
-      <Card className="products-card">
-        <div className="products-header">
-          <h2>Sản phẩm ({total})</h2>
-          <div className="products-bulk-actions">
-            <span className="selected-count">
-              {selectedProductIds.length > 0 ? `${selectedProductIds.length} đã chọn` : ''}
-            </span>
-            <Button
-              onClick={handleDownloadSelected}
-              variant="secondary"
-              size="small"
-              disabled={selectedProductIds.length === 0}
-              title="Tải về sản phẩm đã chọn"
-            >
-              <Download size={14} />
-              Tải về
-            </Button>
-            <Button
-              onClick={handleBulkDelete}
-              variant="secondary"
-              size="small"
-              disabled={selectedProductIds.length === 0}
-              title="Xóa sản phẩm đã chọn"
-            >
-              <Trash2 size={14} />
-              Xóa đã chọn
-            </Button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="error-banner">
-            <span>{error}</span>
-            <button onClick={() => setError(null)}>×</button>
-          </div>
-        )}
-
-        {products.length === 0 ? (
-          <div className="empty-state">
-            <Package size={48} />
-            <p>Không tìm thấy sản phẩm trong kho</p>
-          </div>
-        ) : (
-          <>
-            <div className="products-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th className="select-column">
-                      <input
-                        type="checkbox"
-                        className="select-checkbox"
-                        checked={products.length > 0 && selectedProductIds.length === products.length}
-                        onChange={handleToggleSelectAll}
-                      />
-                    </th>
-                    <th>Sản phẩm</th>
-                    <th>Phân loại</th>
-                    <th>Dữ liệu</th>
-                    <th>Trạng thái</th>
-                    <th>Ngày tạo</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((product) => (
-                    <tr key={product.id}>
-                      <td className="select-column">
-                        <input
-                          type="checkbox"
-                          className="select-checkbox"
-                          checked={selectedProductIds.includes(product.id)}
-                          onChange={() => handleToggleSelectOne(product.id)}
-                        />
-                      </td>
-                      <td>
-                        <div className="product-info">
-                          <strong>{product.product_name}</strong>
-                          <span className="product-id">ID: {product.product_id}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="variation-info">
-                          <span>{product.variation_name}</span>
-                          <span className="variation-id">ID: {product.variation_id}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="product-data-cell">
-                          <span className="product-data-text" title={extractProductData(product.product_data)}>
-                            {extractProductData(product.product_data)}
-                          </span>
-                          <button
-                            className="copy-btn"
-                            onClick={() => handleCopyProductData(product.id, product.product_data)}
-                            title="Sao chép"
-                          >
-                            {copiedId === product.id ? 'Đã sao chép!' : <Copy size={14} />}
-                          </button>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`status-badge ${product.is_used ? 'sold' : 'available'}`}>
-                          {product.is_used ? (
-                            <>
-                              <XCircle size={14} />
-                              Đã bán
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle size={14} />
-                              Còn hàng
-                            </>
-                          )}
-                        </span>
-                      </td>
-                      <td className="date-cell">
-                        {new Date(product.created_at).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <div className="action-buttons">
-                          {product.is_used ? (
-                            product.used_by_order_id ? null : (
-                              <Button
-                                onClick={() => handleMarkUnused(product.id)}
-                                variant="secondary"
-                                size="small"
-                              >
-                                <CheckCircle size={14} />
-                                Còn hàng
-                              </Button>
-                            )
-                          ) : (
-                            <Button
-                              onClick={() => handleMarkUsed(product.id)}
-                              variant="secondary"
-                              size="small"
-                            >
-                              <XCircle size={14} />
-                              Đã bán
-                            </Button>
-                          )}
-                          <Button
-                            onClick={() => handleDelete(product)}
-                            variant="secondary"
-                            size="small"
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="pagination">
-                <Button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  variant="secondary"
-                  size="small"
-                >
-                  Trước
-                </Button>
-                <span className="pagination-info">
-                  Trang {page} / {totalPages}
-                </span>
-                <Button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  variant="secondary"
-                  size="small"
-                >
-                  Tiếp
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* Delete Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Trash2 size={20} />
-                Xóa sản phẩm
-              </h2>
-              <button onClick={() => setShowDeleteModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p>Bạn có chắc chắn muốn xóa sản phẩm này?</p>
-              {selectedProduct && (
-                <div style={{ marginTop: '16px', padding: '12px', background: 'var(--bg-secondary, #141412)', borderRadius: '8px' }}>
-                  <p style={{ margin: '4px 0', fontWeight: 600 }}>Sản phẩm: {selectedProduct.product_name}</p>
-                  <p style={{ margin: '4px 0' }}>Phân loại: {selectedProduct.variation_name}</p>
-                  <p style={{ margin: '4px 0', fontSize: '12px', color: 'var(--text-muted, #8F8F8F)' }}>ID: {selectedProduct.id}</p>
-                </div>
-              )}
-              <p className="delete-warning" style={{ marginTop: '16px', color: '#EF4444', fontSize: '14px' }}>
-                Thao tác này sẽ xóa vĩnh viễn sản phẩm. Không thể hoàn tác.
-              </p>
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowDeleteModal(false)}>
-                Hủy
-              </Button>
-              <Button type="button" onClick={handleConfirmDelete} style={{ background: '#EF4444', borderColor: '#EF4444' }}>
-                Xóa
-              </Button>
-            </div>
-          </div>
+      {/* Bulk bar */}
+      {selectedKeys.size > 0 && (
+        <div className="pre-uploaded-page__bulk-bar">
+          <span>{t('preUploaded.selected', `Đã chọn ${selectedKeys.size}`)}</span>
+          <Button variant="secondary" tone="subtle" size="sm" iconLeft={<Download size={13} />} onClick={handleDownloadSelected}>
+            {t('preUploaded.download', 'Tải xuống')}
+          </Button>
+          <Button variant="destructive" tone="subtle" size="sm" iconLeft={<Trash2 size={13} />} onClick={handleBulkDelete}>
+            {t('preUploaded.bulkDelete', 'Xoá')}
+          </Button>
         </div>
       )}
 
-      {/* Bulk Delete Modal */}
-      {showBulkDeleteModal && selectedProductIds.length > 0 && (
-        <div className="modal-overlay">
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>
-                <Trash2 size={20} />
-                Xóa sản phẩm đã chọn
-              </h2>
-              <button onClick={() => setShowBulkDeleteModal(false)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p>
-                Bạn có chắc chắn muốn xóa{' '}
-                <strong>{selectedProductIds.length}</strong> sản phẩm đã chọn?
-              </p>
-              <p className="delete-warning" style={{ marginTop: '16px', color: '#EF4444', fontSize: '14px' }}>
-                Thao tác này sẽ xóa vĩnh viễn các sản phẩm đã chọn. Không thể hoàn tác.
-              </p>
-            </div>
-            <div className="modal-actions">
-              <Button type="button" variant="secondary" onClick={() => setShowBulkDeleteModal(false)}>
-                Hủy
-              </Button>
-              <Button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const token = localStorage.getItem('token')
-                    await axios.post(
-                      `${API_BASE_URL}/api/pre-uploaded-products/bulk-delete`,
-                      { ids: selectedProductIds },
-                      {
-                        headers: { Authorization: `Bearer ${token}` },
-                      }
-                    )
-                    setShowBulkDeleteModal(false)
-                    setSelectedProductIds([])
-                    await fetchData()
-                    await fetchStatistics()
-                  } catch (err: any) {
-                    setError(
-                      err.response?.data?.detail || 'Failed to bulk delete pre-uploaded products'
-                    )
-                  }
-                }}
-                style={{ background: '#EF4444', borderColor: '#EF4444' }}
-              >
-                Xóa đã chọn
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="pre-uploaded-page__table-card">
+        <Table<PreUploadedProduct>
+          columns={columns}
+          data={products}
+          keyFn={row => row.id}
+          loading={loading}
+          skeletonRows={perPage}
+          selectable
+          selectedKeys={selectedKeys}
+          onSelectionChange={setSelectedKeys}
+          stickyHeader
+          emptyIcon={<Package size={40} />}
+          emptyTitle={t('preUploaded.empty', 'Kho hàng trống')}
+          emptyDescription={t('preUploaded.emptyDesc', 'Upload sản phẩm để bắt đầu')}
+        />
+        <Pagination
+          page={urlPage}
+          pageSize={perPage}
+          total={total}
+          onPageChange={p => setParam({ page: String(p) })}
+          onPageSizeChange={size => { setPerPage(size); setParam({ page: null }) }}
+          className="pre-uploaded-page__pagination"
+        />
+      </div>
     </div>
   )
 }
-

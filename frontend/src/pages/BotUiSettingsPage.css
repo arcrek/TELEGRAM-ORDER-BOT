@@ -1,56 +1,156 @@
 .bot-ui-settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  max-width: 1200px;
 }
 
-.bot-ui-settings-header h1 {
+.bot-ui-settings-page__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.bot-ui-settings-page__dirty-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--warning-500);
+  margin-left: var(--space-1);
+}
+
+.bot-ui-settings-page__error {
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-50);
+  border: 1px solid var(--danger-500);
+  border-radius: var(--radius-md);
+  color: var(--danger-500);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+/* ── Two-column layout ────────────────────────────────────────────── */
+.bot-ui-settings-page__layout {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* ── Form ─────────────────────────────────────────────────────────── */
+.bot-ui-settings-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.bot-ui-settings-page__skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.bot-ui-settings-page__skel-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bot-ui-settings-page__shortcut-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
   margin: 0;
 }
 
-.bot-ui-settings-header p {
-  margin: 0.25rem 0 0;
-  color: var(--text-muted, #8f8f8f);
+/* ── Preview pane ─────────────────────────────────────────────────── */
+.bot-ui-settings-page__preview-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-4));
 }
 
-.bot-ui-settings-card {
-  padding: 1.25rem;
-}
-
-.bot-ui-settings-loading {
+.bot-ui-settings-page__preview-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
-.bot-ui-settings-error {
-  color: #ff7a7a;
-  margin-bottom: 0.75rem;
-}
-
-.bot-ui-settings-form {
+.bot-ui-settings-page__preview-body {
+  padding: var(--space-4);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--space-3);
+  min-height: 200px;
 }
 
-.bot-ui-settings-label {
-  font-weight: 600;
-}
-
-.bot-ui-settings-textarea {
-  width: 100%;
-  min-height: 96px;
-  border: 1px solid var(--border-color, #2a2a26);
-  background: var(--surface-bg, #181816);
-  color: var(--text-primary, #eaeaea);
-  border-radius: 8px;
-  padding: 0.75rem;
-  resize: vertical;
-}
-
-.bot-ui-settings-actions {
+.bot-ui-settings-page__preview-bubble {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
+.bot-ui-settings-page__preview-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.bot-ui-settings-page__preview-bubble p {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bot-ui-settings-page__preview-btns {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.bot-ui-settings-page__preview-btns span {
+  font-size: var(--text-xs);
+  background: var(--brand-500);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  cursor: default;
+}
+
+.bot-ui-settings-page__preview-empty {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: auto;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .bot-ui-settings-page__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .bot-ui-settings-page__preview-card {
+    position: static;
+  }
+}

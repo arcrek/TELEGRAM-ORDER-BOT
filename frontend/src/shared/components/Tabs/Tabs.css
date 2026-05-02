@@ -1,0 +1,119 @@
+.tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs__list {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs__list::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Underline variant ─── */
+.tabs--underline .tabs__list {
+  border-bottom: 1px solid var(--border-subtle);
+  gap: var(--space-1);
+}
+
+.tabs--underline .tabs__tab {
+  position: relative;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 12px);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--duration-fast, 120ms) ease;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.tabs--underline .tabs__tab:hover:not(:disabled) {
+  color: var(--text-secondary);
+}
+
+.tabs--underline .tabs__tab--active {
+  color: var(--brand-500);
+  border-bottom-color: var(--brand-500);
+  font-weight: 500;
+}
+
+.tabs--underline .tabs__tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Pill variant ─── */
+.tabs--pill .tabs__list {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+  gap: 2px;
+  width: fit-content;
+}
+
+.tabs--pill .tabs__tab {
+  padding: var(--space-1) var(--space-3);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 12px);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast, 120ms) ease,
+    color var(--duration-fast, 120ms) ease;
+  white-space: nowrap;
+}
+
+.tabs--pill .tabs__tab:hover:not(:disabled):not(.tabs__tab--active) {
+  color: var(--text-primary);
+}
+
+.tabs--pill .tabs__tab--active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+
+.tabs--pill .tabs__tab:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Sizes */
+.tabs--sm .tabs__tab { font-size: var(--text-xs, 11px); }
+.tabs--sm.tabs--underline .tabs__tab { padding: var(--space-1) var(--space-2); }
+
+/* Badge */
+.tabs__tab-badge {
+  margin-left: var(--space-1);
+}
+
+/* Panel */
+.tabs__panel {
+  outline: none;
+}
+
+.tabs__panel--hidden {
+  display: none;
+}
+
+.tabs__tab:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabs__tab { transition: none; }
+}

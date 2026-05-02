@@ -1,0 +1,123 @@
+.filedrop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-6);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast, 120ms) ease,
+    background var(--duration-fast, 120ms) ease;
+  text-align: center;
+  outline: none;
+  min-height: 120px;
+}
+
+.filedrop:hover:not(.filedrop--disabled),
+.filedrop:focus-visible {
+  border-color: var(--brand-500);
+  background: var(--brand-50);
+}
+
+.filedrop--dragging {
+  border-color: var(--brand-500);
+  background: var(--brand-50);
+}
+
+.filedrop--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.filedrop__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.filedrop__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.filedrop__icon {
+  color: var(--text-muted);
+}
+
+.filedrop--dragging .filedrop__icon,
+.filedrop:hover .filedrop__icon {
+  color: var(--brand-500);
+}
+
+.filedrop__label {
+  font-size: var(--text-sm, 12px);
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin: 0;
+}
+
+.filedrop__hint {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.filedrop__accept {
+  font-size: var(--text-xs, 11px);
+  color: var(--text-disabled);
+  margin: 0;
+}
+
+/* File chip */
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 4px var(--space-2);
+  font-size: var(--text-xs, 11px);
+  color: var(--text-secondary);
+}
+
+.file-chip__name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-chip__size {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.file-chip__remove {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+
+.file-chip__remove:hover {
+  color: var(--danger-500);
+  background: var(--danger-50);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filedrop { transition: none; }
+}

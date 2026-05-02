@@ -1,0 +1,12 @@
+{
+  "products": {
+    "title": "Products",
+    "create": "Create Product",
+    "name": "Product Name",
+    "description": "Description",
+    "deliveryType": "Delivery Type",
+    "isActive": "Active",
+    "variations": "Variations",
+    "noProducts": "No products found"
+  }
+}

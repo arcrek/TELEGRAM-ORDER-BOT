@@ -1,0 +1,119 @@
+.cmd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: var(--z-modal-backdrop, 1300);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  animation: cmd-backdrop-in var(--duration-fast, 120ms) ease;
+}
+
+@keyframes cmd-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.cmd-palette {
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: cmd-in var(--duration-fast, 120ms) ease;
+  z-index: var(--z-modal, 1400);
+  margin: 0 var(--space-4);
+}
+
+@keyframes cmd-in {
+  from { opacity: 0; transform: scale(0.97) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.cmd-palette__input-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.cmd-palette__search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cmd-palette__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--text-base, 14px);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+}
+
+.cmd-palette__input::placeholder {
+  color: var(--text-disabled);
+}
+
+.cmd-palette__esc {
+  padding: 2px 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.cmd-palette__results {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-1) 0;
+}
+
+.cmd-palette__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: none;
+  font-size: var(--text-sm, 12px);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--duration-fast, 120ms) ease;
+}
+
+.cmd-palette__item:hover,
+.cmd-palette__item--focused {
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  outline: none;
+}
+
+.cmd-palette__item-path {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs, 11px);
+  color: var(--text-muted);
+}
+
+.cmd-palette__empty {
+  padding: var(--space-4);
+  text-align: center;
+  font-size: var(--text-sm, 12px);
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmd-backdrop,
+  .cmd-palette { animation: none; }
+}

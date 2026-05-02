@@ -1,0 +1,171 @@
+/*
+ * Design tokens — single source of truth.
+ * Light is the :root default; [data-theme='dark'] overrides.
+ * No JS injection: ThemeContext only sets data-theme.
+ */
+
+:root {
+  /* ── Surfaces (3 layers + sunken) ────────────────────────── */
+  --bg-page: #f7f8fa;
+  --bg-surface: #ffffff;
+  --bg-raised: #ffffff;
+  --bg-sunken: #eef0f4;
+
+  /* ── Borders ─────────────────────────────────────────────── */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.16);
+  --border-focus: var(--brand-500);
+
+  /* ── Text ────────────────────────────────────────────────── */
+  --text-primary: #0b0f19;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-disabled: #94a3b8;
+  --text-inverted: #ffffff;
+  --text-link: var(--brand-600);
+
+  /* ── Brand (anchor #4B82FF light / #6EA8FF dark) ─────────── */
+  --brand-50: #eef3ff;
+  --brand-100: #dce6ff;
+  --brand-500: #4b82ff;
+  --brand-600: #3b6be6;
+  --brand-700: #2c54b8;
+
+  /* ── Semantic ────────────────────────────────────────────── */
+  --success-50: #e8f8ee;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --warning-50: #fff6e5;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --danger-50: #fdecec;
+  --danger-500: #ef4444;
+  --danger-600: #dc2626;
+  --info-50: #e6f4ff;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+
+  /* ── Data viz palette (8 categorical, dual-mode safe) ────── */
+  --viz-1: #4b82ff;
+  --viz-2: #22c55e;
+  --viz-3: #f59e0b;
+  --viz-4: #ef4444;
+  --viz-5: #a855f7;
+  --viz-6: #06b6d4;
+  --viz-7: #ec4899;
+  --viz-8: #84cc16;
+
+  /* ── Order status (matches backend OrderStatus enum) ─────── */
+  --status-pending-bg: #fff6e5;
+  --status-pending-fg: #92400e;
+  --status-paid-bg: #e6f4ff;
+  --status-paid-fg: #1e40af;
+  --status-processing-bg: #eef3ff;
+  --status-processing-fg: #2c54b8;
+  --status-delivered-bg: #e8f8ee;
+  --status-delivered-fg: #15803d;
+  --status-cancelled-bg: #fdecec;
+  --status-cancelled-fg: #991b1b;
+
+  /* ── Shadows (light) ─────────────────────────────────────── */
+  --shadow-none: 0 0 0 0 transparent;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+
+  /* ── Radius ──────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* ── Spacing (4-px scale, 1..10) ─────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  /* ── Density ─────────────────────────────────────────────── */
+  --header-height: 56px;
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --table-row-height: 36px;
+  --table-row-height-dense: 28px;
+  --grid-gap: 16px;
+  --grid-gap-dense: 8px;
+  --card-padding: 16px;
+
+  /* ── Z-index scale ───────────────────────────────────────── */
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-toast: 1600;
+
+  /* ── Motion ──────────────────────────────────────────────── */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0.2, 1);
+  --easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
+
+}
+
+[data-theme='dark'] {
+  --bg-page: #050609;
+  --bg-surface: #0b0e14;
+  --bg-raised: #101319;
+  --bg-sunken: #07090d;
+
+  --border-subtle: #1a2030;
+  --border-strong: #2a3142;
+
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-disabled: #4b5563;
+  --text-inverted: #0b0f19;
+
+  --brand-50: #0f1a33;
+  --brand-100: #1a2a55;
+  --brand-500: #6ea8ff;
+  --brand-600: #4b82ff;
+  --brand-700: #3b6be6;
+
+  --success-50: #0e2a19;
+  --success-500: #22c55e;
+  --success-600: #34d399;
+  --warning-50: #3a2a08;
+  --warning-500: #f59e0b;
+  --warning-600: #fbbf24;
+  --danger-50: #3a1414;
+  --danger-500: #ef4444;
+  --danger-600: #f87171;
+  --info-50: #0e2238;
+  --info-500: #60a5fa;
+  --info-600: #93c5fd;
+
+  --status-pending-bg: #3a2a08;
+  --status-pending-fg: #fbbf24;
+  --status-paid-bg: #0e2238;
+  --status-paid-fg: #93c5fd;
+  --status-processing-bg: #1a2a55;
+  --status-processing-fg: #a5b8ff;
+  --status-delivered-bg: #0e2a19;
+  --status-delivered-fg: #34d399;
+  --status-cancelled-bg: #3a1414;
+  --status-cancelled-fg: #f87171;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+}

@@ -1,0 +1,17 @@
+{
+  "orders": {
+    "title": "Đơn hàng",
+    "orderId": "Mã Đơn hàng",
+    "userId": "Mã Người dùng",
+    "totalAmount": "Tổng Tiền",
+    "status": "Trạng thái",
+    "createdAt": "Ngày Tạo",
+    "pending": "Đang chờ",
+    "paid": "Đã thanh toán",
+    "processing": "Đang xử lý",
+    "delivered": "Đã giao",
+    "cancelled": "Đã hủy",
+    "filterByStatus": "Lọc theo Trạng thái",
+    "allStatuses": "Tất cả Trạng thái"
+  }
+}
