@@ -103,11 +103,11 @@
   --card-padding: 16px;
 
   /* ── Z-index scale ───────────────────────────────────────── */
-  --z-dropdown: 1000;
   --z-sticky: 1100;
-  --z-fixed: 1200;
+  --z-fixed: 1150;
   --z-modal-backdrop: 1300;
   --z-modal: 1400;
+  --z-dropdown: 1450;
   --z-popover: 1500;
   --z-toast: 1600;
 
