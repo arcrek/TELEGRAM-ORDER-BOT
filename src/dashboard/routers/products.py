@@ -1,6 +1,7 @@
 """
 Products router.
 """
+import uuid
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ router = APIRouter()
 
 class ProductCreate(BaseModel):
     """Product creation schema."""
-    id: str
+    id: Optional[str] = None
     name: str
     description: Optional[str] = None
     delivery_type: DeliveryType = DeliveryType.PRE_UPLOADED
@@ -194,17 +195,19 @@ async def create_product(
         Created product
     """
     service = ProductService(db)
-    
+
+    product_id = product_data.id or str(uuid.uuid4())
+
     # Check if product already exists
-    existing = service.get_product_by_id(product_data.id)
+    existing = service.get_product_by_id(product_id)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Product with ID {product_data.id} already exists"
+            detail=f"Product with ID {product_id} already exists"
         )
-    
+
     product = service.create_product({
-        "id": product_data.id,
+        "id": product_id,
         "name": product_data.name,
         "description": product_data.description,
         "delivery_type": product_data.delivery_type,

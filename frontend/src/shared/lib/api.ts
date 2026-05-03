@@ -67,8 +67,12 @@ apiClient.interceptors.response.use(
 /** Extract the most useful error string from an axios failure. */
 export function formatApiError(err: unknown, fallback = 'Something went wrong'): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as { detail?: string; message?: string } | undefined
-    return data?.detail || data?.message || err.message || fallback
+    const data = err.response?.data as { detail?: string | Array<{ msg?: string; message?: string }>; message?: string } | undefined
+    if (Array.isArray(data?.detail)) {
+      const first = data?.detail[0]
+      return first?.msg || first?.message || fallback
+    }
+    return (typeof data?.detail === 'string' ? data.detail : null) || data?.message || err.message || fallback
   }
   if (err instanceof Error) return err.message
   return fallback

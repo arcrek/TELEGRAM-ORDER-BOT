@@ -1,6 +1,7 @@
 """
 Variations router.
 """
+import uuid
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -15,7 +16,7 @@ router = APIRouter()
 
 class VariationCreate(BaseModel):
     """Variation creation schema."""
-    id: str
+    id: Optional[str] = None
     product_id: str
     name: str
     price: int
@@ -178,15 +179,17 @@ async def create_variation(
         Created variation
     """
     service = VariationService(db)
-    
+
+    variation_id = variation_data.id or str(uuid.uuid4())
+
     # Check if variation already exists
-    existing = service.get_variation_by_id(variation_data.id)
+    existing = service.get_variation_by_id(variation_id)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Variation with ID {variation_data.id} already exists"
+            detail=f"Variation with ID {variation_id} already exists"
         )
-    
+
     # Check if product exists
     product_service = ProductService(db)
     product = product_service.get_product_by_id(variation_data.product_id)
@@ -195,9 +198,9 @@ async def create_variation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Product {variation_data.product_id} not found"
         )
-    
+
     variation = service.create_variation({
-        "id": variation_data.id,
+        "id": variation_id,
         "product_id": variation_data.product_id,
         "name": variation_data.name,
         "price": variation_data.price,
