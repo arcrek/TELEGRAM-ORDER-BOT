@@ -45,71 +45,88 @@ class StatisticsService:
         else:
             return None, None
     
-    def get_total_orders_count(self, period: Optional[str] = None) -> int:
+    def get_total_orders_count(
+        self,
+        period: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> int:
         """
         Get total orders count.
-        
+
         Args:
             period: Period filter ('today', 'this_week', 'this_month', None for all time)
-        
+            start_date: Explicit range start (overrides period)
+            end_date: Explicit range end (overrides period)
+
         Returns:
             Total orders count
         """
         query = self.session.query(func.count(Order.id))
-        
-        if period:
-            start_date, end_date = self._get_date_range(period)
-            if start_date and end_date:
-                query = query.filter(
-                    and_(
-                        Order.created_at >= start_date,
-                        Order.created_at <= end_date
-                    )
-                )
-        
+
+        if start_date or end_date:
+            if start_date:
+                query = query.filter(Order.created_at >= start_date)
+            if end_date:
+                query = query.filter(Order.created_at <= end_date)
+        elif period:
+            sd, ed = self._get_date_range(period)
+            if sd and ed:
+                query = query.filter(and_(Order.created_at >= sd, Order.created_at <= ed))
+
         return query.scalar() or 0
-    
-    def get_total_revenue(self, period: Optional[str] = None) -> int:
+
+    def get_total_revenue(
+        self,
+        period: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> int:
         """
         Get total revenue (sum of paid and delivered orders).
-        
+
         Args:
             period: Period filter ('today', 'this_week', 'this_month', None for all time)
-        
+            start_date: Explicit range start (overrides period)
+            end_date: Explicit range end (overrides period)
+
         Returns:
             Total revenue in VND
         """
         query = self.session.query(func.sum(Order.total_amount)).filter(
             Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED])
         )
-        
-        if period:
-            start_date, end_date = self._get_date_range(period)
-            if start_date and end_date:
-                query = query.filter(
-                    and_(
-                        Order.created_at >= start_date,
-                        Order.created_at <= end_date
-                    )
-                )
-        
+
+        if start_date or end_date:
+            if start_date:
+                query = query.filter(Order.created_at >= start_date)
+            if end_date:
+                query = query.filter(Order.created_at <= end_date)
+        elif period:
+            sd, ed = self._get_date_range(period)
+            if sd and ed:
+                query = query.filter(and_(Order.created_at >= sd, Order.created_at <= ed))
+
         result = query.scalar()
         return int(result) if result else 0
-    
-    def get_orders_by_status(self) -> Dict[str, int]:
+
+    def get_orders_by_status(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> Dict[str, int]:
         """
         Get orders grouped by status.
-        
+
         Returns:
             Dictionary mapping status to count
         """
-        results = (
-            self.session.query(Order.status, func.count(Order.id))
-            .group_by(Order.status)
-            .all()
-        )
-        
-        return {status.value: count for status, count in results}
+        query = self.session.query(Order.status, func.count(Order.id)).group_by(Order.status)
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
+        return {status.value: count for status, count in query.all()}
     
     def get_orders_by_product(self) -> List[Dict[str, any]]:
         """
@@ -141,20 +158,26 @@ class StatisticsService:
     def get_revenue_over_time(
         self,
         interval: str = "daily",
-        days: int = 30
+        days: int = 30,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
     ) -> List[Dict[str, any]]:
         """
         Get revenue over time.
-        
+
         Args:
             interval: Time interval ('daily', 'weekly', 'monthly')
-            days: Number of days to look back
-        
+            days: Number of days to look back (ignored when start_date is provided)
+            start_date: Explicit range start
+            end_date: Explicit range end
+
         Returns:
             List of dictionaries with date and revenue
         """
-        start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        
+        now = datetime.now(timezone.utc)
+        effective_start = start_date if start_date is not None else now - timedelta(days=days)
+        effective_end = end_date if end_date is not None else now
+
         # Use the moment an order was last updated (e.g., when it became PAID/DELIVERED)
         # rather than its creation time, so revenue aligns with the actual payment date.
         # func.date() works across SQLite/PostgreSQL.
@@ -165,16 +188,17 @@ class StatisticsService:
             )
             .filter(
                 and_(
-                    Order.updated_at >= start_date,
+                    Order.updated_at >= effective_start,
+                    Order.updated_at <= effective_end,
                     Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED])
                 )
             )
             .group_by(func.date(Order.updated_at))
             .order_by(func.date(Order.updated_at))
         )
-        
+
         results = query.all()
-        
+
         return [
             {
                 "date": str(date) if date else "",
@@ -183,17 +207,24 @@ class StatisticsService:
             for date, revenue in results
         ]
     
-    def get_top_selling_products(self, limit: int = 10) -> List[Dict[str, any]]:
+    def get_top_selling_products(
+        self,
+        limit: int = 10,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict[str, any]]:
         """
         Get top selling products by quantity sold.
-        
+
         Args:
             limit: Maximum number of products to return
-        
+            start_date: Explicit range start
+            end_date: Explicit range end
+
         Returns:
             List of dictionaries with product info and quantity sold
         """
-        results = (
+        query = (
             self.session.query(
                 Product.id,
                 Product.name,
@@ -203,12 +234,18 @@ class StatisticsService:
             .join(OrderItem, Product.id == OrderItem.product_id)
             .join(Order, OrderItem.order_id == Order.id)
             .filter(Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]))
-            .group_by(Product.id, Product.name)
+        )
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
+        results = (
+            query.group_by(Product.id, Product.name)
             .order_by(func.sum(OrderItem.quantity).desc())
             .limit(limit)
             .all()
         )
-        
+
         return [
             {
                 "product_id": product_id,
@@ -218,7 +255,7 @@ class StatisticsService:
             }
             for product_id, product_name, quantity_sold, revenue in results
         ]
-    
+
     def get_total_sold_by_product(self) -> List[Dict[str, any]]:
         """
         Get total sold quantity by product.
@@ -250,35 +287,52 @@ class StatisticsService:
             for product_id, product_name, total_sold, revenue in results
         ]
     
-    def get_total_sold_all_products(self) -> int:
+    def get_total_sold_all_products(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> int:
         """
         Get total sold quantity for all products.
-        
+
         Returns:
             Total quantity sold
         """
-        result = (
+        query = (
             self.session.query(func.sum(OrderItem.quantity))
             .join(Order, OrderItem.order_id == Order.id)
             .filter(Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]))
-            .scalar()
         )
-        
-        return int(result) if result else 0
-    
-    def get_recent_orders(self, limit: int = 10) -> List[Dict[str, any]]:
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
+        return int(query.scalar() or 0)
+
+    def get_recent_orders(
+        self,
+        limit: int = 10,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict[str, any]]:
         """
         Get recent orders.
-        
+
         Args:
             limit: Maximum number of orders to return
-        
+            start_date: Explicit range start
+            end_date: Explicit range end
+
         Returns:
             List of recent orders with basic info
         """
+        query = self.session.query(Order)
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
         orders = (
-            self.session.query(Order)
-            .order_by(Order.created_at.desc())
+            query.order_by(Order.created_at.desc())
             .limit(limit)
             .all()
         )
@@ -415,22 +469,22 @@ class StatisticsService:
             Dictionary with all key statistics
         """
         base: Dict[str, Any] = {
-            "total_orders": self.get_total_orders_count(),
+            "total_orders": self.get_total_orders_count(start_date=start_date, end_date=end_date),
             "total_orders_today": self.get_total_orders_count("today"),
             "total_orders_this_week": self.get_total_orders_count("this_week"),
             "total_orders_this_month": self.get_total_orders_count("this_month"),
-            "total_revenue": self.get_total_revenue(),
+            "total_revenue": self.get_total_revenue(start_date=start_date, end_date=end_date),
             "total_revenue_today": self.get_total_revenue("today"),
             "total_revenue_this_week": self.get_total_revenue("this_week"),
             "total_revenue_this_month": self.get_total_revenue("this_month"),
-            "orders_by_status": self.get_orders_by_status(),
+            "orders_by_status": self.get_orders_by_status(start_date, end_date),
             "orders_by_product": self.get_orders_by_product(),
-            "top_selling_products": self.get_top_selling_products(limit=10),
-            "total_sold_all_products": self.get_total_sold_all_products(),
-            "revenue_over_time_daily": self.get_revenue_over_time(interval="daily", days=30),
-            "revenue_over_time_weekly": self.get_revenue_over_time(interval="weekly", days=90),
-            "revenue_over_time_monthly": self.get_revenue_over_time(interval="monthly", days=365),
-            "recent_orders": self.get_recent_orders(limit=10),
+            "top_selling_products": self.get_top_selling_products(limit=10, start_date=start_date, end_date=end_date),
+            "total_sold_all_products": self.get_total_sold_all_products(start_date, end_date),
+            "revenue_over_time_daily": self.get_revenue_over_time(interval="daily", days=30, start_date=start_date, end_date=end_date),
+            "revenue_over_time_weekly": self.get_revenue_over_time(interval="weekly", days=90, start_date=start_date, end_date=end_date),
+            "revenue_over_time_monthly": self.get_revenue_over_time(interval="monthly", days=365, start_date=start_date, end_date=end_date),
+            "recent_orders": self.get_recent_orders(limit=10, start_date=start_date, end_date=end_date),
             "funnel": self.get_funnel(start_date, end_date),
             "orders_heatmap": self.get_orders_heatmap(start_date, end_date),
         }
