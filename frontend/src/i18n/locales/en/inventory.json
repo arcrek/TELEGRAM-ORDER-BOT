@@ -1,0 +1,32 @@
+{
+  "inventory": {
+    "title": "Stock Update",
+    "refresh": "Refresh",
+    "totalStock": "Total Stock",
+    "totalAging": "Total Aging",
+    "totalExpiring": "Total Expiring Soon",
+    "colVariant": "Variant",
+    "colInStock": "In Stock",
+    "colAging": "Aging Stock",
+    "colExpiring": "Expiring Soon",
+    "colThreshold": "Warning Threshold",
+    "save": "Save",
+    "saving": "Saving...",
+    "thresholdPlaceholder": "Value",
+    "unitDays": "Days",
+    "unitMonths": "Months",
+    "unitYears": "Years",
+    "noThreshold": "—",
+    "agingBadge": "Aging: {{count}}",
+    "expiringBadge": "Expiring: {{count}}",
+    "emptyTitle": "No pre-uploaded products",
+    "emptyDesc": "No products with pre-uploaded delivery type found.",
+    "loadError": "Failed to load inventory data",
+    "saveSuccess": "Warning threshold saved",
+    "saveError": "Failed to save warning threshold",
+    "clearThreshold": "Clear threshold",
+    "totalStockUnit": "items",
+    "collapse": "Collapse",
+    "expand": "Expand"
+  }
+}

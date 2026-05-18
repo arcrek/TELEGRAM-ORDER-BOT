@@ -101,6 +101,22 @@ async def list_pre_uploaded_products(
     }
 
 
+@router.get("/pre-uploaded-products/inventory-stats")
+async def get_inventory_stats(
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Get per-variant inventory statistics for all PRE_UPLOADED products.
+
+    Returns:
+        List of products with variant-level stock, aging, and expiring_soon counts.
+    """
+    service = PreUploadedService(db)
+    products = service.get_inventory_stats_by_product()
+    return {"products": products}
+
+
 @router.get("/pre-uploaded-products/statistics")
 async def get_pre_uploaded_statistics(
     current_admin=Depends(get_current_admin),

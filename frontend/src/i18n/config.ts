@@ -15,6 +15,7 @@ import viStatistics from './locales/vi/statistics.json'
 import viProducts from './locales/vi/products.json'
 import viOrders from './locales/vi/orders.json'
 import viNotifications from './locales/vi/notifications.json'
+import viInventory from './locales/vi/inventory.json'
 
 import enCommon from './locales/en/common.json'
 import enNav from './locales/en/nav.json'
@@ -23,6 +24,7 @@ import enStatistics from './locales/en/statistics.json'
 import enProducts from './locales/en/products.json'
 import enOrders from './locales/en/orders.json'
 import enNotifications from './locales/en/notifications.json'
+import enInventory from './locales/en/inventory.json'
 
 const viTranslations = {
   ...viCommon,
@@ -32,6 +34,7 @@ const viTranslations = {
   ...viProducts,
   ...viOrders,
   ...viNotifications,
+  ...viInventory,
 }
 
 const enTranslations = {
@@ -42,6 +45,7 @@ const enTranslations = {
   ...enProducts,
   ...enOrders,
   ...enNotifications,
+  ...enInventory,
 }
 
 // Seed Vietnamese as the default for first-time visitors only;

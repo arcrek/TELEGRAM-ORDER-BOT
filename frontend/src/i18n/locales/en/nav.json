@@ -10,6 +10,7 @@
     "botUiSettings": "Bot UI Settings",
     "productUpload": "Product Upload",
     "preUploaded": "Inventory",
+    "inventoryUpdate": "Stock Update",
     "logout": "Logout",
     "groups": {
       "overview": "Overview",

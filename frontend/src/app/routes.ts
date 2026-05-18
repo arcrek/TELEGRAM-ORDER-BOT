@@ -19,6 +19,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/notifications', key: 'notifications', labelKey: 'nav.notifications', group: 'operations', iconName: 'Bell' },
   { path: '/product-upload', key: 'productUpload', labelKey: 'nav.productUpload', group: 'operations', iconName: 'Upload' },
   { path: '/pre-uploaded', key: 'preUploaded', labelKey: 'nav.preUploaded', group: 'operations', iconName: 'Database' },
+  { path: '/inventory-update', key: 'inventoryUpdate', labelKey: 'nav.inventoryUpdate', group: 'operations', iconName: 'Boxes' },
   { path: '/bonus-summary', key: 'bonusSummary', labelKey: 'nav.bonusSummary', group: 'operations', iconName: 'Gift' },
   // Operations (continued)
   { path: '/suppliers', key: 'suppliers', labelKey: 'nav.suppliers', group: 'operations', iconName: 'Users' },

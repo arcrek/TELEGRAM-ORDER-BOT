@@ -2,10 +2,10 @@
 Variations router.
 """
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator, model_validator
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
@@ -31,6 +31,27 @@ class VariationUpdate(BaseModel):
     # stock is removed - it's calculated from pre-uploaded products
     is_active: Optional[bool] = None
     benefit_mode: Optional[str] = None  # 'bonus' | 'discount' | 'both'
+    # Warning threshold for inventory aging/expiry tracking.
+    # Both fields must be provided together or both must be null.
+    warning_threshold_value: Optional[int] = None
+    warning_threshold_unit: Optional[Literal['days', 'months', 'years']] = None
+
+    @field_validator('warning_threshold_value')
+    @classmethod
+    def validate_threshold_value(cls, v: Optional[int]) -> Optional[int]:
+        if v is not None and v <= 0:
+            raise ValueError('warning_threshold_value must be greater than 0')
+        return v
+
+    @model_validator(mode='after')
+    def validate_threshold_pair(self) -> 'VariationUpdate':
+        v = self.warning_threshold_value
+        u = self.warning_threshold_unit
+        if (v is None) != (u is None):
+            raise ValueError(
+                'warning_threshold_value and warning_threshold_unit must both be set or both be null'
+            )
+        return self
 
 
 class VariationResponse(BaseModel):
@@ -259,7 +280,18 @@ async def update_variation(
                 detail="benefit_mode must be 'bonus', 'discount', or 'both'",
             )
         update_dict["benefit_mode"] = variation_data.benefit_mode
-    
+    # Threshold fields: include when explicitly provided in the request body.
+    # model_validator guarantees they are both set or both null together.
+    if variation_data.warning_threshold_value is not None or variation_data.warning_threshold_unit is not None:
+        update_dict["warning_threshold_value"] = variation_data.warning_threshold_value
+        update_dict["warning_threshold_unit"] = variation_data.warning_threshold_unit
+    # Allow clearing the threshold by sending both as null (explicit nullification).
+    # We detect this by checking the raw model fields: if either key appears in the
+    # request body at all, the pair is included.  Pydantic sets them to None for nulls.
+    elif 'warning_threshold_value' in variation_data.model_fields_set:
+        update_dict["warning_threshold_value"] = None
+        update_dict["warning_threshold_unit"] = None
+
     variation = service.update_variation(variation_id, update_dict)
     
     if not variation:

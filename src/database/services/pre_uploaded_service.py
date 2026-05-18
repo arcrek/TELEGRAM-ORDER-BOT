@@ -2,11 +2,15 @@
 Pre-uploaded product service layer.
 """
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+from dateutil.relativedelta import relativedelta
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.order import Order
+
+# Number of days ahead to consider a record "expiring soon"
+EXPIRING_SOON_DAYS = 3
 
 
 class PreUploadedService:
@@ -182,10 +186,116 @@ class PreUploadedService:
                     })
         
         success = len(failed_items) == 0
-        
+
         return {
             "success": success,
             "products": delivered_products,
             "failed_items": failed_items
         }
+
+    def get_inventory_stats_by_product(self) -> List[Dict[str, Any]]:
+        """
+        Compute per-variant inventory statistics for all PRE_UPLOADED products.
+
+        For each available (is_used=False) record:
+          - in_stock: total count of available records for the variant.
+          - aging: count of available records whose created_at is older than the
+            variant's warning_threshold (today - threshold >= created_at).
+          - expiring_soon: count of available records that will cross the threshold
+            within the next EXPIRING_SOON_DAYS days.
+
+        Variants without a configured threshold return aging=0, expiring_soon=0.
+
+        Returns:
+            List of product dicts, each containing a list of variant stat dicts.
+        """
+        from src.database.models.product import Product
+        from src.database.models.product_variation import ProductVariation
+        from src.database.models.enums import DeliveryType
+
+        now = datetime.now(timezone.utc)
+
+        # Fetch only PRE_UPLOADED products
+        products: List[Product] = (
+            self.session.query(Product)
+            .filter(Product.delivery_type == DeliveryType.PRE_UPLOADED)
+            .order_by(Product.name)
+            .all()
+        )
+
+        result: List[Dict[str, Any]] = []
+
+        for product in products:
+            variants: List[ProductVariation] = (
+                self.session.query(ProductVariation)
+                .filter_by(product_id=product.id)
+                .order_by(ProductVariation.name)
+                .all()
+            )
+
+            variant_stats = []
+            for variant in variants:
+                # Total available
+                in_stock: int = (
+                    self.session.query(PreUploadedProduct)
+                    .filter_by(variation_id=variant.id, is_used=False)
+                    .count()
+                )
+
+                aging = 0
+                expiring_soon = 0
+
+                tv = variant.warning_threshold_value
+                tu = variant.warning_threshold_unit
+
+                if tv is not None and tu is not None:
+                    delta = relativedelta(**{tu: tv})  # type: ignore[arg-type]
+                    # cutoff_aging: records created on or before this date are "aged"
+                    cutoff_aging = now - delta
+                    # cutoff_expiring: records created on or before this date will
+                    # expire within the next EXPIRING_SOON_DAYS days
+                    cutoff_expiring = now + relativedelta(days=EXPIRING_SOON_DAYS) - delta
+
+                    # Naive comparison: strip timezone awareness for SQLite compatibility
+                    cutoff_aging_naive = cutoff_aging.replace(tzinfo=None)
+                    cutoff_expiring_naive = cutoff_expiring.replace(tzinfo=None)
+
+                    aging = (
+                        self.session.query(PreUploadedProduct)
+                        .filter(
+                            PreUploadedProduct.variation_id == variant.id,
+                            PreUploadedProduct.is_used.is_(False),
+                            PreUploadedProduct.created_at <= cutoff_aging_naive,
+                        )
+                        .count()
+                    )
+
+                    expiring_soon = (
+                        self.session.query(PreUploadedProduct)
+                        .filter(
+                            PreUploadedProduct.variation_id == variant.id,
+                            PreUploadedProduct.is_used.is_(False),
+                            PreUploadedProduct.created_at > cutoff_aging_naive,
+                            PreUploadedProduct.created_at <= cutoff_expiring_naive,
+                        )
+                        .count()
+                    )
+
+                variant_stats.append({
+                    "variation_id": variant.id,
+                    "variation_name": variant.name,
+                    "in_stock": in_stock,
+                    "aging": aging,
+                    "expiring_soon": expiring_soon,
+                    "threshold_value": tv,
+                    "threshold_unit": tu,
+                })
+
+            result.append({
+                "product_id": product.id,
+                "product_name": product.name,
+                "variants": variant_stats,
+            })
+
+        return result
 

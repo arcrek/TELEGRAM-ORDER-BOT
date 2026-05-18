@@ -1,0 +1,32 @@
+{
+  "inventory": {
+    "title": "Cập nhật kho hàng",
+    "refresh": "Làm mới",
+    "totalStock": "Tổng tồn kho",
+    "totalAging": "Tổng tồn lâu",
+    "totalExpiring": "Tổng sắp hết hạn",
+    "colVariant": "Phân loại",
+    "colInStock": "Tồn kho",
+    "colAging": "Hàng tồn lâu",
+    "colExpiring": "Hàng sắp hết hạn",
+    "colThreshold": "Ngưỡng cảnh báo",
+    "save": "Lưu",
+    "saving": "Đang lưu...",
+    "thresholdPlaceholder": "Số",
+    "unitDays": "Ngày",
+    "unitMonths": "Tháng",
+    "unitYears": "Năm",
+    "noThreshold": "—",
+    "agingBadge": "Tồn lâu: {{count}}",
+    "expiringBadge": "Sắp hết hạn: {{count}}",
+    "emptyTitle": "Không có sản phẩm pre-uploaded",
+    "emptyDesc": "Chưa có sản phẩm nào có loại giao hàng pre-uploaded.",
+    "loadError": "Không thể tải dữ liệu kho hàng",
+    "saveSuccess": "Đã lưu ngưỡng cảnh báo",
+    "saveError": "Không thể lưu ngưỡng cảnh báo",
+    "clearThreshold": "Xoá ngưỡng",
+    "totalStockUnit": "mục",
+    "collapse": "Thu gọn",
+    "expand": "Mở rộng"
+  }
+}

@@ -105,7 +105,11 @@ class VariationService:
             variation.is_active = update_data["is_active"]
         if "benefit_mode" in update_data:
             variation.benefit_mode = update_data["benefit_mode"]
-        
+        if "warning_threshold_value" in update_data:
+            variation.warning_threshold_value = update_data["warning_threshold_value"]
+        if "warning_threshold_unit" in update_data:
+            variation.warning_threshold_unit = update_data["warning_threshold_unit"]
+
         self.session.commit()
         self.session.refresh(variation)
         return variation

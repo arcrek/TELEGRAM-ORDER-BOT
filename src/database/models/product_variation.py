@@ -20,6 +20,9 @@ class ProductVariation(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     # Which reward system applies: 'bonus', 'discount', or 'both'
     benefit_mode = Column(String, default='both', nullable=False)
+    # Warning threshold for inventory aging / expiry tracking
+    warning_threshold_value = Column(Integer, nullable=True)
+    warning_threshold_unit = Column(String(10), nullable=True)  # 'days' | 'months' | 'years'
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 
