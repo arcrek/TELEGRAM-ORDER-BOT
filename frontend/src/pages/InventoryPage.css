@@ -1,23 +1,23 @@
-.pre-uploaded-page { max-width: 1400px; }
+.inventory-page { max-width: 1400px; }
 
-.pre-uploaded-page__kpi-row {
+.inventory-page__kpi-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-4);
   margin-bottom: var(--space-5);
 }
 
-.pre-uploaded-page__filters {
+.inventory-page__filters {
   display: flex;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
   flex-wrap: wrap;
 }
 
-.pre-uploaded-page__product-select { width: 220px; }
-.pre-uploaded-page__status-select { width: 180px; }
+.inventory-page__product-select { width: 220px; }
+.inventory-page__status-select { width: 180px; }
 
-.pre-uploaded-page__bulk-bar {
+.inventory-page__bulk-bar {
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -30,36 +30,36 @@
   color: var(--text-secondary);
 }
 
-.pre-uploaded-page__table-card {
+.inventory-page__table-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
-.pre-uploaded-page__pagination {
+.inventory-page__pagination {
   padding: var(--space-3) var(--space-4);
   border-top: 1px solid var(--border-subtle);
 }
 
-.pre-uploaded-page__product-cell {
+.inventory-page__product-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.pre-uploaded-page__variation {
+.inventory-page__variation {
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
-.pre-uploaded-page__data-cell {
+.inventory-page__data-cell {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-.pre-uploaded-page__data-preview {
+.inventory-page__data-preview {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   overflow: hidden;
@@ -68,12 +68,12 @@
   max-width: 200px;
 }
 
-.pre-uploaded-page__rel-time {
+.inventory-page__rel-time {
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
 
-.pre-uploaded-page__actions {
+.inventory-page__actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -81,8 +81,8 @@
 }
 
 @media (max-width: 600px) {
-  .pre-uploaded-page__kpi-row { grid-template-columns: 1fr; }
-  .pre-uploaded-page__filters { flex-direction: column; }
-  .pre-uploaded-page__product-select,
-  .pre-uploaded-page__status-select { width: 100%; }
+  .inventory-page__kpi-row { grid-template-columns: 1fr; }
+  .inventory-page__filters { flex-direction: column; }
+  .inventory-page__product-select,
+  .inventory-page__status-select { width: 100%; }
 }

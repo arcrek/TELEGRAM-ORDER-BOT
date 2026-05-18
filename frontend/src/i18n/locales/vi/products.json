@@ -7,6 +7,11 @@
     "deliveryType": "Loại Giao hàng",
     "isActive": "Hoạt động",
     "variations": "Phân loại",
-    "noProducts": "Không tìm thấy sản phẩm"
+    "noProducts": "Không tìm thấy sản phẩm",
+    "type": {
+      "pre_uploaded": "Kho hàng",
+      "supplier_based": "Nhà cung cấp",
+      "upgrade": "Nâng cấp"
+    }
   }
 }

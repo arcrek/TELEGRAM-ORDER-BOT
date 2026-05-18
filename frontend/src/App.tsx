@@ -12,7 +12,7 @@ import { StatisticsPage } from './pages/StatisticsPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { OrdersPage } from './pages/OrdersPage'
 import { ProductUploadPage } from './pages/ProductUploadPage'
-import { PreUploadedPage } from './pages/PreUploadedPage'
+import { InventoryPage } from './pages/InventoryPage'
 import { VariationsPage } from './pages/VariationsPage'
 import { BonusSummaryPage } from './pages/BonusSummaryPage'
 import { SuppliersPage } from './pages/SuppliersPage'
@@ -66,7 +66,7 @@ export function AppRoutes() {
           <Route path="products" element={<ProductsPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="product-upload" element={<ProductUploadPage />} />
-          <Route path="pre-uploaded" element={<PreUploadedPage />} />
+          <Route path="pre-uploaded" element={<InventoryPage />} />
           <Route path="inventory-update" element={<InventoryUpdatePage />} />
           <Route path="variations" element={<VariationsPage />} />
           <Route path="bonus-summary" element={<BonusSummaryPage />} />

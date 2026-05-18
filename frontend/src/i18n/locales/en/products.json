@@ -7,6 +7,11 @@
     "deliveryType": "Delivery Type",
     "isActive": "Active",
     "variations": "Variations",
-    "noProducts": "No products found"
+    "noProducts": "No products found",
+    "type": {
+      "pre_uploaded": "Inventory",
+      "supplier_based": "Supplier",
+      "upgrade": "Upgrade"
+    }
   }
 }

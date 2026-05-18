@@ -391,8 +391,8 @@ export function InventoryUpdatePage() {
       ) : products.length === 0 ? (
         <div className="inv-page__empty">
           <PackageSearch size={48} className="inv-page__empty-icon" />
-          <p className="inv-page__empty-title">{t('inventory.emptyTitle', 'Không có sản phẩm pre-uploaded')}</p>
-          <p className="inv-page__empty-desc">{t('inventory.emptyDesc', 'Chưa có sản phẩm nào có loại giao hàng pre-uploaded.')}</p>
+          <p className="inv-page__empty-title">{t('inventory.emptyTitle', 'Không có sản phẩm kho hàng')}</p>
+          <p className="inv-page__empty-desc">{t('inventory.emptyDesc', 'Chưa có sản phẩm nào có loại giao hàng kho hàng.')}</p>
         </div>
       ) : (
         <div className="inv-page__products">

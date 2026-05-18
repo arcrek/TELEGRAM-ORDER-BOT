@@ -251,7 +251,7 @@ export function ProductsPage() {
   ], [t])
 
   const deliveryTypeOptions = useMemo(() => [
-    { value: 'pre_uploaded' as DeliveryType, label: t('products.type.pre_uploaded', 'Tải trước') },
+    { value: 'pre_uploaded' as DeliveryType, label: t('products.type.pre_uploaded', 'Kho hàng') },
     { value: 'supplier_based' as DeliveryType, label: t('products.type.supplier_based', 'Nhà cung cấp') },
     { value: 'upgrade' as DeliveryType, label: t('products.type.upgrade', 'Nâng cấp') },
   ], [t])
