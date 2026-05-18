@@ -73,14 +73,14 @@ Frontend      ──┘ (calls Dashboard API over HTTP)
 ### Key Directories
 
 - **`src/bot/`** — Customer-facing Telegram bot. All handlers are async. Uses a single-message update pattern (edit message in place rather than sending new ones). State per user managed in `src/bot/states/state_manager.py`.
-- **`src/bot_supplier/`** — Supplier Telegram bot; receives order notifications when customers place supplier-product orders.
-- **`src/dashboard/routers/`** — FastAPI routers (auth, products, orders, suppliers, statistics, pre-uploaded, notifications, settings). JWT auth via `src/dashboard/auth.py`.
-- **`src/database/models/`** — SQLAlchemy 2.0 declarative models. All business logic goes through `src/database/services/`, never raw queries in handlers.
+- **`src/bot_supplier/`** — Supplier Telegram bot; receives order notifications when customers place supplier-product orders. Currently disabled in the dashboard API (the `suppliers` and `product_supplier_assignments` routers are commented out in `src/dashboard/main.py`).
+- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `payos_webhook`, `iotd`. (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
+- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`). All business logic goes through `src/database/services/`, never raw queries in handlers.
 - **`src/ipn/processor.py`** — Payment-agnostic IPN processor shared by both Pay2S and PayOS. Handles order fulfillment and triggers delivery after payment confirmation.
 - **`src/pay2s/`** — Pay2S payment integration (primary). `payment.py` creates payment links; `ipn.py` is the Flask IPN server; `signature.py` handles HMAC verification.
-- **`src/payos/`** — PayOS integration (secondary/alternative payment gateway).
+- **`src/payos/`** — PayOS integration (secondary/alternative payment gateway); webhook handled by the `payos_webhook` dashboard router.
 - **`src/i18n/locales/`** — Translation JSON files (`vi/bot.json`, `en/bot.json`). Vietnamese is default.
-- **`frontend/src/`** — React 18 + TypeScript dashboard. Dark SaaS theme (background `#0F0F0D`, card `#181816`, accent `#6EA8FF`). No gradients or glassmorphism.
+- **`frontend/src/pages/`** — React 18 + TypeScript dashboard pages: `Statistics`, `Products`, `Orders`, `ProductUpload`, `Inventory` (mounted at `/pre-uploaded`, includes per-variant aging warnings and date/variation/upload filters), `InventoryUpdate`, `Variations`, `BonusSummary`, `Suppliers`, `Notifications`, `BotUiSettings`, `Iotd`. Dark SaaS theme (background `#0F0F0D`, card `#181816`, accent `#6EA8FF`). No gradients or glassmorphism.
 
 ### Delivery Flow
 
@@ -93,9 +93,9 @@ Frontend      ──┘ (calls Dashboard API over HTTP)
 
 ### Database
 
-- SQLite by default (`data/database.db`), PostgreSQL in production
+- SQLite by default (`data/database.db`), PostgreSQL in production (Docker Compose ships a `postgres` service)
 - All model changes require an Alembic migration — never modify tables directly
-- 18 models including: `Order`, `Product`, `BotUser`, `Admin`, `PreUploadedProduct`, `Supplier`, `NotificationSettings`
+- 17 models including: `Order`, `OrderItem`, `Product`, `ProductVariation`, `PreUploadedProduct`, `BotUser`, `Admin`, `Supplier`, `NotificationSettings`, `BonusTier`, `DiscountTier`, `IotdSettings`, `BotUiSettings`
 
 ## Environment Variables
 

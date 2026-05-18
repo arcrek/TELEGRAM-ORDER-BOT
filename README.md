@@ -5,12 +5,12 @@ A comprehensive Telegram bot order system that allows users to browse products, 
 ## Features
 
 - 🇻🇳 **Vietnamese as default language** (English also supported)
-- 🛍️ **Product browsing** with pagination
-- 💳 **QR Code payment** via Pay2S integration
-- 📦 **Automatic delivery** after payment confirmation
+- 🛍️ **Product browsing** with pagination and per-product variations
+- 💳 **QR Code payment** via Pay2S (primary) and PayOS (secondary)
+- 📦 **Automatic delivery** of pre-uploaded digital content after payment confirmation
 - 🔄 **Auto-cancel** unpaid orders after 30 minutes
-- 👥 **Supplier system** for manual product delivery
-- 📊 **Admin dashboard** for management
+- 👥 **Supplier system** for manual product delivery (currently disabled in the dashboard API)
+- 📊 **Admin dashboard** with statistics, inventory aging, bonus/discount tiers, and Image-of-the-Day widget
 
 ## Project Structure
 
@@ -24,7 +24,9 @@ MTK_BOT_ORDER/
 │   ├── bot_supplier/            # Supplier Telegram bot
 │   │   └── handlers/            # Supplier bot handlers
 │   ├── dashboard/               # Admin dashboard API (FastAPI)
-│   │   ├── routers/             # API routes (auth, products, orders, statistics, suppliers)
+│   │   ├── routers/             # auth, products, orders, statistics, product_upload,
+│   │   │                        # pre_uploaded, variations, bonus_tiers, discount_tiers,
+│   │   │                        # notifications, bot_ui_settings, payos_webhook, iotd
 │   │   └── auth.py              # Authentication & authorization
 │   ├── database/                # Database layer
 │   │   ├── models/              # SQLAlchemy models
@@ -37,9 +39,12 @@ MTK_BOT_ORDER/
 │       └── ipn.py               # Pay2S IPN server
 ├── frontend/                    # React + TypeScript dashboard UI
 │   └── src/
-│       ├── components/          # Reusable UI components
-│       ├── layouts/             # Dashboard layout
-│       ├── pages/                # Dashboard pages
+│       ├── app/layouts/         # AppShell layout
+│       ├── shared/              # Shared components, hooks, and api client
+│       ├── pages/               # Statistics, Products, Orders, ProductUpload,
+│       │                        # Inventory, InventoryUpdate, Variations,
+│       │                        # BonusSummary, Suppliers, Notifications,
+│       │                        # BotUiSettings, Iotd, Login
 │       ├── contexts/            # React contexts (Auth, Theme)
 │       └── styles/              # Theme system
 ├── config/                      # Configuration
@@ -241,7 +246,7 @@ Translations are stored in JSON format:
 - **React Router** - Routing
 - **Axios** - HTTP client
 - **Lucide React** - Icons
-- **Chart.js** - Data visualization (for future statistics)
+- **Chart.js** - Statistics dashboard charts
 
 ### Database
 - **SQLite** (development)
