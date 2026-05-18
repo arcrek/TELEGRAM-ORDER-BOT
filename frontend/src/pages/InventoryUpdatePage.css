@@ -118,9 +118,18 @@
 
 .inv-page__variant-table {
   width: 100%;
+  min-width: 720px;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
+
+/* Column widths (kept in sync with <colgroup> in the page) */
+.inv-page__col-variant  { width: 22%; }
+.inv-page__col-stock    { width: 11%; }
+.inv-page__col-aging    { width: 13%; }
+.inv-page__col-expiring { width: 15%; }
+.inv-page__col-thresh   { width: auto; }
 
 .inv-page__variant-table thead tr {
   border-bottom: 1px solid var(--border-subtle);
@@ -138,7 +147,7 @@
 }
 
 .inv-page__variant-table thead th.inv-page__col-num {
-  text-align: right;
+  text-align: center;
 }
 
 .inv-page__variant-table tbody tr {
@@ -160,7 +169,7 @@
 }
 
 .inv-page__variant-table tbody td.inv-page__col-num {
-  text-align: right;
+  text-align: center;
 }
 
 .inv-page__variant-name {

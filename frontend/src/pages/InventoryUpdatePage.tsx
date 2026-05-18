@@ -160,6 +160,13 @@ function ProductCard({ product, drafts, onDraftChange, onSave }: ProductCardProp
       {!collapsed && (
         <div className="inv-page__variant-table-wrap">
           <table className="inv-page__variant-table">
+            <colgroup>
+              <col className="inv-page__col-variant" />
+              <col className="inv-page__col-stock" />
+              <col className="inv-page__col-aging" />
+              <col className="inv-page__col-expiring" />
+              <col className="inv-page__col-thresh" />
+            </colgroup>
             <thead>
               <tr>
                 <th>{t('inventory.colVariant', 'Phân loại')}</th>
@@ -313,7 +320,9 @@ export function InventoryUpdatePage() {
         warning_threshold_unit: unit,
       })
       toast.success(t('inventory.saveSuccess', 'Đã lưu ngưỡng cảnh báo'))
-      // Refetch to get updated counts
+      // Clear the saving/dirty flags BEFORE refetch so the refetch's preserve
+      // logic doesn't keep the spinner spinning forever.
+      setDrafts(prev => ({ ...prev, [variationId]: { ...prev[variationId], saving: false, dirty: false } }))
       await fetchData()
     } catch (err) {
       toast.error(formatApiError(err, t('inventory.saveError', 'Không thể lưu ngưỡng cảnh báo')))
