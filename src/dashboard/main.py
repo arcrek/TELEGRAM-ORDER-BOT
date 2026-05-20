@@ -1,6 +1,7 @@
 """
 Main FastAPI application for dashboard.
 """
+import logging
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -14,6 +15,13 @@ from src.dashboard.routers import auth, statistics, products, orders, product_up
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging so application loggers (src.*, including IPN processor and
+# notification service) emit INFO-level messages alongside uvicorn's access log.
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
