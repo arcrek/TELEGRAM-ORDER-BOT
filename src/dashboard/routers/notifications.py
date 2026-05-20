@@ -84,8 +84,10 @@ class OrderNotificationSettingsResponse(BaseModel):
     order_notify_enabled: bool
     order_notify_on_created: bool
     order_notify_on_paid: bool
+    topup_notify_on_paid: bool
     whitelist_chat_ids: List[str]
     upgrade_chat_ids: List[str]
+    topup_chat_ids: List[str]
 
 
 class OrderNotificationSettingsUpdate(BaseModel):
@@ -94,8 +96,10 @@ class OrderNotificationSettingsUpdate(BaseModel):
     order_notify_enabled: bool
     order_notify_on_created: bool
     order_notify_on_paid: bool
+    topup_notify_on_paid: bool
     whitelist_chat_ids: List[str]
     upgrade_chat_ids: List[str]
+    topup_chat_ids: List[str]
 
 
 @router.post("/send", response_model=NotificationResponse)
@@ -236,13 +240,16 @@ async def get_order_notification_settings(
     settings = settings_service.get_settings()
     whitelist_ids = settings_service.get_whitelist_entries(settings)
     upgrade_ids = settings_service.get_upgrade_entries(settings)
+    topup_ids = settings_service.get_topup_entries(settings)
 
     return OrderNotificationSettingsResponse(
         order_notify_enabled=settings.order_notify_enabled,
         order_notify_on_created=settings.order_notify_on_created,
         order_notify_on_paid=settings.order_notify_on_paid,
+        topup_notify_on_paid=settings.topup_notify_on_paid,
         whitelist_chat_ids=whitelist_ids,
         upgrade_chat_ids=upgrade_ids,
+        topup_chat_ids=topup_ids,
     )
 
 
@@ -262,18 +269,23 @@ async def update_order_notification_settings(
         order_notify_enabled=payload.order_notify_enabled,
         order_notify_on_created=payload.order_notify_on_created,
         order_notify_on_paid=payload.order_notify_on_paid,
+        topup_notify_on_paid=payload.topup_notify_on_paid,
         whitelist_chat_ids=payload.whitelist_chat_ids,
         upgrade_chat_ids=payload.upgrade_chat_ids,
+        topup_chat_ids=payload.topup_chat_ids,
     )
     whitelist_ids = settings_service.get_whitelist_entries(settings)
     upgrade_ids = settings_service.get_upgrade_entries(settings)
+    topup_ids = settings_service.get_topup_entries(settings)
 
     return OrderNotificationSettingsResponse(
         order_notify_enabled=settings.order_notify_enabled,
         order_notify_on_created=settings.order_notify_on_created,
         order_notify_on_paid=settings.order_notify_on_paid,
+        topup_notify_on_paid=settings.topup_notify_on_paid,
         whitelist_chat_ids=whitelist_ids,
         upgrade_chat_ids=upgrade_ids,
+        topup_chat_ids=topup_ids,
     )
 
 

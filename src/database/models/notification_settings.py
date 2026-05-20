@@ -30,6 +30,10 @@ class NotificationSettings(Base):
     # When empty, _handle_customer_reply falls back to order_notify_whitelist_chat_ids.
     upgrade_notify_chat_ids = Column(Text, nullable=True)
 
+    # Separate JSON-encoded list for BALANCE_TOPUP_PAID notifications.
+    # When empty, _send_topup_async falls back to order_notify_whitelist_chat_ids.
+    topup_notify_chat_ids = Column(Text, nullable=True)
+
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime,

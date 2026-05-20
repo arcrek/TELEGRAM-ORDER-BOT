@@ -34,8 +34,10 @@ interface OrderNotificationSettings {
   order_notify_enabled: boolean
   order_notify_on_created: boolean
   order_notify_on_paid: boolean
+  topup_notify_on_paid: boolean
   whitelist_chat_ids: string[]
   upgrade_chat_ids: string[]
+  topup_chat_ids: string[]
 }
 
 type AudienceMode = 'all' | 'active' | 'specific'
@@ -65,6 +67,7 @@ export function NotificationsPage() {
   const [orderSettings, setOrderSettings] = useState<OrderNotificationSettings | null>(null)
   const [whitelistText, setWhitelistText] = useState('')
   const [upgradeText, setUpgradeText] = useState('')
+  const [topupText, setTopupText] = useState('')
   const [loadingOrderSettings, setLoadingOrderSettings] = useState(false)
   const [savingOrderSettings, setSavingOrderSettings] = useState(false)
 
@@ -95,6 +98,7 @@ export function NotificationsPage() {
       setOrderSettings(res.data)
       setWhitelistText((res.data.whitelist_chat_ids ?? []).join('\n'))
       setUpgradeText((res.data.upgrade_chat_ids ?? []).join('\n'))
+      setTopupText((res.data.topup_chat_ids ?? []).join('\n'))
     } catch (err) {
       toast.error(formatApiError(err, t('notifications.settingsError', 'Không thể tải cài đặt thông báo')))
     } finally {
@@ -143,10 +147,12 @@ export function NotificationsPage() {
         ...orderSettings,
         whitelist_chat_ids: parseChatIds(whitelistText),
         upgrade_chat_ids: parseChatIds(upgradeText),
+        topup_chat_ids: parseChatIds(topupText),
       })
       setOrderSettings(res.data)
       setWhitelistText((res.data.whitelist_chat_ids ?? []).join('\n'))
       setUpgradeText((res.data.upgrade_chat_ids ?? []).join('\n'))
+      setTopupText((res.data.topup_chat_ids ?? []).join('\n'))
       toast.success(t('notifications.settingsSaved', 'Đã lưu cài đặt thông báo'))
     } catch (err) {
       toast.error(formatApiError(err, t('notifications.settingsSaveError', 'Không thể lưu cài đặt')))
@@ -345,6 +351,13 @@ export function NotificationsPage() {
                           label={t('notifications.notifyOnPaid', 'Thông báo khi đơn được thanh toán')}
                         />
                       </div>
+                      <div className="notifications-page__switch-row">
+                        <Switch
+                          checked={orderSettings.topup_notify_on_paid}
+                          onChange={v => setOrderSettings(s => s ? { ...s, topup_notify_on_paid: v } : s)}
+                          label={t('notifications.notifyOnTopupPaid', 'Thông báo khi nạp tiền thành công')}
+                        />
+                      </div>
 
                       <FormField
                         label={t('notifications.whitelistChatIds', 'Chat ID nhận thông báo đơn hàng')}
@@ -369,6 +382,20 @@ export function NotificationsPage() {
                           id="notif-upgrade"
                           value={upgradeText}
                           onChange={e => setUpgradeText(e.target.value)}
+                          placeholder="-1001234567890"
+                          rows={3}
+                        />
+                      </FormField>
+
+                      <FormField
+                        label={t('notifications.topupChatIds', 'Chat ID nhận thông báo nạp tiền')}
+                        htmlFor="notif-topup"
+                        helperText={t('notifications.topupChatIdsHint', 'Mỗi dòng một ID. Để trống để dùng kênh chính.')}
+                      >
+                        <Textarea
+                          id="notif-topup"
+                          value={topupText}
+                          onChange={e => setTopupText(e.target.value)}
                           placeholder="-1001234567890"
                           rows={3}
                         />

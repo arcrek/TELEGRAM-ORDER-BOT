@@ -327,7 +327,14 @@ class OrderNotificationService:
         return "\n".join(lines)
 
     async def _send_topup_async(self, topup_id: str) -> Dict[str, Any]:
-        """Async implementation of the BALANCE_TOPUP_PAID admin notification."""
+        """Async implementation of the BALANCE_TOPUP_PAID admin notification.
+
+        Dispatch rules (mirroring the UPGRADE channel pattern):
+        - Gated by the master ``order_notify_enabled`` and the
+          ``topup_notify_on_paid`` toggle.
+        - Routed to ``topup_notify_chat_ids`` when configured; otherwise falls
+          back to ``order_notify_whitelist_chat_ids``.
+        """
         if not self.bot:
             return {
                 "total": 0,
@@ -338,9 +345,8 @@ class OrderNotificationService:
             }
 
         settings = self._settings_service.get_settings()
-        whitelist_targets = self._settings_service.get_whitelist_targets(settings)
 
-        if not settings.order_notify_enabled or not whitelist_targets:
+        if not settings.order_notify_enabled:
             return {
                 "total": 0,
                 "success": 0,
@@ -358,6 +364,21 @@ class OrderNotificationService:
                 "skipped": "event_disabled",
             }
 
+        topup_targets = self._settings_service.get_topup_targets(settings)
+        if topup_targets:
+            targets = topup_targets
+        else:
+            targets = self._settings_service.get_whitelist_targets(settings)
+
+        if not targets:
+            return {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "details": [],
+                "skipped": "no_targets",
+            }
+
         from src.database.services.topup_service import TopupService
         from src.database.models.bot_user import BotUser
 
@@ -373,7 +394,7 @@ class OrderNotificationService:
 
         bot_user = self.session.query(BotUser).filter_by(id=topup.bot_user_id).first()
         message = self._format_topup_message(topup, bot_user)
-        return await self.send_message_to_whitelist_async(message=message, targets=whitelist_targets)
+        return await self.send_message_to_whitelist_async(message=message, targets=targets)
 
     def send_topup_paid(self, topup_id: str) -> Dict[str, Any]:
         """

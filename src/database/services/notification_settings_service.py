@@ -43,6 +43,7 @@ class NotificationSettingsService:
             order_notify_on_paid=False,
             order_notify_whitelist_chat_ids=json.dumps([]),
             upgrade_notify_chat_ids=json.dumps([]),
+            topup_notify_chat_ids=json.dumps([]),
         )
         self.session.add(settings)
         self.session.commit()
@@ -160,6 +161,17 @@ class NotificationSettingsService:
             settings = self.get_settings()
         return self._parse_targets_field(settings.upgrade_notify_chat_ids)
 
+    def get_topup_targets(
+        self, settings: Optional[NotificationSettings] = None
+    ) -> List[Dict[str, Optional[int]]]:
+        """
+        Get parsed BALANCE_TOPUP_PAID notification targets. When empty,
+        callers should fall back to ``get_whitelist_targets``.
+        """
+        if settings is None:
+            settings = self.get_settings()
+        return self._parse_targets_field(settings.topup_notify_chat_ids)
+
     def get_whitelist_chat_ids(
         self, settings: Optional[NotificationSettings] = None
     ) -> List[int]:
@@ -195,6 +207,15 @@ class NotificationSettingsService:
         targets = self.get_upgrade_targets(settings)
         return [self._target_to_storage_value(target) for target in targets]
 
+    def get_topup_entries(
+        self, settings: Optional[NotificationSettings] = None
+    ) -> List[str]:
+        """
+        Get topup-notification chat IDs in text entry format for UI display/editing.
+        """
+        targets = self.get_topup_targets(settings)
+        return [self._target_to_storage_value(target) for target in targets]
+
     def _normalize_chat_ids(self, values: List[Any]) -> List[str]:
         """Parse + dedupe a raw list of chat-id values into canonical strings."""
         normalized_entries: List[str] = []
@@ -215,8 +236,10 @@ class NotificationSettingsService:
         order_notify_enabled: Optional[bool] = None,
         order_notify_on_created: Optional[bool] = None,
         order_notify_on_paid: Optional[bool] = None,
+        topup_notify_on_paid: Optional[bool] = None,
         whitelist_chat_ids: Optional[List[Any]] = None,
         upgrade_chat_ids: Optional[List[Any]] = None,
+        topup_chat_ids: Optional[List[Any]] = None,
     ) -> NotificationSettings:
         """
         Update notification settings.
@@ -227,10 +250,14 @@ class NotificationSettingsService:
             order_notify_enabled: Master toggle for order notifications.
             order_notify_on_created: Whether to notify when an order is created (PENDING).
             order_notify_on_paid: Whether to notify when an order is paid (PAID).
+            topup_notify_on_paid: Whether to notify when a topup is paid.
             whitelist_chat_ids: List of order-notification targets.
                 Supported values: `chat_id` or `chat_id:message_thread_id`.
             upgrade_chat_ids: Separate list of targets for UPGRADE account-info
                 forwarding + Done button. Same value formats as whitelist.
+            topup_chat_ids: Separate list of targets for BALANCE_TOPUP_PAID
+                notifications. Same value formats as whitelist. When empty,
+                topup notifications fall back to the main whitelist.
 
         Returns:
             Updated NotificationSettings instance.
@@ -243,6 +270,8 @@ class NotificationSettingsService:
             settings.order_notify_on_created = bool(order_notify_on_created)
         if order_notify_on_paid is not None:
             settings.order_notify_on_paid = bool(order_notify_on_paid)
+        if topup_notify_on_paid is not None:
+            settings.topup_notify_on_paid = bool(topup_notify_on_paid)
         if whitelist_chat_ids is not None:
             settings.order_notify_whitelist_chat_ids = json.dumps(
                 self._normalize_chat_ids(whitelist_chat_ids)
@@ -250,6 +279,10 @@ class NotificationSettingsService:
         if upgrade_chat_ids is not None:
             settings.upgrade_notify_chat_ids = json.dumps(
                 self._normalize_chat_ids(upgrade_chat_ids)
+            )
+        if topup_chat_ids is not None:
+            settings.topup_notify_chat_ids = json.dumps(
+                self._normalize_chat_ids(topup_chat_ids)
             )
 
         self.session.commit()

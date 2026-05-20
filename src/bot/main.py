@@ -131,8 +131,11 @@ def create_bot_application() -> Application:
     # Custom quantity input handler runs in a separate group so it is not blocked
     # by handle_products_button which matches the same filter.
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input), group=1)
-    # Custom topup amount input (group=1, gates internally on awaiting_topup_amount flag)
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topup_amount_text), group=1)
+    # Custom topup amount input — own group so it is not shadowed by the
+    # custom-quantity handler in group=1 (PTB runs only one matching handler
+    # per group; identical TEXT filters mean only the first registered one
+    # ever fires). Gates internally on awaiting_topup_amount flag.
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topup_amount_text), group=3)
     # UPGRADE-delivery dispatcher: handles both the customer's account-info reply
     # (private chat) and admin status-update replies (notification chat).
     # Matches any non-command message so we can carry text/photo/document.
