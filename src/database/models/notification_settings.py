@@ -21,6 +21,7 @@ class NotificationSettings(Base):
     # Event toggles
     order_notify_on_created = Column(Boolean, nullable=False, default=False)
     order_notify_on_paid = Column(Boolean, nullable=False, default=False)
+    topup_notify_on_paid = Column(Boolean, nullable=False, default=False, server_default="false")
 
     # JSON-encoded list of Telegram chat IDs (can be user or group IDs)
     order_notify_whitelist_chat_ids = Column(Text, nullable=True)

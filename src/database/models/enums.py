@@ -30,3 +30,21 @@ class SupplierOrderStatus(str, Enum):
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
 
+
+class TopupStatus(str, Enum):
+    """Topup order status."""
+
+    PENDING = "pending"
+    PAID = "paid"
+    CANCELLED = "cancelled"
+
+
+class BalanceTxKind(str, Enum):
+    """Balance transaction kind."""
+
+    TOPUP = "topup"
+    ORDER_PAYMENT = "order_payment"
+    ADMIN_ADD = "admin_add"
+    ADMIN_SUBTRACT = "admin_subtract"
+    ADMIN_SET = "admin_set"
+

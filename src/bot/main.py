@@ -33,6 +33,18 @@ from src.bot.handlers.callbacks import (
     handle_order_detail,
     handle_back_to_order_history,
     handle_show_products_list,
+    handle_pay_with_qr,
+    handle_pay_with_balance,
+)
+from src.bot.handlers.balance import (
+    handle_balance_view,
+    handle_balance_topup_start,
+    handle_balance_topup_amount,
+    handle_balance_topup_custom,
+    handle_topup_amount_text,
+    handle_balance_history,
+    handle_balance_close,
+    handle_topup_cancel,
 )
 from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
@@ -98,12 +110,26 @@ def create_bot_application() -> Application:
     application.add_handler(CallbackQueryHandler(handle_back_to_order_history, pattern="^back_to_order_history"))
     application.add_handler(CallbackQueryHandler(handle_upgrade_done, pattern="^upgrade_done_"))
     application.add_handler(CallbackQueryHandler(handle_show_products_list, pattern="^show_products_list$"))
-    
+
+    # Balance / topup callback handlers
+    application.add_handler(CallbackQueryHandler(handle_balance_view, pattern="^balance_view$"))
+    application.add_handler(CallbackQueryHandler(handle_balance_topup_start, pattern="^topup_start$"))
+    application.add_handler(CallbackQueryHandler(handle_balance_topup_amount, pattern="^topup_amount_"))
+    application.add_handler(CallbackQueryHandler(handle_balance_topup_custom, pattern="^topup_custom$"))
+    application.add_handler(CallbackQueryHandler(handle_balance_history, pattern="^balance_history$"))
+    application.add_handler(CallbackQueryHandler(handle_balance_close, pattern="^balance_close$"))
+    application.add_handler(CallbackQueryHandler(handle_topup_cancel, pattern="^cancel_topup_"))
+    # Payment method picker callbacks
+    application.add_handler(CallbackQueryHandler(handle_pay_with_balance, pattern="^pay_balance_"))
+    application.add_handler(CallbackQueryHandler(handle_pay_with_qr, pattern="^pay_qr_"))
+
     # Register message handlers
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button))
     # Custom quantity input handler runs in a separate group so it is not blocked
     # by handle_products_button which matches the same filter.
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input), group=1)
+    # Custom topup amount input (group=1, gates internally on awaiting_topup_amount flag)
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topup_amount_text), group=1)
     # UPGRADE-delivery dispatcher: handles both the customer's account-info reply
     # (private chat) and admin status-update replies (notification chat).
     # Matches any non-command message so we can carry text/photo/document.

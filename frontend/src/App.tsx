@@ -20,6 +20,7 @@ import { NotificationsPage } from './pages/NotificationsPage'
 import { IotdPage } from './pages/IotdPage'
 import { BotUiSettingsPage } from './pages/BotUiSettingsPage'
 import { InventoryUpdatePage } from './pages/InventoryUpdatePage'
+import { BalancesPage } from './pages/BalancesPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -70,6 +71,7 @@ export function AppRoutes() {
           <Route path="inventory-update" element={<InventoryUpdatePage />} />
           <Route path="variations" element={<VariationsPage />} />
           <Route path="bonus-summary" element={<BonusSummaryPage />} />
+          <Route path="balances" element={<BalancesPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />

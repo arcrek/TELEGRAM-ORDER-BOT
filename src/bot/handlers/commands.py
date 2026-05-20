@@ -308,11 +308,13 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     products_text = t("buttons.products", update)
     language_text = t("buttons.language", update)
     order_history_text = t("buttons.order_history", update)
+    balance_text = t("buttons.balance", update)
 
     # Also check common variations (in case user switched language)
     products_variations = {products_text, "🛒 Products", "🛒 Sản phẩm", "Products", "Sản phẩm"}
     language_variations = {language_text, "🌐 Language", "🌐 Ngôn ngữ", "Language", "Ngôn ngữ"}
     order_history_variations = {order_history_text, "📋 Order History", "📋 Đơn hàng đã mua"}
+    balance_variations = {balance_text, "💰 Balance", "💰 Số dư"}
 
     if message_text in products_variations:
         await products_command(update, context)
@@ -320,6 +322,11 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
 
     if message_text in order_history_variations:
         await order_history_command(update, context)
+        return
+
+    if message_text in balance_variations:
+        from src.bot.handlers.balance import handle_balance_button
+        await handle_balance_button(update, context)
         return
 
     if message_text in language_variations:

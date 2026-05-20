@@ -4,6 +4,7 @@ Order service layer for business logic.
 import secrets
 import uuid
 from typing import Optional, List, Dict
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 from src.database.models import Order, OrderItem
 from src.database.models.enums import OrderStatus
@@ -48,16 +49,25 @@ class OrderService:
 
         We keep this within signed 32-bit range to avoid any possible limitations,
         and ensure uniqueness with a DB check + retry.
+        Uniqueness is checked across both the orders and topup_orders tables so that
+        codes never collide between the two payment tables.
         """
+        from src.database.models.topup_order import TopupOrder
+
         # 9-digit range (< 2^31) keeps it safe and still very low collision risk.
         for _ in range(30):
             candidate = 100_000_000 + secrets.randbelow(900_000_000)
-            exists = (
+            exists_order = (
                 self.session.query(Order)
                 .filter(Order.payos_order_code == candidate)
                 .first()
             )
-            if not exists:
+            exists_topup = (
+                self.session.query(TopupOrder)
+                .filter(TopupOrder.payos_order_code == candidate)
+                .first()
+            )
+            if not exists_order and not exists_topup:
                 return candidate
         raise RuntimeError("Unable to generate unique PayOS orderCode after retries")
 
@@ -606,29 +616,35 @@ class OrderService:
     def cancel_order(self, order_id: str) -> Order:
         """
         Cancel an order (only PENDING orders can be cancelled).
-        
+
+        Uses an atomic conditional UPDATE so concurrent calls cannot race —
+        the second caller will see rowcount == 0 and receive a ValueError.
+        This is the contract expected by AutoCancelService (catches ValueError).
+
         Args:
             order_id: Order ID to cancel
-        
+
         Returns:
             Cancelled Order instance
-        
+
         Raises:
             ValueError: If order not found or cannot be cancelled (not PENDING)
         """
-        order = self.get_order_by_id(order_id)
-        if not order:
-            raise ValueError(f"Order {order_id} not found")
-        
-        if order.status != OrderStatus.PENDING:
+        r = self.session.execute(
+            update(Order)
+            .where(Order.id == order_id, Order.status == OrderStatus.PENDING)
+            .values(status=OrderStatus.CANCELLED)
+        )
+        if r.rowcount == 0:
+            # Distinguish not-found from already-processed.
+            existing = self.get_order_by_id(order_id)
+            if existing is None:
+                raise ValueError(f"Order {order_id} not found")
             raise ValueError(
-                f"Order {order_id} can only be cancelled if it is PENDING. Current status: {order.status.value}"
+                f"Order {order_id} is not in PENDING status. "
+                f"Current status: {existing.status.value}"
             )
-        
-        # Update order status to CANCELLED
-        order.status = OrderStatus.CANCELLED
         self.session.commit()
-        self.session.refresh(order)
-        
-        return order
+        order = self.get_order_by_id(order_id)
+        return order  # type: ignore[return-value]
 

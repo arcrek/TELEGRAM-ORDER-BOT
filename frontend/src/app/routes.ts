@@ -22,6 +22,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/inventory-update', key: 'inventoryUpdate', labelKey: 'nav.inventoryUpdate', group: 'operations', iconName: 'Boxes' },
   { path: '/bonus-summary', key: 'bonusSummary', labelKey: 'nav.bonusSummary', group: 'operations', iconName: 'Gift' },
   // Operations (continued)
+  { path: '/balances', key: 'balances', labelKey: 'nav.balances', group: 'operations', iconName: 'Wallet' },
   { path: '/suppliers', key: 'suppliers', labelKey: 'nav.suppliers', group: 'operations', iconName: 'Users' },
   // Settings
   { path: '/bot-ui-settings', key: 'botUiSettings', labelKey: 'nav.botUiSettings', group: 'settings', iconName: 'Settings' },

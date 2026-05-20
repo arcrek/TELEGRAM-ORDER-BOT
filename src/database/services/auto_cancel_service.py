@@ -10,6 +10,8 @@ from sqlalchemy import and_
 from src.database.models import Order
 from src.database.models.enums import OrderStatus
 from src.database.services.order_service import OrderService
+from src.database.services.topup_service import TopupService
+from src.database.models.topup_order import TopupOrder
 from src.bot.states.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
@@ -159,34 +161,171 @@ class AutoCancelService:
     def process_expired_orders(self, minutes: int = 30, send_notification: bool = True) -> dict:
         """
         Process all expired PENDING orders and cancel them.
-        
+
         Args:
             minutes: Number of minutes after which orders should be cancelled
             send_notification: Whether to send notifications to users
-        
+
         Returns:
             Dictionary with processing results
         """
         expired_orders = self.find_expired_pending_orders(minutes)
-        
+
         results = {
             "found": len(expired_orders),
             "cancelled": 0,
             "failed": 0,
             "skipped": 0,
         }
-        
+
         for order in expired_orders:
             if self.auto_cancel_order(order, send_notification):
                 results["cancelled"] += 1
             else:
                 results["skipped"] += 1
-        
+
         if results["found"] > 0:
             logger.info(
                 f"Auto-cancel processing: Found {results['found']} expired orders, "
                 f"Cancelled {results['cancelled']}, Skipped {results['skipped']}"
             )
-        
+
+        return results
+
+    # ------------------------------------------------------------------
+    # Topup auto-cancel methods (parallel to the order variants above)
+    # ------------------------------------------------------------------
+
+    def find_expired_pending_topups(self, minutes: int = 30) -> List[TopupOrder]:
+        """
+        Find PENDING TopupOrders older than `minutes` minutes.
+
+        Args:
+            minutes: Age threshold in minutes (default: 30)
+
+        Returns:
+            List of expired PENDING TopupOrder instances
+        """
+        # Delegate to TopupService which already implements the cutoff query.
+        return TopupService(self.session).find_expired_pending_topups(minutes)
+
+    def auto_cancel_topup(self, topup: TopupOrder, send_notification: bool = True) -> bool:
+        """
+        Atomically cancel an expired PENDING TopupOrder.
+
+        Args:
+            topup: TopupOrder instance to cancel
+            send_notification: Whether to send a Telegram notification to the user
+
+        Returns:
+            True if cancelled (or already cancelled gracefully), False on error
+        """
+        try:
+            # Atomic cancellation via TopupService (WHERE status=PENDING).
+            cancelled = TopupService(self.session).cancel_topup(topup.id)
+            if not cancelled:
+                logger.info(
+                    f"Topup {topup.id} could not be cancelled atomically "
+                    f"(already PAID or CANCELLED) — skipping"
+                )
+                return False
+
+            logger.info(f"Auto-cancelled topup {topup.id} (user: {topup.user_id})")
+
+            # If this was a PayOS topup, also cancel the payment link.
+            if getattr(topup, "payment_provider", None) == "payos" and getattr(topup, "payos_payment_link_id", None):
+                try:
+                    from src.payos.client import PayOSClient, PayOSCredentials
+
+                    base_url = os.getenv("PAYOS_BASE_URL", "https://api-merchant.payos.vn")
+                    client_id = os.getenv("PAYOS_CLIENT_ID", "")
+                    api_key = os.getenv("PAYOS_API_KEY", "")
+                    checksum_key = os.getenv("PAYOS_CHECKSUM_KEY", "")
+                    partner_code = os.getenv("PAYOS_PARTNER_CODE", "")
+
+                    if client_id and api_key and checksum_key:
+                        payos = PayOSClient(
+                            base_url=base_url,
+                            credentials=PayOSCredentials(
+                                client_id=client_id,
+                                api_key=api_key,
+                                checksum_key=checksum_key,
+                                partner_code=partner_code,
+                            ),
+                        )
+                        payos.cancel_payment_link(
+                            payment_link_id=str(topup.payos_payment_link_id),
+                            cancellation_reason="Auto-cancelled (timeout)",
+                        )
+                        logger.info(
+                            f"Cancelled PayOS payment link {topup.payos_payment_link_id} "
+                            f"for topup {topup.id}"
+                        )
+                    else:
+                        logger.warning("PayOS credentials not configured; skipping PayOS cancel for topup")
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to cancel PayOS payment link for topup {topup.id}: {str(e)}"
+                    )
+
+            # Send user notification if bot is available.
+            if send_notification and self.bot:
+                try:
+                    notification_message = (
+                        f"⏰ Nạp tiền đã hết hạn\n\n"
+                        f"Mã nạp tiền: {topup.id}\n"
+                        f"Số tiền: {topup.amount:,} VND\n\n"
+                        f"Yêu cầu nạp tiền đã bị huỷ do không hoàn tất thanh toán trong 30 phút.\n"
+                        f"Bạn có thể nạp tiền lại bất cứ lúc nào."
+                    )
+                    self.bot.send_message(
+                        chat_id=topup.user_id,
+                        text=notification_message,
+                    )
+                    logger.info(f"Sent auto-cancellation notification to user {topup.user_id} for topup {topup.id}")
+                except Exception as e:
+                    logger.error(
+                        f"Failed to send auto-cancellation notification to user {topup.user_id} "
+                        f"for topup {topup.id}: {str(e)}"
+                    )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error auto-cancelling topup {topup.id}: {str(e)}", exc_info=True)
+            return False
+
+    def process_expired_topups(self, minutes: int = 30, send_notification: bool = True) -> dict:
+        """
+        Process all expired PENDING TopupOrders and cancel them.
+
+        Args:
+            minutes: Age threshold in minutes (default: 30)
+            send_notification: Whether to send notifications to users
+
+        Returns:
+            Dictionary with keys: found, cancelled, failed, skipped
+        """
+        expired_topups = self.find_expired_pending_topups(minutes)
+
+        results = {
+            "found": len(expired_topups),
+            "cancelled": 0,
+            "failed": 0,
+            "skipped": 0,
+        }
+
+        for topup in expired_topups:
+            if self.auto_cancel_topup(topup, send_notification):
+                results["cancelled"] += 1
+            else:
+                results["skipped"] += 1
+
+        if results["found"] > 0:
+            logger.info(
+                f"Auto-cancel topup processing: Found {results['found']} expired topups, "
+                f"Cancelled {results['cancelled']}, Skipped {results['skipped']}"
+            )
+
         return results
 

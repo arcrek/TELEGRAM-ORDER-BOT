@@ -215,7 +215,7 @@ class OrderNotificationService:
         lines = [
             f"🔔 {event_label}",
             f"• Order ID: {short_order_id}",
-            f"• Info",
+            "• Info",
             f"  ↳ ID: {order.user_id}",
             f"  ↳ Username: @{username}",
             f"  ↳ Name: {name}",
@@ -291,4 +291,111 @@ class OrderNotificationService:
         except RuntimeError:
             # No event loop
             return asyncio.run(self.send_order_paid_async(order_id, delivery_data=delivery_data))
+
+    # ------------------------------------------------------------------
+    # Topup notifications
+    # ------------------------------------------------------------------
+
+    def _format_topup_message(self, topup, bot_user) -> str:
+        """
+        Format a BALANCE_TOPUP_PAID admin notification.
+
+        Mirrors the visual style of _format_message for orders.
+        """
+        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        username = (bot_user.username or "") if bot_user else ""
+        name_parts = []
+        if bot_user:
+            if bot_user.first_name:
+                name_parts.append(bot_user.first_name)
+            if bot_user.last_name:
+                name_parts.append(bot_user.last_name)
+        name = " ".join(name_parts)
+        provider = getattr(topup, "payment_provider", None) or "unknown"
+
+        lines = [
+            "🔔 BALANCE_TOPUP_PAID",
+            f"• Topup ID: {topup.id}",
+            "• Info",
+            f"  ↳ ID: {topup.user_id}",
+            f"  ↳ Username: @{username}",
+            f"  ↳ Name: {name}",
+            f"• Amount: {topup.amount:,} VND",
+            f"• Provider: {provider}",
+            f"• At: {ts}",
+        ]
+        return "\n".join(lines)
+
+    async def _send_topup_async(self, topup_id: str) -> Dict[str, Any]:
+        """Async implementation of the BALANCE_TOPUP_PAID admin notification."""
+        if not self.bot:
+            return {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "details": [],
+                "skipped": "bot_not_available",
+            }
+
+        settings = self._settings_service.get_settings()
+        whitelist_targets = self._settings_service.get_whitelist_targets(settings)
+
+        if not settings.order_notify_enabled or not whitelist_targets:
+            return {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "details": [],
+                "skipped": "disabled_or_empty_whitelist",
+            }
+
+        if not settings.topup_notify_on_paid:
+            return {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "details": [],
+                "skipped": "event_disabled",
+            }
+
+        from src.database.services.topup_service import TopupService
+        from src.database.models.bot_user import BotUser
+
+        topup = TopupService(self.session).get_by_id(topup_id)
+        if not topup:
+            return {
+                "total": 0,
+                "success": 0,
+                "failed": 0,
+                "details": [],
+                "skipped": "topup_not_found",
+            }
+
+        bot_user = self.session.query(BotUser).filter_by(id=topup.bot_user_id).first()
+        message = self._format_topup_message(topup, bot_user)
+        return await self.send_message_to_whitelist_async(message=message, targets=whitelist_targets)
+
+    def send_topup_paid(self, topup_id: str) -> Dict[str, Any]:
+        """
+        Blocking wrapper for _send_topup_async, for use in sync flows
+        such as the IPN processor.
+
+        Mirrors the shape of send_order_paid exactly.
+        """
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run,
+                        self._send_topup_async(topup_id),
+                    )
+                    return future.result()
+            else:
+                return loop.run_until_complete(self._send_topup_async(topup_id))
+        except RuntimeError:
+            # No event loop
+            return asyncio.run(self._send_topup_async(topup_id))
 

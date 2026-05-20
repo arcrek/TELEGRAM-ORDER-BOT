@@ -10,7 +10,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 # Supplier functionality disabled
 # from src.dashboard.routers import auth, statistics, products, orders, suppliers, product_upload, pre_uploaded, variations, product_supplier_assignments, notifications, payos_webhook, iotd
-from src.dashboard.routers import auth, statistics, products, orders, product_upload, pre_uploaded, variations, notifications, payos_webhook, iotd, bonus_tiers, discount_tiers, bot_ui_settings
+from src.dashboard.routers import auth, statistics, products, orders, product_upload, pre_uploaded, variations, notifications, payos_webhook, iotd, bonus_tiers, discount_tiers, bot_ui_settings, balances
 
 # Load environment variables from .env file
 load_dotenv()
@@ -59,6 +59,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["not
 app.include_router(bot_ui_settings.router, prefix="/api/bot-ui-settings", tags=["bot-ui-settings"])
 app.include_router(payos_webhook.router, prefix="/api/payos", tags=["payos"])
 app.include_router(iotd.router, prefix="/api/iotd", tags=["iotd"])
+app.include_router(balances.router, prefix="/api/balances", tags=["balances"])
 
 
 @app.get("/")

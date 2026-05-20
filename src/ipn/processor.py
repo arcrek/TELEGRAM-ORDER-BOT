@@ -18,6 +18,8 @@ from src.database.services.delivery_service import DeliveryService
 from src.database.services.pre_uploaded_service import PreUploadedService
 from src.database.services.supplier_order_service import SupplierOrderService
 from src.database.services.order_notification_service import OrderNotificationService
+from src.database.services.balance_service import BalanceService
+from src.database.services.topup_service import TopupService
 from src.database.models.enums import OrderStatus, DeliveryType
 from telegram import Bot
 from telegram.error import TelegramError
@@ -144,13 +146,22 @@ class IPNOrderProcessor:
     def _process_payment_success_impl(
         self, order_id: str, transaction_id: str, amount: int
     ) -> bool:
-        logger.info(f"=== Processing Payment Success ===")
+        logger.info("=== Processing Payment Success ===")
         logger.info(f"Order ID: {order_id}, Transaction ID: {transaction_id}, Amount: {amount}")
         logger.info(f"Bot instance available: {self.bot is not None}")
         logger.info(f"Supplier bot instance available: {self.supplier_bot is not None}")
 
         session = self.session_factory()
         try:
+            # Quick prefix check: topup IDs always start with "TU".
+            # This avoids an extra DB query on 99% of product-order traffic.
+            if order_id.startswith("TU"):
+                topup = TopupService(session).get_by_id(order_id)
+                if topup is not None:
+                    return self._process_topup_payment_impl(session, topup, transaction_id, amount)
+                # Fell through — ID starts with "TU" but is not a known topup; fall back to
+                # the order path below (should not happen in practice).
+
             order_service = OrderService(session)
             delivery_service = DeliveryService(session)
 
@@ -193,90 +204,253 @@ class IPNOrderProcessor:
                 logger.error(f"Failed to process order {order_id}")
                 return False
 
-            # Get delivery type and trigger appropriate delivery
-            delivery_type = delivery_service.get_order_delivery_type(order_id)
-            if not delivery_type:
-                logger.error(f"Could not determine delivery type for order {order_id}")
-                return False
-
-            # Delete all payment-related messages from database
-            if self.bot:
-                import json
-                messages_deleted = 0
-
-                # Read message IDs from database
-                if order.payment_message_ids:
-                    try:
-                        message_ids = json.loads(order.payment_message_ids)
-                        logger.info(f"Found {len(message_ids)} payment message IDs in database: {message_ids}")
-
-                        for msg_id in message_ids:
-                            try:
-                                run_async(self.bot.delete_message(
-                                    chat_id=order.user_id,
-                                    message_id=msg_id
-                                ))
-                                messages_deleted += 1
-                                logger.info(f"✓ Deleted message {msg_id}")
-                            except Exception as e:
-                                logger.warning(f"Could not delete message {msg_id}: {str(e)}")
-
-                        # Clear payment message IDs from database
-                        order.payment_message_ids = None
-                        session.commit()
-                        logger.info(f"✓ Successfully deleted {messages_deleted}/{len(message_ids)} payment messages for order {order_id}")
-                    except json.JSONDecodeError as e:
-                        logger.error(f"Failed to parse payment_message_ids: {str(e)}")
-                else:
-                    logger.info(f"No payment message IDs in database for order {order_id}")
-            else:
-                logger.warning(f"Bot instance not available to delete payment messages for order {order_id}")
-
-            logger.info(f"Delivery type: {delivery_type}")
-
-            delivery_success = False
-            try:
-                if delivery_type == DeliveryType.PRE_UPLOADED:
-                    # Handle pre-uploaded product delivery
-                    logger.info(f"Processing PRE_UPLOADED delivery for order {order_id}")
-                    self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
-                    delivery_success = True
-                elif delivery_type == DeliveryType.UPGRADE:
-                    logger.info(f"Processing UPGRADE delivery for order {order_id}")
-                    self._handle_upgrade_delivery(session, order_id, order.user_id)
-                    delivery_success = True
-                elif delivery_type == DeliveryType.SUPPLIER_BASED:
-                    # Supplier-based delivery is DISABLED
-                    logger.warning(f"SUPPLIER_BASED delivery is disabled for order {order_id}")
-                    # Send notification to user about disabled supplier delivery
-                    if self.bot:
-                        try:
-                            user_message = (
-                                f"⚠️ Order {order_id} payment confirmed!\n\n"
-                                f"However, supplier-based delivery is currently disabled.\n"
-                                f"Please contact support for assistance."
-                            )
-                            run_async(self.bot.send_message(chat_id=order.user_id, text=user_message))
-                        except Exception as e:
-                            logger.error(f"Failed to send supplier disabled notification: {str(e)}")
-                    delivery_success = False
-                else:
-                    logger.error(f"Unknown delivery type: {delivery_type} for order {order_id}")
-                    return False
-            except Exception as e:
-                logger.error(f"Error during delivery processing for order {order_id}: {str(e)}", exc_info=True)
-                return False
-
-            if delivery_success:
-                logger.info(f"✓ Delivery completed successfully for order {order_id}")
-            else:
-                logger.error(f"✗ Delivery failed for order {order_id}")
-
-            logger.info(f"=== Payment Processing Complete for order {order_id} ===")
-            return delivery_success
+            return self._run_fulfillment(session, order)
 
         except Exception as e:
             logger.error(f"Error processing payment success: {str(e)}", exc_info=True)
+            session.rollback()
+            return False
+        finally:
+            session.close()
+
+    def _run_fulfillment(self, session, order) -> bool:
+        """
+        Run the delivery dispatch for a product order that is already PAID.
+
+        Handles payment message deletion, delivery-type dispatch, and logging.
+        Called from both `_process_payment_success_impl` (IPN path) and
+        `process_balance_paid_order` (balance-pay path).
+
+        NOTE: This method does NOT open or close the session — the caller owns it.
+        """
+        order_id = order.id
+        delivery_service = DeliveryService(session)
+
+        # Get delivery type and trigger appropriate delivery
+        delivery_type = delivery_service.get_order_delivery_type(order_id)
+        if not delivery_type:
+            logger.error(f"Could not determine delivery type for order {order_id}")
+            return False
+
+        # Delete all payment-related messages from database
+        if self.bot:
+            import json
+            messages_deleted = 0
+
+            # Read message IDs from database
+            if order.payment_message_ids:
+                try:
+                    message_ids = json.loads(order.payment_message_ids)
+                    logger.info(f"Found {len(message_ids)} payment message IDs in database: {message_ids}")
+
+                    for msg_id in message_ids:
+                        try:
+                            run_async(self.bot.delete_message(
+                                chat_id=order.user_id,
+                                message_id=msg_id
+                            ))
+                            messages_deleted += 1
+                            logger.info(f"✓ Deleted message {msg_id}")
+                        except Exception as e:
+                            logger.warning(f"Could not delete message {msg_id}: {str(e)}")
+
+                    # Clear payment message IDs from database
+                    order.payment_message_ids = None
+                    session.commit()
+                    logger.info(f"✓ Successfully deleted {messages_deleted}/{len(message_ids)} payment messages for order {order_id}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse payment_message_ids: {str(e)}")
+            else:
+                logger.info(f"No payment message IDs in database for order {order_id}")
+        else:
+            logger.warning(f"Bot instance not available to delete payment messages for order {order_id}")
+
+        logger.info(f"Delivery type: {delivery_type}")
+
+        delivery_success = False
+        try:
+            if delivery_type == DeliveryType.PRE_UPLOADED:
+                # Handle pre-uploaded product delivery
+                logger.info(f"Processing PRE_UPLOADED delivery for order {order_id}")
+                self._handle_pre_uploaded_delivery(session, order_id, order.user_id)
+                delivery_success = True
+            elif delivery_type == DeliveryType.UPGRADE:
+                logger.info(f"Processing UPGRADE delivery for order {order_id}")
+                self._handle_upgrade_delivery(session, order_id, order.user_id)
+                delivery_success = True
+            elif delivery_type == DeliveryType.SUPPLIER_BASED:
+                # Supplier-based delivery is DISABLED
+                logger.warning(f"SUPPLIER_BASED delivery is disabled for order {order_id}")
+                # Send notification to user about disabled supplier delivery
+                if self.bot:
+                    try:
+                        user_message = (
+                            f"⚠️ Order {order_id} payment confirmed!\n\n"
+                            f"However, supplier-based delivery is currently disabled.\n"
+                            f"Please contact support for assistance."
+                        )
+                        run_async(self.bot.send_message(chat_id=order.user_id, text=user_message))
+                    except Exception as e:
+                        logger.error(f"Failed to send supplier disabled notification: {str(e)}")
+                delivery_success = False
+            else:
+                logger.error(f"Unknown delivery type: {delivery_type} for order {order_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error during delivery processing for order {order_id}: {str(e)}", exc_info=True)
+            return False
+
+        if delivery_success:
+            logger.info(f"✓ Delivery completed successfully for order {order_id}")
+        else:
+            logger.error(f"✗ Delivery failed for order {order_id}")
+
+        logger.info(f"=== Payment Processing Complete for order {order_id} ===")
+        return delivery_success
+
+    def _process_topup_payment_impl(self, session, topup, transaction_id: str, amount: int) -> bool:
+        """
+        Handle IPN success for a TopupOrder (balance top-up).
+
+        Steps:
+          1. Validate amount.
+          2. Credit balance atomically via BalanceService.credit_topup.
+          3. Delete Telegram payment messages.
+          4. Send user a "Nạp tiền thành công" confirmation.
+          5. Send admin-channel notification via OrderNotificationService.send_topup_paid.
+        """
+        import json
+
+        topup_id = topup.id
+        logger.info(f"Processing topup payment: topup_id={topup_id}, transaction_id={transaction_id}, amount={amount}")
+
+        # 1. Validate amount
+        if amount != topup.amount:
+            logger.error(
+                f"Topup amount mismatch! IPN amount: {amount}, Topup amount: {topup.amount}. "
+                f"Skipping topup credit for {topup_id}."
+            )
+            return False
+
+        # 2. Credit balance (atomic). Idempotent — duplicate IPN returns 'already_processed'.
+        success, reason = BalanceService(session).credit_topup(topup_id, transaction_id)
+        if not success:
+            if reason == "already_processed":
+                logger.warning(f"Topup {topup_id} already processed (duplicate IPN). Returning True.")
+                return True
+            logger.error(f"credit_topup failed for {topup_id}: reason={reason}")
+            return False
+
+        # Fetch updated balance for user message.
+        new_balance = BalanceService(session).get_balance(topup.bot_user_id)
+        logger.info(f"Topup {topup_id} credited. New balance for user {topup.bot_user_id}: {new_balance:,} VND")
+
+        # 3. Delete Telegram payment messages (same pattern as product-order path).
+        if self.bot and topup.payment_message_ids:
+            messages_deleted = 0
+            try:
+                message_ids = json.loads(topup.payment_message_ids)
+                logger.info(f"Found {len(message_ids)} payment message IDs for topup {topup_id}: {message_ids}")
+                for msg_id in message_ids:
+                    try:
+                        run_async(self.bot.delete_message(
+                            chat_id=topup.user_id,
+                            message_id=msg_id
+                        ))
+                        messages_deleted += 1
+                        logger.info(f"✓ Deleted topup payment message {msg_id}")
+                    except Exception as e:
+                        logger.warning(f"Could not delete topup payment message {msg_id}: {str(e)}")
+                # Clear stored message IDs.
+                topup.payment_message_ids = None
+                session.commit()
+                logger.info(
+                    f"✓ Successfully deleted {messages_deleted}/{len(message_ids)} "
+                    f"payment messages for topup {topup_id}"
+                )
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse payment_message_ids for topup {topup_id}: {str(e)}")
+        elif not self.bot:
+            logger.warning(f"Bot instance not available to delete payment messages for topup {topup_id}")
+
+        # 4. Send user confirmation.
+        # TODO: replace with i18n keys when the bot UI phase (Phase 4) adds balance translations.
+        if self.bot:
+            try:
+                user_msg = (
+                    f"✅ Nạp tiền thành công\n\n"
+                    f"Mã giao dịch: {topup_id}\n"
+                    f"Số tiền: {topup.amount:,} VND\n"
+                    f"Số dư hiện tại: {new_balance:,} VND"
+                )
+                run_async(self.bot.send_message(chat_id=topup.user_id, text=user_msg))
+                logger.info(f"✓ Sent topup success message to user {topup.user_id}")
+            except Exception as e:
+                logger.error(f"Failed to send topup success message for {topup_id}: {str(e)}")
+
+        # 5. Admin-channel notification.
+        try:
+            notify_service = OrderNotificationService(session, bot=self.bot)
+            notify_service.send_topup_paid(topup_id)
+        except Exception as e:
+            logger.warning(f"Topup paid notification failed for {topup_id}: {e}")
+
+        logger.info(f"=== Topup Payment Processing Complete for {topup_id} ===")
+        return True
+
+    def process_balance_paid_order(self, order_id: str, *, request_loop=None) -> bool:
+        """
+        Called by the bot UI after BalanceService.pay_order_with_balance succeeds.
+
+        Order is already PAID with payment_provider='balance'. This method ONLY
+        runs the fulfillment dispatch (delete payment messages if any, deliver content,
+        send ORDER_PAID notification) — it does NOT touch order status or balance.
+
+        Assumes the order is freshly PAID immediately after pay_order_with_balance.
+        A defensive status check guards against stale calls.
+        """
+        if request_loop is not None:
+            _set_request_loop(request_loop)
+        try:
+            return self._process_balance_paid_order_impl(order_id)
+        finally:
+            if request_loop is not None:
+                _clear_request_loop()
+
+    def _process_balance_paid_order_impl(self, order_id: str) -> bool:
+        """Inner implementation for process_balance_paid_order."""
+        logger.info("=== Processing Balance-Paid Order Fulfillment ===")
+        logger.info(f"Order ID: {order_id}")
+
+        session = self.session_factory()
+        try:
+            order_service = OrderService(session)
+            delivery_service = DeliveryService(session)
+
+            order = order_service.get_order_by_id(order_id)
+            if not order:
+                logger.error(f"process_balance_paid_order: Order {order_id} not found")
+                return False
+
+            # Defensive check — order must be PAID for fulfillment to make sense.
+            if order.status != OrderStatus.PAID:
+                logger.error(
+                    f"process_balance_paid_order: Order {order_id} has status "
+                    f"{order.status}, expected PAID. Aborting fulfillment."
+                )
+                return False
+
+            logger.info(f"Found order: user_id={order.user_id}, status={order.status}, total={order.total_amount}")
+
+            # Mark order processing in DeliveryService (mirrors IPN path).
+            if not delivery_service.process_paid_order(order_id):
+                logger.error(f"process_balance_paid_order: Failed to process order {order_id}")
+                return False
+
+            return self._run_fulfillment(session, order)
+
+        except Exception as e:
+            logger.error(f"Error in process_balance_paid_order for {order_id}: {str(e)}", exc_info=True)
             session.rollback()
             return False
         finally:
@@ -421,7 +595,7 @@ class IPNOrderProcessor:
             order_id: Order ID
             user_id: Telegram user ID
         """
-        from src.database.models import Order, Product
+        from src.database.models import Order
         from src.database.services.user_preference_service import UserPreferenceService
         from src.i18n.bot_translations import get_translation
 

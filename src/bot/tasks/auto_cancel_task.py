@@ -26,21 +26,33 @@ class AutoCancelTask:
         self.scheduler = BackgroundScheduler()
     
     def check_and_cancel_expired_orders(self):
-        """Check for expired orders and cancel them."""
+        """Check for expired orders and topups and cancel them."""
         session_factory = get_session_factory()
         session = session_factory()
-        
+
         try:
             auto_cancel_service = AutoCancelService(session, bot_instance=self.bot)
+
+            # Cancel expired product orders.
             results = auto_cancel_service.process_expired_orders(
                 minutes=30,
                 send_notification=True
             )
-            
             if results["found"] > 0:
                 logger.info(
                     f"Auto-cancel task: Found {results['found']} expired orders, "
                     f"Cancelled {results['cancelled']}, Skipped {results['skipped']}"
+                )
+
+            # Cancel expired topup orders.
+            topup_results = auto_cancel_service.process_expired_topups(
+                minutes=30,
+                send_notification=True
+            )
+            if topup_results["found"] > 0:
+                logger.info(
+                    f"Auto-cancel task (topups): Found {topup_results['found']} expired topups, "
+                    f"Cancelled {topup_results['cancelled']}, Skipped {topup_results['skipped']}"
                 )
         except Exception as e:
             logger.error(f"Error in auto-cancel task: {str(e)}", exc_info=True)

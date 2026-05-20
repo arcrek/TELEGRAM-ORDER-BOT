@@ -11,6 +11,7 @@
     "productUpload": "Product Upload",
     "preUploaded": "Inventory",
     "inventoryUpdate": "Stock Update",
+    "balances": "Balances",
     "logout": "Logout",
     "groups": {
       "overview": "Overview",

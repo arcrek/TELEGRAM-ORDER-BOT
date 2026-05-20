@@ -19,10 +19,14 @@ from src.database.models.iotd_settings import IotdSettings
 from src.database.models.bot_ui_settings import BotUiSettings
 from src.database.models.bonus_tier import BonusTier
 from src.database.models.discount_tier import DiscountTier
+from src.database.models.topup_order import TopupOrder
+from src.database.models.balance_transaction import BalanceTransaction
 from src.database.models.enums import (
     DeliveryType,
     OrderStatus,
     SupplierOrderStatus,
+    TopupStatus,
+    BalanceTxKind,
 )
 
 __all__ = [
@@ -45,8 +49,12 @@ __all__ = [
     "BotUiSettings",
     "BonusTier",
     "DiscountTier",
+    "TopupOrder",
+    "BalanceTransaction",
     "DeliveryType",
     "OrderStatus",
     "SupplierOrderStatus",
+    "TopupStatus",
+    "BalanceTxKind",
 ]
 
