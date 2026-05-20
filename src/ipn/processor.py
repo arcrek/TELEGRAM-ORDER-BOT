@@ -399,15 +399,9 @@ class IPNOrderProcessor:
             notif = notify_service.prepare_topup_notification(topup, _notif_bot_user)
             if notif:
                 _msg, _targets = notif
-                logger.info(
-                    f"Topup notification: dispatching to {len(_targets)} target(s) for {topup_id}"
-                )
-                _result = run_async(
+                run_async(
                     notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
                 )
-                logger.info(f"Topup notification result for {topup_id}: {_result}")
-            else:
-                logger.info(f"Topup notification not sent for {topup_id} (see prepare_topup_notification log above)")
         except Exception as e:
             logger.warning(f"Topup paid notification failed for {topup_id}: {e}", exc_info=True)
 
@@ -585,16 +579,8 @@ class IPNOrderProcessor:
                     )
                 if notif:
                     _msg, _targets = notif
-                    logger.info(
-                        f"Order paid notification: dispatching to {len(_targets)} target(s) for {order_id}"
-                    )
-                    _result = run_async(
+                    run_async(
                         notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
-                    )
-                    logger.info(f"Order paid notification result for {order_id}: {_result}")
-                else:
-                    logger.info(
-                        f"Order paid notification not sent for {order_id} (see prepare_order_paid_notification log above)"
                     )
             except Exception as e:
                 logger.warning(f"Order paid notification failed for {order_id}: {e}", exc_info=True)
@@ -706,16 +692,8 @@ class IPNOrderProcessor:
             )
             if notif:
                 _msg, _targets = notif
-                logger.info(
-                    f"UPGRADE order notification: dispatching to {len(_targets)} target(s) for {order_id}"
-                )
-                _result = run_async(
+                run_async(
                     notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
-                )
-                logger.info(f"UPGRADE order notification result for {order_id}: {_result}")
-            else:
-                logger.info(
-                    f"UPGRADE order notification not sent for {order_id} (see prepare_order_paid_notification log above)"
                 )
         except Exception as e:
             logger.warning(
