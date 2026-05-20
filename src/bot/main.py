@@ -14,6 +14,7 @@ from src.bot.handlers.commands import (
     order_history_command,
     handle_products_button,
     setadmin_command,
+    balance_command,
     unknown_command,
 )
 from src.bot.handlers.notification_commands import notify_all, notify_user, notify_active
@@ -86,6 +87,8 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CommandHandler("orders", order_history_command))
     application.add_handler(CommandHandler("history", order_history_command))
+    application.add_handler(CommandHandler("balance", balance_command))
+    application.add_handler(CommandHandler("sodu", balance_command))
     application.add_handler(CommandHandler("setadmin", setadmin_command))
     
     # Register admin notification commands

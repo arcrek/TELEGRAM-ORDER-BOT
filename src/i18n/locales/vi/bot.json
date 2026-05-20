@@ -3,13 +3,14 @@
     "start": {
       "welcome": "Xin chào, {name}! 👋",
       "description": "🛒 Chào mừng bạn đến với {system_name} - Hệ thống mua tài khoản tự động 24/7!\n\n✨ Tại đây bạn có thể:\n• Xem danh sách sản phẩm\n• Đặt hàng nhanh chóng\n• Thanh toán qua QR Code\n• Nhận sản phẩm tự động sau thanh toán",
-      "help_hint": "\n📌 Sử dụng /products để xem sản phẩm\n📌 Sử dụng /help để xem hướng dẫn\n📌 Sử dụng /lang để đổi ngôn ngữ"
+      "help_hint": "\n📌 Sử dụng /products để xem sản phẩm\n📌 Sử dụng /balance để xem số dư\n📌 Sử dụng /help để xem hướng dẫn\n📌 Sử dụng /lang để đổi ngôn ngữ"
     },
     "help": {
       "title": "📋 Hướng Dẫn Sử Dụng:",
       "start": "/start - Khởi động bot",
       "help": "/help - Xem hướng dẫn",
       "products": "/products - Xem danh sách sản phẩm",
+      "balance": "/balance - Xem số dư và nạp tiền",
       "interaction_hint": "\n💡 Sử dụng các nút bấm trong tin nhắn để chọn sản phẩm và đặt hàng nhanh chóng!",
       "admin_title": "\n🔧 Lệnh Quản Trị:",
       "notify_all": "/notify_all <nội dung> - Gửi thông báo cho tất cả",

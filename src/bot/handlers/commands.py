@@ -152,7 +152,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         f"{t('commands.help.title', update)}\n\n"
         f"{t('commands.help.start', update)}\n"
         f"{t('commands.help.help', update)}\n"
-        f"{t('commands.help.products', update)}\n\n"
+        f"{t('commands.help.products', update)}\n"
+        f"{t('commands.help.balance', update)}\n\n"
         f"{t('commands.help.interaction_hint', update)}"
     )
     
@@ -217,6 +218,31 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(t('commands.products.error', update))
     finally:
         session.close()
+
+
+async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /balance command — show balance wallet view."""
+    user = update.effective_user
+
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        bot_user_service = BotUserService(session)
+        bot_user_service.track_user(
+            telegram_user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error tracking user in /balance: {str(e)}", exc_info=True)
+    finally:
+        session.close()
+
+    from src.bot.handlers.balance import handle_balance_button
+    await handle_balance_button(update, context)
 
 
 _ORDERS_PER_PAGE = 8
