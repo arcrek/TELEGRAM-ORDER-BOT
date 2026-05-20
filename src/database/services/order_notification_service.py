@@ -282,7 +282,23 @@ class OrderNotificationService:
         """
         settings = self._settings_service.get_settings()
         targets = self._settings_service.get_whitelist_targets(settings)
-        if not settings.order_notify_enabled or not settings.order_notify_on_paid or not targets:
+        if not settings.order_notify_enabled:
+            logger.info(
+                f"prepare_order_paid_notification: skipped for order {order.id} "
+                f"— order_notify_enabled=False"
+            )
+            return None
+        if not settings.order_notify_on_paid:
+            logger.info(
+                f"prepare_order_paid_notification: skipped for order {order.id} "
+                f"— order_notify_on_paid=False"
+            )
+            return None
+        if not targets:
+            logger.info(
+                f"prepare_order_paid_notification: skipped for order {order.id} "
+                f"— order_notify_whitelist_chat_ids is empty"
+            )
             return None
         return self._format_message("paid", order, delivery_data=delivery_data), targets
 
@@ -296,11 +312,26 @@ class OrderNotificationService:
         All session access happens here (caller's thread).
         """
         settings = self._settings_service.get_settings()
-        if not settings.order_notify_enabled or not settings.topup_notify_on_paid:
+        topup_id = getattr(topup, "id", "?")
+        if not settings.order_notify_enabled:
+            logger.info(
+                f"prepare_topup_notification: skipped for topup {topup_id} "
+                f"— order_notify_enabled=False"
+            )
+            return None
+        if not settings.topup_notify_on_paid:
+            logger.info(
+                f"prepare_topup_notification: skipped for topup {topup_id} "
+                f"— topup_notify_on_paid=False"
+            )
             return None
         topup_targets = self._settings_service.get_topup_targets(settings)
         targets = topup_targets or self._settings_service.get_whitelist_targets(settings)
         if not targets:
+            logger.info(
+                f"prepare_topup_notification: skipped for topup {topup_id} "
+                f"— both topup_notify_chat_ids and order_notify_whitelist_chat_ids are empty"
+            )
             return None
         return self._format_topup_message(topup, bot_user), targets
 

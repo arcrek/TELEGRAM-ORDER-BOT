@@ -399,9 +399,17 @@ class IPNOrderProcessor:
             notif = notify_service.prepare_topup_notification(topup, _notif_bot_user)
             if notif:
                 _msg, _targets = notif
-                run_async(notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets))
+                logger.info(
+                    f"Topup notification: dispatching to {len(_targets)} target(s) for {topup_id}"
+                )
+                _result = run_async(
+                    notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
+                )
+                logger.info(f"Topup notification result for {topup_id}: {_result}")
+            else:
+                logger.info(f"Topup notification not sent for {topup_id} (see prepare_topup_notification log above)")
         except Exception as e:
-            logger.warning(f"Topup paid notification failed for {topup_id}: {e}")
+            logger.warning(f"Topup paid notification failed for {topup_id}: {e}", exc_info=True)
 
         logger.info(f"=== Topup Payment Processing Complete for {topup_id} ===")
         return True
@@ -566,14 +574,30 @@ class IPNOrderProcessor:
             try:
                 notify_service = OrderNotificationService(session, bot=self.bot)
                 _order_for_notif = session.query(Order).filter_by(id=order_id).first()
-                notif = notify_service.prepare_order_paid_notification(
-                    _order_for_notif, delivery_data=delivery_content
-                ) if _order_for_notif else None
+                if not _order_for_notif:
+                    logger.warning(
+                        f"Order paid notification: order {order_id} not found when re-fetching"
+                    )
+                    notif = None
+                else:
+                    notif = notify_service.prepare_order_paid_notification(
+                        _order_for_notif, delivery_data=delivery_content
+                    )
                 if notif:
                     _msg, _targets = notif
-                    run_async(notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets))
+                    logger.info(
+                        f"Order paid notification: dispatching to {len(_targets)} target(s) for {order_id}"
+                    )
+                    _result = run_async(
+                        notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
+                    )
+                    logger.info(f"Order paid notification result for {order_id}: {_result}")
+                else:
+                    logger.info(
+                        f"Order paid notification not sent for {order_id} (see prepare_order_paid_notification log above)"
+                    )
             except Exception as e:
-                logger.warning(f"Order paid notification failed for {order_id}: {e}")
+                logger.warning(f"Order paid notification failed for {order_id}: {e}", exc_info=True)
             return
 
         # Some items failed
@@ -682,10 +706,21 @@ class IPNOrderProcessor:
             )
             if notif:
                 _msg, _targets = notif
-                run_async(notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets))
+                logger.info(
+                    f"UPGRADE order notification: dispatching to {len(_targets)} target(s) for {order_id}"
+                )
+                _result = run_async(
+                    notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
+                )
+                logger.info(f"UPGRADE order notification result for {order_id}: {_result}")
+            else:
+                logger.info(
+                    f"UPGRADE order notification not sent for {order_id} (see prepare_order_paid_notification log above)"
+                )
         except Exception as e:
             logger.warning(
-                f"Order paid notification failed for UPGRADE order {order_id}: {e}"
+                f"Order paid notification failed for UPGRADE order {order_id}: {e}",
+                exc_info=True,
             )
 
     def _handle_supplier_delivery(
