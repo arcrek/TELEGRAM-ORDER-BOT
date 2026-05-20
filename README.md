@@ -6,11 +6,12 @@ A comprehensive Telegram bot order system that allows users to browse products, 
 
 - 🇻🇳 **Vietnamese as default language** (English also supported)
 - 🛍️ **Product browsing** with pagination and per-product variations
-- 💳 **QR Code payment** via Pay2S (primary) and PayOS (secondary)
+- 💳 **QR Code payment** PayOS
+- 💰 **Balance wallet** — customers top up via QR and pay orders from balance or QR (atomic, double-spend safe)
 - 📦 **Automatic delivery** of pre-uploaded digital content after payment confirmation
-- 🔄 **Auto-cancel** unpaid orders after 30 minutes
+- 🔄 **Auto-cancel** unpaid orders and unpaid topups after 30 minutes
 - 👥 **Supplier system** for manual product delivery (currently disabled in the dashboard API)
-- 📊 **Admin dashboard** with statistics, inventory aging, bonus/discount tiers, and Image-of-the-Day widget
+- 📊 **Admin dashboard** with statistics, inventory aging, bonus/discount tiers, balance management, and Image-of-the-Day widget
 
 ## Project Structure
 
@@ -26,7 +27,8 @@ MTK_BOT_ORDER/
 │   ├── dashboard/               # Admin dashboard API (FastAPI)
 │   │   ├── routers/             # auth, products, orders, statistics, product_upload,
 │   │   │                        # pre_uploaded, variations, bonus_tiers, discount_tiers,
-│   │   │                        # notifications, bot_ui_settings, payos_webhook, iotd
+│   │   │                        # notifications, bot_ui_settings, payos_webhook, iotd,
+│   │   │                        # balances
 │   │   └── auth.py              # Authentication & authorization
 │   ├── database/                # Database layer
 │   │   ├── models/              # SQLAlchemy models
@@ -44,7 +46,7 @@ MTK_BOT_ORDER/
 │       ├── pages/               # Statistics, Products, Orders, ProductUpload,
 │       │                        # Inventory, InventoryUpdate, Variations,
 │       │                        # BonusSummary, Suppliers, Notifications,
-│       │                        # BotUiSettings, Iotd, Login
+│       │                        # BotUiSettings, Iotd, Balances, Login
 │       ├── contexts/            # React contexts (Auth, Theme)
 │       └── styles/              # Theme system
 ├── config/                      # Configuration

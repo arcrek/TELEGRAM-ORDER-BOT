@@ -74,28 +74,38 @@ Frontend      ──┘ (calls Dashboard API over HTTP)
 
 - **`src/bot/`** — Customer-facing Telegram bot. All handlers are async. Uses a single-message update pattern (edit message in place rather than sending new ones). State per user managed in `src/bot/states/state_manager.py`.
 - **`src/bot_supplier/`** — Supplier Telegram bot; receives order notifications when customers place supplier-product orders. Currently disabled in the dashboard API (the `suppliers` and `product_supplier_assignments` routers are commented out in `src/dashboard/main.py`).
-- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `payos_webhook`, `iotd`. (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
-- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`). All business logic goes through `src/database/services/`, never raw queries in handlers.
-- **`src/ipn/processor.py`** — Payment-agnostic IPN processor shared by both Pay2S and PayOS. Handles order fulfillment and triggers delivery after payment confirmation.
+- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `payos_webhook`, `iotd`, `balances`. (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
+- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`, `topup_order`, `balance_transaction`). All business logic goes through `src/database/services/`, never raw queries in handlers. `BotUser.balance` is a `BigInteger` column; balance mutations go through `BalanceService` (atomic conditional UPDATEs, never read-then-write).
+- **`src/ipn/processor.py`** — Payment-agnostic IPN processor shared by both Pay2S and PayOS. Dispatches by order ID prefix: `"TU"`-prefixed IDs route to topup balance credit; all other IDs route to product-order fulfillment. Exposes `process_balance_paid_order(order_id)` for the bot UI to trigger fulfillment after `BalanceService.pay_order_with_balance` succeeds.
 - **`src/pay2s/`** — Pay2S payment integration (primary). `payment.py` creates payment links; `ipn.py` is the Flask IPN server; `signature.py` handles HMAC verification.
 - **`src/payos/`** — PayOS integration (secondary/alternative payment gateway); webhook handled by the `payos_webhook` dashboard router.
 - **`src/i18n/locales/`** — Translation JSON files (`vi/bot.json`, `en/bot.json`). Vietnamese is default.
-- **`frontend/src/pages/`** — React 18 + TypeScript dashboard pages: `Statistics`, `Products`, `Orders`, `ProductUpload`, `Inventory` (mounted at `/pre-uploaded`, includes per-variant aging warnings and date/variation/upload filters), `InventoryUpdate`, `Variations`, `BonusSummary`, `Suppliers`, `Notifications`, `BotUiSettings`, `Iotd`. Dark SaaS theme (background `#0F0F0D`, card `#181816`, accent `#6EA8FF`). No gradients or glassmorphism.
+- **`frontend/src/pages/`** — React 18 + TypeScript dashboard pages: `Statistics`, `Products`, `Orders`, `ProductUpload`, `Inventory` (mounted at `/pre-uploaded`, includes per-variant aging warnings and date/variation/upload filters), `InventoryUpdate`, `Variations`, `BonusSummary`, `Suppliers`, `Notifications`, `BotUiSettings`, `Iotd`, `Balances` (user balance management with add/subtract/set adjustments, transaction history, and topup-order history). Dark SaaS theme (background `#0F0F0D`, card `#181816`, accent `#6EA8FF`). No gradients or glassmorphism.
 
 ### Delivery Flow
 
-1. Customer places order → Pay2S creates QR payment link → sent to user via bot
-2. Customer pays → Pay2S calls IPN endpoint → `src/ipn/processor.py` verifies signature
-3. Processor checks order type:
+1. Customer places order → bot presents payment-method picker (Balance vs QR)
+2. **Balance path**: `BalanceService.pay_order_with_balance` atomically transitions `Order.status` PENDING→PAID and deducts `BotUser.balance` (single transaction, conditional UPDATEs guard against double-spend and double-pay) → bot calls `IPNOrderProcessor.process_balance_paid_order` to trigger fulfillment
+3. **QR path**: Pay2S/PayOS creates QR payment link → sent to user via bot → customer pays → gateway calls IPN endpoint → `src/ipn/processor.py` verifies signature → atomically transitions order to PAID → triggers fulfillment
+4. Fulfillment dispatch by `DeliveryType`:
    - **Pre-uploaded product**: sends stored digital content directly via bot
    - **Supplier product**: notifies supplier via supplier bot; supplier fulfills manually
-4. Unpaid orders auto-cancelled after 30 minutes (APScheduler job in bot)
+5. Unpaid orders AND unpaid topups auto-cancelled after 30 minutes (APScheduler job in bot)
+
+### Balance / Topup Flow
+
+1. Customer taps "Số dư" → bot shows current balance with `[Nạp tiền] [Lịch sử] [Đóng]`
+2. Topup creates a `TopupOrder` with `"TU"`-prefixed ID → PayOS/Pay2S generates QR
+3. Customer pays → gateway IPN → processor sees `"TU"` prefix → `BalanceService.credit_topup` atomically credits balance and writes a `BalanceTransaction(kind=TOPUP)` audit row
+4. Admin-channel notification (`BALANCE_TOPUP_PAID`) fires through `OrderNotificationService.send_topup_paid` — same whitelist as `ORDER_PAID`, gated by `topup_notify_on_paid` toggle in `NotificationSettings`
+5. Topup bounds: min 10,000 VND, max 50,000,000 VND (constants in `topup_service.py`)
+6. Admin balance adjustments (dashboard `/balances` page): add/subtract/set with required reason; recorded in `BalanceTransaction` with `admin_id` attribution
 
 ### Database
 
 - SQLite by default (`data/database.db`), PostgreSQL in production (Docker Compose ships a `postgres` service)
 - All model changes require an Alembic migration — never modify tables directly
-- 17 models including: `Order`, `OrderItem`, `Product`, `ProductVariation`, `PreUploadedProduct`, `BotUser`, `Admin`, `Supplier`, `NotificationSettings`, `BonusTier`, `DiscountTier`, `IotdSettings`, `BotUiSettings`
+- 19+ models including: `Order`, `OrderItem`, `Product`, `ProductVariation`, `PreUploadedProduct`, `BotUser`, `Admin`, `Supplier`, `NotificationSettings`, `BonusTier`, `DiscountTier`, `IotdSettings`, `BotUiSettings`, `TopupOrder`, `BalanceTransaction`
 
 ## Environment Variables
 
