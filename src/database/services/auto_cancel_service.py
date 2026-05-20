@@ -138,7 +138,7 @@ class AutoCancelService:
                         f"Your order was automatically cancelled because payment was not completed within 30 minutes.\n"
                         f"You can place a new order anytime."
                     )
-                    self.bot.send_message(
+                    await self.bot.send_message(
                         chat_id=cancelled_order.user_id,
                         text=notification_message
                     )
@@ -278,7 +278,7 @@ class AutoCancelService:
                         f"Yêu cầu nạp tiền đã bị huỷ do không hoàn tất thanh toán trong 30 phút.\n"
                         f"Bạn có thể nạp tiền lại bất cứ lúc nào."
                     )
-                    self.bot.send_message(
+                    await self.bot.send_message(
                         chat_id=topup.user_id,
                         text=notification_message,
                     )
