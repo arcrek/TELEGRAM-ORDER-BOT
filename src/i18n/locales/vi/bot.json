@@ -64,7 +64,8 @@
       "name": "📌 Tên: {name}",
       "description": "📝 Mô tả: {description}",
       "variations": "🔸 Các phân loại:",
-      "back": "◀️ Quay lại"
+      "back": "◀️ Quay lại",
+      "sold_count": "🔥 Đã bán: {count}"
     },
     "order_confirmation": {
       "title": "✅ XÁC NHẬN THANH TOÁN 🛒",
@@ -81,7 +82,8 @@
       "cancel": "❌ Huỷ",
       "custom_prompt": "📝 Vui lòng nhập số lượng bạn muốn (1 - {max_stock}):",
       "custom_invalid": "❌ Số lượng không hợp lệ. Vui lòng nhập số từ 1 đến {max_stock}.",
-      "custom_success": "✅ Đã cập nhật số lượng thành {quantity}"
+      "custom_success": "✅ Đã cập nhật số lượng thành {quantity}",
+      "sold_count": "🔥 Đã bán: {count}"
     },
     "variation": {
       "title": "📦 CHI TIẾT PHÂN LOẠI",

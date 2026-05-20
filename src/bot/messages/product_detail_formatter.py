@@ -46,6 +46,7 @@ class ProductDetailFormatter:
         update: Optional[Update] = None,
         bonus_texts: Optional[Dict[str, str]] = None,
         variation_choose_text: Optional[str] = None,
+        sold_count: int = 0,
     ) -> str:
         """
         Format product detail message with emoji-based design.
@@ -74,6 +75,11 @@ class ProductDetailFormatter:
 
         # Header
         lines.append(title)
+
+        # Sold count
+        if sold_count > 0:
+            sold_template = t('products.detail.sold_count', update) if update else '🔥 Đã bán: {count}'
+            lines.append(sold_template.format(count=f"{sold_count:,}"))
 
         # Product description (if set)
         if product.description and product.description.strip():

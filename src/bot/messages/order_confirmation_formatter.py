@@ -23,6 +23,7 @@ class OrderConfirmationFormatter:
         bonus_label: Optional[str] = None,
         discount_label: Optional[str] = None,
         discount_amount: int = 0,
+        sold_count: int = 0,
     ) -> str:
         """
         Format order confirmation message with emoji-based design.
@@ -59,6 +60,9 @@ class OrderConfirmationFormatter:
         lines.append(title)
         lines.append(f"{product_label}: {product.name}")
         lines.append(f"{variation_label}: {variation.name}")
+        if sold_count > 0:
+            sold_template = t('products.order_confirmation.sold_count', update) if update else '🔥 Đã bán: {count}'
+            lines.append(sold_template.format(count=f"{sold_count:,}"))
         lines.append(f"{unit_price_label}: {variation.price:,} VND")
         if variation.stock < self._UNLIMITED_STOCK_THRESHOLD:
             lines.append(f"{in_stock_label}: {variation.stock}")

@@ -268,7 +268,9 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
         # Get current page from state (for back button)
         user_state = state_manager.get_user_state(user_id)
         current_page = user_state.current_page if user_state else 1
-        
+
+        sold_count = variation_service.get_sold_count_by_product(product_id)
+
         # Format message and keyboard
         message = formatter.format_product_detail(
             product,
@@ -277,9 +279,10 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
             update,
             bonus_texts,
             variation_choose_text=variation_choose_text,
+            sold_count=sold_count,
         )
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
-        
+
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
@@ -344,12 +347,14 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         discount_label, discount_amount = formatter.get_applicable_discount(
             variation_id, quantity, variation.price, session, language, benefit_mode
         )
+        sold_count = variation_service.get_sold_count_by_variation(variation_id)
         message = formatter.format_order_confirmation(
             product, variation, quantity, update, bonus_quantity, bonus_label,
             discount_label=discount_label, discount_amount=discount_amount,
+            sold_count=sold_count,
         )
         keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock, update)
-        
+
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
@@ -425,12 +430,14 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
         discount_label, discount_amount = formatter.get_applicable_discount(
             variation_id, new_quantity, variation.price, session, language, benefit_mode
         )
+        sold_count = variation_service.get_sold_count_by_variation(variation_id)
         message = formatter.format_order_confirmation(
             product, variation, new_quantity, update, bonus_quantity, bonus_label,
             discount_label=discount_label, discount_amount=discount_amount,
+            sold_count=sold_count,
         )
         keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock, update)
-        
+
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
@@ -603,9 +610,11 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
             discount_label, discount_amount = formatter.get_applicable_discount(
                 user_state.selected_variation_id, quantity, variation.price, session, language, benefit_mode
             )
+            sold_count = variation_service.get_sold_count_by_variation(user_state.selected_variation_id)
             message = formatter.format_order_confirmation(
                 product, variation, quantity, update, bonus_quantity, bonus_label,
                 discount_label=discount_label, discount_amount=discount_amount,
+                sold_count=sold_count,
             )
             keyboard = formatter.create_quantity_keyboard(
                 user_state.selected_variation_id, quantity, actual_stock, update
@@ -692,7 +701,9 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
         
         # Get current page from state (for back button)
         current_page = user_state.current_page if user_state else 1
-        
+
+        sold_count = variation_service.get_sold_count_by_product(product_id)
+
         # Format message and keyboard
         message = formatter.format_product_detail(
             product,
@@ -701,6 +712,7 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
             update,
             bonus_texts,
             variation_choose_text=variation_choose_text,
+            sold_count=sold_count,
         )
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
         

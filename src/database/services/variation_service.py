@@ -2,9 +2,10 @@
 Product variation service layer for business logic.
 """
 from typing import Optional, List
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from src.database.models import ProductVariation
-from src.database.models.enums import DeliveryType
+from src.database.models.enums import DeliveryType, OrderStatus
 
 
 class VariationService:
@@ -327,3 +328,32 @@ class VariationService:
         
         return list(grouped.values())
 
+
+    def get_sold_count_by_variation(self, variation_id: str) -> int:
+        from src.database.models.order import Order
+        from src.database.models.order_item import OrderItem
+        result = (
+            self.session.query(func.sum(OrderItem.quantity + OrderItem.bonus_quantity))
+            .join(Order, Order.id == OrderItem.order_id)
+            .filter(
+                OrderItem.variation_id == variation_id,
+                Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
+            )
+            .scalar()
+        )
+        return result or 0
+
+    def get_sold_count_by_product(self, product_id: str) -> int:
+        from src.database.models.order import Order
+        from src.database.models.order_item import OrderItem
+        result = (
+            self.session.query(func.sum(OrderItem.quantity + OrderItem.bonus_quantity))
+            .join(Order, Order.id == OrderItem.order_id)
+            .join(ProductVariation, ProductVariation.id == OrderItem.variation_id)
+            .filter(
+                ProductVariation.product_id == product_id,
+                Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
+            )
+            .scalar()
+        )
+        return result or 0

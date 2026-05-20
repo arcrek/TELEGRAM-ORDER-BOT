@@ -64,7 +64,8 @@
       "name": "📌 Name: {name}",
       "description": "📝 Description: {description}",
       "variations": "🔸 Variations:",
-      "back": "◀️ Back"
+      "back": "◀️ Back",
+      "sold_count": "🔥 Sold: {count}"
     },
     "order_confirmation": {
       "title": "✅ PAYMENT CONFIRMATION 🛒",
@@ -81,7 +82,8 @@
       "cancel": "❌ Cancel",
       "custom_prompt": "📝 Please enter your desired quantity (1 - {max_stock}):",
       "custom_invalid": "❌ Invalid quantity. Please enter a number between 1 and {max_stock}.",
-      "custom_success": "✅ Quantity updated to {quantity}"
+      "custom_success": "✅ Quantity updated to {quantity}",
+      "sold_count": "🔥 Sold: {count}"
     },
     "variation": {
       "title": "📦 VARIATION DETAILS",
