@@ -545,10 +545,6 @@ async def handle_topup_amount_text(update: Update, context: ContextTypes.DEFAULT
     if not user_state or not user_state.awaiting_topup_amount:
         return
 
-    # Clear the flag immediately
-    user_state.awaiting_topup_amount = False
-    state_manager.set_user_state(user_id, user_state)
-
     raw = update.message.text.strip().replace(",", "").replace(".", "")
     try:
         amount = int(raw)
@@ -566,6 +562,10 @@ async def handle_topup_amount_text(update: Update, context: ContextTypes.DEFAULT
             )
         )
         return
+
+    # Clear the flag only after validation passes
+    user_state.awaiting_topup_amount = False
+    state_manager.set_user_state(user_id, user_state)
 
     session_factory = get_session_factory()
     session = session_factory()
