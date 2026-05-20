@@ -16,6 +16,7 @@
 
 .inventory-page__product-select { width: 220px; }
 .inventory-page__status-select { width: 180px; }
+.inventory-page__data-search { width: 200px; }
 
 .inventory-page__bulk-bar {
   display: flex;

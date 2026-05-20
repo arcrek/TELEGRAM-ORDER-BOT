@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Package, RefreshCw, Trash2, Copy, Check, Download, CheckCircle, XCircle } from 'lucide-react'
+import { Package, RefreshCw, Trash2, Copy, Check, Download, CheckCircle, XCircle, Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
 import { StatCard } from '../shared/components/StatCard'
@@ -10,6 +10,7 @@ import { Badge } from '../shared/components/Badge'
 import { Button } from '../shared/components/Button'
 import { IconButton } from '../shared/components/IconButton'
 import { Select } from '../shared/components/Select'
+import { Input } from '../shared/components/Input'
 import { Modal } from '../shared/components/Modal'
 import { Tooltip } from '../shared/components/Tooltip'
 import { useToast } from '../shared/components/Toast'
@@ -234,7 +235,12 @@ export function InventoryPage() {
   const urlAging = searchParams.get('aging') ?? null
   const urlFrom = searchParams.get('from') ?? null
   const urlTo = searchParams.get('to') ?? null
+  const urlDataSearch = searchParams.get('data_search') ?? ''
   const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
+
+  // Local state for the data search input so typing is instant; URL update is debounced
+  const [dataSearchInput, setDataSearchInput] = useState(urlDataSearch)
+  const dataSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const setParam = useCallback(
     (updates: Record<string, string | null>) => {
@@ -288,6 +294,7 @@ export function InventoryPage() {
       if (urlAging && urlUsed !== 'true') params.aging_status = urlAging
       if (urlFrom) params.uploaded_from = urlFrom
       if (urlTo) params.uploaded_to = urlTo
+      if (urlDataSearch) params.data_search = urlDataSearch
 
       const statsParams: Record<string, string> = { ...params }
       // stats endpoint doesn't accept pagination params
@@ -307,7 +314,7 @@ export function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [urlPage, perPage, urlProductId, urlVariationId, urlUsed, urlAging, urlFrom, urlTo, t])
+  }, [urlPage, perPage, urlProductId, urlVariationId, urlUsed, urlAging, urlFrom, urlTo, urlDataSearch, t])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -595,6 +602,27 @@ export function InventoryPage() {
           placeholder={t('preUploaded.filterUploadDate', 'Ngày upload')}
           size="sm"
           className="inventory-page__date-filter"
+        />
+        <Input
+          value={dataSearchInput}
+          onChange={e => {
+            const val = e.target.value
+            setDataSearchInput(val)
+            if (dataSearchDebounceRef.current) clearTimeout(dataSearchDebounceRef.current)
+            dataSearchDebounceRef.current = setTimeout(() => {
+              setParam({ data_search: val || null, page: null })
+            }, 350)
+          }}
+          onClear={() => {
+            setDataSearchInput('')
+            if (dataSearchDebounceRef.current) clearTimeout(dataSearchDebounceRef.current)
+            setParam({ data_search: null, page: null })
+          }}
+          leftIcon={<Search size={13} />}
+          clearable
+          placeholder={t('preUploaded.searchData', 'Tìm theo dữ liệu')}
+          size="sm"
+          className="inventory-page__data-search"
         />
       </div>
 

@@ -160,6 +160,7 @@ def _apply_common_filters(
     uploaded_from: Optional[str],
     uploaded_to: Optional[str],
     aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]],
+    data_search: Optional[str] = None,
 ):
     """Apply all shared filter params to a PreUploadedProduct query."""
     if product_id:
@@ -177,6 +178,8 @@ def _apply_common_filters(
     if aging_status:
         # aging_status only meaningful for unsold; is_used filter applied inside helper
         query = _apply_aging_filter(query, db, aging_status)
+    if data_search:
+        query = query.filter(PreUploadedProduct.product_data.ilike(f"%{data_search}%"))
     return query
 
 
@@ -190,6 +193,7 @@ async def list_pre_uploaded_products(
     uploaded_from: Optional[str] = Query(None),
     uploaded_to: Optional[str] = Query(None),
     aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]] = Query(None),
+    data_search: Optional[str] = Query(None),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -197,7 +201,7 @@ async def list_pre_uploaded_products(
     query = db.query(PreUploadedProduct)
     query = _apply_common_filters(
         query, db, product_id, variation_id, is_used,
-        uploaded_from, uploaded_to, aging_status,
+        uploaded_from, uploaded_to, aging_status, data_search,
     )
 
     total = query.count()
