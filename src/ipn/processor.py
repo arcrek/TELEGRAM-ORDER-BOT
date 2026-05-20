@@ -391,7 +391,7 @@ class IPNOrderProcessor:
         # 5. Admin-channel notification.
         try:
             notify_service = OrderNotificationService(session, bot=self.bot)
-            notify_service.send_topup_paid(topup_id)
+            run_async(notify_service._send_topup_async(topup_id))
         except Exception as e:
             logger.warning(f"Topup paid notification failed for {topup_id}: {e}")
 
@@ -555,7 +555,7 @@ class IPNOrderProcessor:
             # Fire ORDER_PAID notification after delivery so it includes delivery data
             try:
                 notify_service = OrderNotificationService(session, bot=self.bot)
-                notify_service.send_order_paid(order_id, delivery_data=delivery_content)
+                run_async(notify_service.send_order_paid_async(order_id, delivery_data=delivery_content))
             except Exception as e:
                 logger.warning(f"Order paid notification failed for {order_id}: {e}")
             return
@@ -663,10 +663,10 @@ class IPNOrderProcessor:
         # src/bot/handlers/upgrade_handler.py).
         try:
             notify_service = OrderNotificationService(session, bot=self.bot)
-            notify_service.send_order_paid(
+            run_async(notify_service.send_order_paid_async(
                 order_id,
                 delivery_data="(awaiting account info from customer)",
-            )
+            ))
         except Exception as e:
             logger.warning(
                 f"Order paid notification failed for UPGRADE order {order_id}: {e}"
