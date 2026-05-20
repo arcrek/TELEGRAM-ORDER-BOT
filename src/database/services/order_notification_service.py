@@ -4,7 +4,7 @@ Order notification service for sending new-order alerts to whitelisted chat IDs.
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from sqlalchemy.orm import Session
 from telegram import Bot
 from telegram.error import TelegramError
@@ -269,6 +269,40 @@ class OrderNotificationService:
         the corresponding blocking wrapper.
         """
         return await self._send_async("paid", order_id, delivery_data=delivery_data)
+
+    def prepare_order_paid_notification(
+        self, order: Order, delivery_data: Optional[str] = None
+    ) -> Optional[Tuple[str, List[Dict[str, Optional[int]]]]]:
+        """Synchronously check settings and format an ORDER_PAID notification.
+
+        Returns (message, targets) ready to pass to send_message_to_whitelist_async,
+        or None when the notification is disabled / no targets are configured.
+        All session access happens here (caller's thread); the returned tuple
+        contains only plain strings/dicts so it is safe to use from any thread.
+        """
+        settings = self._settings_service.get_settings()
+        targets = self._settings_service.get_whitelist_targets(settings)
+        if not settings.order_notify_enabled or not settings.order_notify_on_paid or not targets:
+            return None
+        return self._format_message("paid", order, delivery_data=delivery_data), targets
+
+    def prepare_topup_notification(
+        self, topup, bot_user
+    ) -> Optional[Tuple[str, List[Dict[str, Optional[int]]]]]:
+        """Synchronously check settings and format a BALANCE_TOPUP_PAID notification.
+
+        Returns (message, targets) ready to pass to send_message_to_whitelist_async,
+        or None when the notification is disabled / no targets are configured.
+        All session access happens here (caller's thread).
+        """
+        settings = self._settings_service.get_settings()
+        if not settings.order_notify_enabled or not settings.topup_notify_on_paid:
+            return None
+        topup_targets = self._settings_service.get_topup_targets(settings)
+        targets = topup_targets or self._settings_service.get_whitelist_targets(settings)
+        if not targets:
+            return None
+        return self._format_topup_message(topup, bot_user), targets
 
     def send_order_paid(self, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
         """

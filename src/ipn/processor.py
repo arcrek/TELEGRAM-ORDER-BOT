@@ -20,6 +20,7 @@ from src.database.services.supplier_order_service import SupplierOrderService
 from src.database.services.order_notification_service import OrderNotificationService
 from src.database.services.balance_service import BalanceService
 from src.database.services.topup_service import TopupService
+from src.database.models import Order
 from src.database.models.enums import OrderStatus, DeliveryType
 from telegram import Bot
 from telegram.error import TelegramError
@@ -389,9 +390,16 @@ class IPNOrderProcessor:
                 logger.error(f"Failed to send topup success message for {topup_id}: {str(e)}")
 
         # 5. Admin-channel notification.
+        # All session work is done synchronously here (executor thread) via
+        # prepare_topup_notification; only the bot send call is async.
         try:
+            from src.database.models.bot_user import BotUser as _NotifBotUser
+            _notif_bot_user = session.query(_NotifBotUser).filter_by(id=topup.bot_user_id).first()
             notify_service = OrderNotificationService(session, bot=self.bot)
-            run_async(notify_service._send_topup_async(topup_id))
+            notif = notify_service.prepare_topup_notification(topup, _notif_bot_user)
+            if notif:
+                _msg, _targets = notif
+                run_async(notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets))
         except Exception as e:
             logger.warning(f"Topup paid notification failed for {topup_id}: {e}")
 
@@ -552,10 +560,18 @@ class IPNOrderProcessor:
                     order_service.update_order_status(order_id, OrderStatus.DELIVERED)
                     logger.info(f"✓ Order {order_id} marked as DELIVERED after successful product send")
 
-            # Fire ORDER_PAID notification after delivery so it includes delivery data
+            # Fire ORDER_PAID notification after delivery so it includes delivery data.
+            # Session work (settings, targets, message format) is done synchronously
+            # here; only the bot send call is async via send_message_to_whitelist_async.
             try:
                 notify_service = OrderNotificationService(session, bot=self.bot)
-                run_async(notify_service.send_order_paid_async(order_id, delivery_data=delivery_content))
+                _order_for_notif = session.query(Order).filter_by(id=order_id).first()
+                notif = notify_service.prepare_order_paid_notification(
+                    _order_for_notif, delivery_data=delivery_content
+                ) if _order_for_notif else None
+                if notif:
+                    _msg, _targets = notif
+                    run_async(notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets))
             except Exception as e:
                 logger.warning(f"Order paid notification failed for {order_id}: {e}")
             return
@@ -595,7 +611,6 @@ class IPNOrderProcessor:
             order_id: Order ID
             user_id: Telegram user ID
         """
-        from src.database.models import Order
         from src.database.services.user_preference_service import UserPreferenceService
         from src.i18n.bot_translations import get_translation
 
@@ -658,15 +673,16 @@ class IPNOrderProcessor:
             order.upgrade_prompt_msg_id = sent_msg.message_id
         session.commit()
 
-        # Notify admins that an UPGRADE order is in flight (delivery_data
-        # placeholder; the customer's actual reply is forwarded later by
-        # src/bot/handlers/upgrade_handler.py).
+        # Notify admins that an UPGRADE order is in flight.
+        # Session work done synchronously here; only the bot send call is async.
         try:
             notify_service = OrderNotificationService(session, bot=self.bot)
-            run_async(notify_service.send_order_paid_async(
-                order_id,
-                delivery_data="(awaiting account info from customer)",
-            ))
+            notif = notify_service.prepare_order_paid_notification(
+                order, delivery_data="(awaiting account info from customer)"
+            )
+            if notif:
+                _msg, _targets = notif
+                run_async(notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets))
         except Exception as e:
             logger.warning(
                 f"Order paid notification failed for UPGRADE order {order_id}: {e}"
