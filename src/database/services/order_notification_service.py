@@ -371,6 +371,7 @@ class OrderNotificationService:
                 name_parts.append(bot_user.last_name)
         name = " ".join(name_parts)
         provider = getattr(topup, "payment_provider", None) or "unknown"
+        balance_after = getattr(bot_user, "balance", None) if bot_user else None
 
         lines = [
             "🔔 BALANCE_TOPUP_PAID",
@@ -380,9 +381,13 @@ class OrderNotificationService:
             f"  ↳ Username: @{username}",
             f"  ↳ Name: {name}",
             f"• Amount: {topup.amount:,} VND",
+        ]
+        if balance_after is not None:
+            lines.append(f"• Balance after: {balance_after:,} VND")
+        lines.extend([
             f"• Provider: {provider}",
             f"• At: {ts}",
-        ]
+        ])
         return "\n".join(lines)
 
     async def _send_topup_async(self, topup_id: str) -> Dict[str, Any]:
