@@ -117,7 +117,7 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
       align: 'right',
       width: 120,
       cell: row => (
-        <span style={{ color: row.amount >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
+        <span style={{ color: row.amount >= 0 ? 'var(--success-500)' : 'var(--danger-500)' }}>
           {row.amount >= 0 ? '+' : ''}{row.amount.toLocaleString('vi-VN')}
         </span>
       ),
@@ -141,7 +141,7 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
     {
       id: 'reason',
       header: 'Lý do',
-      cell: row => <span style={{ color: 'var(--color-text-muted)', fontSize: 12 }}>{row.reason ?? '—'}</span>,
+      cell: row => <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{row.reason ?? '—'}</span>,
     },
   ], [fmt])
 
@@ -260,7 +260,7 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
       )}
 
       {error && (
-        <div role="alert" style={{ color: 'var(--color-danger)', padding: '12px 0' }}>
+        <div role="alert" style={{ color: 'var(--danger-500)', padding: '12px 0' }}>
           {error}
         </div>
       )}
@@ -274,33 +274,33 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
             gap: 12,
             marginBottom: 20,
             padding: 16,
-            background: 'var(--color-surface)',
+            background: 'var(--bg-sunken)',
             borderRadius: 8,
-            border: '1px solid var(--color-border)',
+            border: '1px solid var(--border-subtle)',
           }}>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telegram ID</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telegram ID</div>
               <div style={{ fontFamily: 'monospace', fontSize: 14 }}>{detail.user.telegram_user_id}</div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tên</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tên</div>
               <div style={{ fontSize: 14 }}>
                 {[detail.user.first_name, detail.user.last_name].filter(Boolean).join(' ') || '—'}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Số dư hiện tại</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-accent, #6EA8FF)' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Số dư hiện tại</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--brand-500)' }}>
                 {detail.user.balance.toLocaleString('vi-VN')} VND
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tổng nạp</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tổng nạp</div>
               <div style={{ fontSize: 14, fontWeight: 500 }}>{detail.user.total_topup.toLocaleString('vi-VN')} VND</div>
             </div>
             {detail.user.last_topup_at && (
               <div>
-                <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nạp cuối</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nạp cuối</div>
                 <div style={{ fontSize: 13 }}>{fmt.dateTime(detail.user.last_topup_at)}</div>
               </div>
             )}

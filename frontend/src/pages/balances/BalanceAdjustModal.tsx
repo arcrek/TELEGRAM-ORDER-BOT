@@ -105,16 +105,16 @@ export function BalanceAdjustModal({ open, onClose, user, onSuccess }: BalanceAd
     >
       <form id="balance-adjust-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {user && (
-          <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
             Số dư hiện tại:{' '}
-            <strong style={{ color: 'var(--color-text)' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>
               {user.balance.toLocaleString('vi-VN')} VND
             </strong>
           </div>
         )}
 
         {error && (
-          <div role="alert" style={{ color: 'var(--color-danger)', fontSize: 13 }}>
+          <div role="alert" style={{ color: 'var(--danger-500)', fontSize: 13 }}>
             {error}
           </div>
         )}
@@ -153,10 +153,10 @@ export function BalanceAdjustModal({ open, onClose, user, onSuccess }: BalanceAd
             style={{
               width: '100%',
               padding: '8px 12px',
-              background: 'var(--color-input-bg, var(--color-surface))',
-              border: '1px solid var(--color-border)',
+              background: 'var(--bg-sunken)',
+              border: '1px solid var(--border-subtle)',
               borderRadius: 6,
-              color: 'var(--color-text)',
+              color: 'var(--text-primary)',
               fontSize: 14,
               outline: 'none',
             }}

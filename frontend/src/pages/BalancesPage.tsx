@@ -118,7 +118,7 @@ export function BalancesPage() {
       id: 'username',
       header: t('balances.colUsername', 'Tài khoản'),
       cell: row => (
-        <span style={{ color: 'var(--color-accent, #6EA8FF)', fontWeight: 500 }}>
+        <span style={{ color: 'var(--brand-500)', fontWeight: 500 }}>
           {row.username ? `@${row.username}` : '—'}
         </span>
       ),
@@ -146,7 +146,7 @@ export function BalancesPage() {
       sortable: true,
       width: 150,
       cell: row => (
-        <strong style={{ color: row.balance > 0 ? 'var(--color-accent, #6EA8FF)' : 'var(--color-text-muted)' }}>
+        <strong style={{ color: row.balance > 0 ? 'var(--brand-500)' : 'var(--text-muted)' }}>
           {row.balance.toLocaleString('vi-VN')} VND
         </strong>
       ),
@@ -244,7 +244,7 @@ export function BalancesPage() {
       {error && (
         <div role="alert" style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          color: 'var(--color-danger)', marginBottom: 12, fontSize: 14,
+          color: 'var(--danger-500)', marginBottom: 12, fontSize: 14,
         }}>
           <span>{error}</span>
           <IconButton
@@ -259,9 +259,9 @@ export function BalancesPage() {
 
       {/* ── Table ─────────────────────────────────────────────────── */}
       <div style={{
-        background: 'var(--color-card, #181816)',
+        background: 'var(--bg-surface)',
         borderRadius: 8,
-        border: '1px solid var(--color-border)',
+        border: '1px solid var(--border-subtle)',
         overflow: 'hidden',
       }}>
         <Table<BalanceUserRow>
