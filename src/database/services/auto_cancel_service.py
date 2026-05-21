@@ -1,6 +1,7 @@
 """
 Auto-cancel service for cancelling unpaid orders after 30 minutes.
 """
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -118,10 +119,10 @@ class AutoCancelService:
                 user_state = state_manager.get_user_state(cancelled_order.user_id)
                 if user_state and user_state.payment_message_id:
                     try:
-                        self.bot.delete_message(
+                        asyncio.run(self.bot.delete_message(
                             chat_id=cancelled_order.user_id,
                             message_id=user_state.payment_message_id
-                        )
+                        ))
                         logger.info(f"Deleted payment message {user_state.payment_message_id} for auto-cancelled order {order.id}")
                         # Clear payment message ID from state
                         state_manager.update_user_state(cancelled_order.user_id, payment_message_id=None)
@@ -138,10 +139,10 @@ class AutoCancelService:
                         f"Your order was automatically cancelled because payment was not completed within 30 minutes.\n"
                         f"You can place a new order anytime."
                     )
-                    await self.bot.send_message(
+                    asyncio.run(self.bot.send_message(
                         chat_id=cancelled_order.user_id,
                         text=notification_message
-                    )
+                    ))
                     logger.info(f"Sent auto-cancellation notification to user {cancelled_order.user_id}")
                 except Exception as e:
                     logger.error(
@@ -278,10 +279,10 @@ class AutoCancelService:
                         f"Yêu cầu nạp tiền đã bị huỷ do không hoàn tất thanh toán trong 30 phút.\n"
                         f"Bạn có thể nạp tiền lại bất cứ lúc nào."
                     )
-                    await self.bot.send_message(
+                    asyncio.run(self.bot.send_message(
                         chat_id=topup.user_id,
                         text=notification_message,
-                    )
+                    ))
                     logger.info(f"Sent auto-cancellation notification to user {topup.user_id} for topup {topup.id}")
                 except Exception as e:
                     logger.error(
