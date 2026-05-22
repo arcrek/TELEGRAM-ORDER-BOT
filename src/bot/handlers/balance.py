@@ -170,50 +170,62 @@ async def _create_topup_qr(
             from src.database.services.order_service import OrderService
 
             order_svc = OrderService(session)
-            payos_order_code = order_svc.generate_payos_order_code()
 
-            topup.payment_provider = "payos"
-            topup.payos_order_code = payos_order_code
-            session.commit()
+            # If a complete payment link already exists, reuse it without calling
+            # PayOS again — prevents duplicate links on double-tap.
+            if topup.payos_order_code and topup.payos_checkout_url:
+                payos_order_code = topup.payos_order_code
+                qr_payload = topup.payos_qr_code or topup.payos_checkout_url
+                logger.info(f"Reusing existing PayOS link for topup {topup_id} (code={payos_order_code})")
+            else:
+                if topup.payos_order_code:
+                    payos_order_code = topup.payos_order_code
+                else:
+                    payos_order_code = order_svc.generate_payos_order_code()
+                    topup.payment_provider = "payos"
+                    topup.payos_order_code = payos_order_code
+                    session.commit()
 
-            payos = PayOSClient(
-                base_url=PAYOS_BASE_URL,
-                credentials=PayOSCredentials(
-                    client_id=PAYOS_CLIENT_ID,
-                    api_key=PAYOS_API_KEY,
-                    checksum_key=PAYOS_CHECKSUM_KEY,
-                    partner_code=PAYOS_PARTNER_CODE,
-                ),
-            )
-            order_prefix = os.getenv("ORDER_PREFIX", "MTK")
-            description = f"{order_prefix}{topup_id}"[:9]
-            expired_at = int(time.time()) + 30 * 60
-
-            try:
-                payos_resp = payos.create_payment_link(
-                    order_code=int(payos_order_code),
-                    amount=int(amount),
-                    description=description,
-                    return_url=PAYOS_RETURN_URL,
-                    cancel_url=PAYOS_CANCEL_URL,
-                    expired_at=expired_at,
+                payos = PayOSClient(
+                    base_url=PAYOS_BASE_URL,
+                    credentials=PayOSCredentials(
+                        client_id=PAYOS_CLIENT_ID,
+                        api_key=PAYOS_API_KEY,
+                        checksum_key=PAYOS_CHECKSUM_KEY,
+                        partner_code=PAYOS_PARTNER_CODE,
+                    ),
                 )
-            except Exception as exc:
-                logger.error(f"PayOS create link failed for topup {topup_id}: {exc}", exc_info=True)
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text="❌ Payment creation failed. Please try again later.",
-                )
-                return
+                order_prefix = os.getenv("ORDER_PREFIX", "MTK")
+                description = f"{order_prefix}{topup_id}"[:9]
+                expired_at = int(time.time()) + 30 * 60
 
-            pay_data = (payos_resp or {}).get("data") or {}
-            payment_link_id = pay_data.get("paymentLinkId")
-            checkout_url = pay_data.get("checkoutUrl")
-            qr_payload = pay_data.get("qrCode")
+                try:
+                    payos_resp = payos.create_payment_link(
+                        order_code=int(payos_order_code),
+                        amount=int(amount),
+                        description=description,
+                        return_url=PAYOS_RETURN_URL,
+                        cancel_url=PAYOS_CANCEL_URL,
+                        expired_at=expired_at,
+                    )
+                except Exception as exc:
+                    logger.error(f"PayOS create link failed for topup {topup_id}: {exc}", exc_info=True)
+                    await context.bot.send_message(
+                        chat_id=user_id,
+                        text="❌ Payment creation failed. Please try again later.",
+                    )
+                    return
 
-            topup.payos_payment_link_id = str(payment_link_id) if payment_link_id else None
-            topup.payos_checkout_url = str(checkout_url) if checkout_url else None
-            session.commit()
+                pay_data = (payos_resp or {}).get("data") or {}
+                payment_link_id = pay_data.get("paymentLinkId")
+                checkout_url = pay_data.get("checkoutUrl")
+                qr_code = pay_data.get("qrCode")
+                qr_payload = qr_code or checkout_url
+
+                topup.payos_payment_link_id = str(payment_link_id) if payment_link_id else None
+                topup.payos_checkout_url = str(checkout_url) if checkout_url else None
+                topup.payos_qr_code = str(qr_code) if qr_code else None
+                session.commit()
 
             ids_to_track: list[int] = []
             if topup_message_id:

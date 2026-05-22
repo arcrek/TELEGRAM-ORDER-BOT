@@ -985,65 +985,79 @@ async def _create_qr_for_order(
                     await context.bot.send_message(chat_id=user_id, text=err)
                 return
 
-            # Assign PayOS identifiers on the order
-            try:
-                payos_order_code = order_service.generate_payos_order_code()
-                order.payment_provider = "payos"
-                order.payos_order_code = payos_order_code
-                session.commit()
-            except Exception as e:
-                logger.error(f"Failed to set PayOS orderCode: {e}", exc_info=True)
-                err = "❌ Error preparing payment. Please try again."
-                if reply_to_query:
-                    await reply_to_query.edit_message_text(err)
-                else:
-                    await context.bot.send_message(chat_id=user_id, text=err)
-                return
+            # If a complete payment link already exists for this order, reuse it
+            # without calling the PayOS API again. This prevents duplicate payment
+            # links when the user double-taps the QR button.
+            if order.payos_order_code and order.payos_checkout_url:
+                payos_order_code = order.payos_order_code
+                qr_payload = order.payos_qr_code or order.payos_checkout_url
+                logger.info(f"Reusing existing PayOS link for order {order.id} (code={payos_order_code})")
+            else:
+                # Assign PayOS identifiers — reuse existing code if one was already
+                # committed to avoid orphaning it on a concurrent double-tap.
+                try:
+                    if order.payos_order_code:
+                        payos_order_code = order.payos_order_code
+                    else:
+                        payos_order_code = order_service.generate_payos_order_code()
+                        order.payment_provider = "payos"
+                        order.payos_order_code = payos_order_code
+                        session.commit()
+                except Exception as e:
+                    logger.error(f"Failed to set PayOS orderCode: {e}", exc_info=True)
+                    err = "❌ Error preparing payment. Please try again."
+                    if reply_to_query:
+                        await reply_to_query.edit_message_text(err)
+                    else:
+                        await context.bot.send_message(chat_id=user_id, text=err)
+                    return
 
-            payos = PayOSClient(
-                base_url=PAYOS_BASE_URL,
-                credentials=PayOSCredentials(
-                    client_id=PAYOS_CLIENT_ID,
-                    api_key=PAYOS_API_KEY,
-                    checksum_key=PAYOS_CHECKSUM_KEY,
-                    partner_code=PAYOS_PARTNER_CODE,
-                ),
-            )
-
-            order_prefix = os.getenv("ORDER_PREFIX", "MTK")
-            description = f"{order_prefix}{order.id}"[:9]
-            expired_at = int(time.time()) + 30 * 60
-            logger.info(f"Creating PayOS payment link for order {order.id} with 30-min expiration")
-
-            try:
-                payos_resp = payos.create_payment_link(
-                    order_code=int(payos_order_code),
-                    amount=int(order.total_amount),
-                    description=description,
-                    return_url=PAYOS_RETURN_URL,
-                    cancel_url=PAYOS_CANCEL_URL,
-                    expired_at=expired_at,
+                payos = PayOSClient(
+                    base_url=PAYOS_BASE_URL,
+                    credentials=PayOSCredentials(
+                        client_id=PAYOS_CLIENT_ID,
+                        api_key=PAYOS_API_KEY,
+                        checksum_key=PAYOS_CHECKSUM_KEY,
+                        partner_code=PAYOS_PARTNER_CODE,
+                    ),
                 )
-            except Exception as e:
-                logger.error(f"PayOS create link failed: {e}", exc_info=True)
-                err = "❌ Payment creation failed. Please try again later."
-                if reply_to_query:
-                    await reply_to_query.edit_message_text(err)
-                else:
-                    await context.bot.send_message(chat_id=user_id, text=err)
-                return
 
-            pay_data = (payos_resp or {}).get("data") or {}
-            payment_link_id = pay_data.get("paymentLinkId")
-            checkout_url = pay_data.get("checkoutUrl")
-            qr_payload = pay_data.get("qrCode")
+                order_prefix = os.getenv("ORDER_PREFIX", "MTK")
+                description = f"{order_prefix}{order.id}"[:9]
+                expired_at = int(time.time()) + 30 * 60
+                logger.info(f"Creating PayOS payment link for order {order.id} with 30-min expiration")
 
-            try:
-                order.payos_payment_link_id = str(payment_link_id) if payment_link_id else None
-                order.payos_checkout_url = str(checkout_url) if checkout_url else None
-                session.commit()
-            except Exception as e:
-                logger.warning(f"Failed to store PayOS payment link fields: {e}")
+                try:
+                    payos_resp = payos.create_payment_link(
+                        order_code=int(payos_order_code),
+                        amount=int(order.total_amount),
+                        description=description,
+                        return_url=PAYOS_RETURN_URL,
+                        cancel_url=PAYOS_CANCEL_URL,
+                        expired_at=expired_at,
+                    )
+                except Exception as e:
+                    logger.error(f"PayOS create link failed: {e}", exc_info=True)
+                    err = "❌ Payment creation failed. Please try again later."
+                    if reply_to_query:
+                        await reply_to_query.edit_message_text(err)
+                    else:
+                        await context.bot.send_message(chat_id=user_id, text=err)
+                    return
+
+                pay_data = (payos_resp or {}).get("data") or {}
+                payment_link_id = pay_data.get("paymentLinkId")
+                checkout_url = pay_data.get("checkoutUrl")
+                qr_code = pay_data.get("qrCode")
+                qr_payload = qr_code or checkout_url
+
+                try:
+                    order.payos_payment_link_id = str(payment_link_id) if payment_link_id else None
+                    order.payos_checkout_url = str(checkout_url) if checkout_url else None
+                    order.payos_qr_code = str(qr_code) if qr_code else None
+                    session.commit()
+                except Exception as e:
+                    logger.warning(f"Failed to store PayOS payment link fields: {e}")
 
             state_manager.update_user_state(user_id, pending_order_id=order.id)
 
@@ -1055,7 +1069,12 @@ async def _create_qr_for_order(
 
             # Edit the picker/confirmation message into the text payment message
             if reply_to_query:
-                await reply_to_query.edit_message_text(payment_message)
+                from telegram.error import BadRequest as TgBadRequest
+                try:
+                    await reply_to_query.edit_message_text(payment_message)
+                except TgBadRequest as exc:
+                    if "is not modified" not in str(exc):
+                        raise
                 text_message_id = reply_to_query.message.message_id
             else:
                 sent_text = await context.bot.send_message(chat_id=user_id, text=payment_message)

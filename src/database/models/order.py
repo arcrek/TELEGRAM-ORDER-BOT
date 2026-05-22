@@ -28,6 +28,7 @@ class Order(Base):
     payos_order_code = Column(BigInteger, nullable=True, unique=True)  # PayOS orderCode (integer)
     payos_payment_link_id = Column(String, nullable=True)  # PayOS paymentLinkId
     payos_checkout_url = Column(Text, nullable=True)  # PayOS checkoutUrl (optional)
+    payos_qr_code = Column(Text, nullable=True)  # PayOS VietQR EMV payload
 
     # UPGRADE delivery: flag flips True when IPN asks user for account info, cleared
     # by the bot once the user has replied and the message has been forwarded.

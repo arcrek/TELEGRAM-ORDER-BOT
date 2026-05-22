@@ -32,6 +32,7 @@ class TopupOrder(Base):
     payos_order_code = Column(BigInteger, nullable=True, unique=True)
     payos_payment_link_id = Column(String, nullable=True)
     payos_checkout_url = Column(Text, nullable=True)
+    payos_qr_code = Column(Text, nullable=True)  # PayOS VietQR EMV payload
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
