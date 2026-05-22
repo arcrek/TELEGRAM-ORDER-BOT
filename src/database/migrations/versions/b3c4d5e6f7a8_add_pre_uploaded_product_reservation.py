@@ -4,8 +4,8 @@ Prevents overselling race condition: when a QR payment is created, specific
 pre-uploaded product rows are reserved for that order. Concurrent orders cannot
 claim the same rows. Reservation is released on order cancellation.
 
-Revision ID: a2b3c4d5e6f7
-Revises: f6a7b8c9d0e1
+Revision ID: b3c4d5e6f7a8
+Revises: a2b3c4d5e6f7
 Create Date: 2026-05-22 00:00:00.000000
 
 """
@@ -13,8 +13,8 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "a2b3c4d5e6f7"
-down_revision = "f6a7b8c9d0e1"
+revision = "b3c4d5e6f7a8"
+down_revision = "a2b3c4d5e6f7"
 branch_labels = None
 depends_on = None
 
