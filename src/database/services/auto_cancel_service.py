@@ -1,5 +1,5 @@
 """
-Auto-cancel service for cancelling unpaid orders after 30 minutes.
+Auto-cancel service for cancelling unpaid orders after 10 minutes.
 """
 import asyncio
 import logging
@@ -16,6 +16,8 @@ from src.database.models.topup_order import TopupOrder
 from src.bot.states.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
+
+PAYMENT_EXPIRE_MINUTES = 10
 
 # Global state manager instance
 state_manager = StateManager()
@@ -36,7 +38,7 @@ class AutoCancelService:
         self.bot = bot_instance
         self.order_service = OrderService(session)
     
-    def find_expired_pending_orders(self, minutes: int = 30) -> List[Order]:
+    def find_expired_pending_orders(self, minutes: int = 10) -> List[Order]:
         """
         Find PENDING orders older than specified minutes.
         
@@ -136,7 +138,7 @@ class AutoCancelService:
                         f"⏰ Order Auto-Cancelled\n\n"
                         f"📦 Order ID: {cancelled_order.id}\n"
                         f"💰 Amount: {cancelled_order.total_amount:,} VND\n\n"
-                        f"Your order was automatically cancelled because payment was not completed within 30 minutes.\n"
+                        f"Your order was automatically cancelled because payment was not completed within 10 minutes.\n"
                         f"You can place a new order anytime."
                     )
                     asyncio.run(self.bot.send_message(
@@ -159,7 +161,7 @@ class AutoCancelService:
             logger.error(f"Error auto-cancelling order {order.id}: {str(e)}", exc_info=True)
             return False
     
-    def process_expired_orders(self, minutes: int = 30, send_notification: bool = True) -> dict:
+    def process_expired_orders(self, minutes: int = 10, send_notification: bool = True) -> dict:
         """
         Process all expired PENDING orders and cancel them.
 
@@ -197,7 +199,7 @@ class AutoCancelService:
     # Topup auto-cancel methods (parallel to the order variants above)
     # ------------------------------------------------------------------
 
-    def find_expired_pending_topups(self, minutes: int = 30) -> List[TopupOrder]:
+    def find_expired_pending_topups(self, minutes: int = 10) -> List[TopupOrder]:
         """
         Find PENDING TopupOrders older than `minutes` minutes.
 
@@ -276,7 +278,7 @@ class AutoCancelService:
                         f"⏰ Nạp tiền đã hết hạn\n\n"
                         f"Mã nạp tiền: {topup.id}\n"
                         f"Số tiền: {topup.amount:,} VND\n\n"
-                        f"Yêu cầu nạp tiền đã bị huỷ do không hoàn tất thanh toán trong 30 phút.\n"
+                        f"Yêu cầu nạp tiền đã bị huỷ do không hoàn tất thanh toán trong 10 phút.\n"
                         f"Bạn có thể nạp tiền lại bất cứ lúc nào."
                     )
                     asyncio.run(self.bot.send_message(
@@ -296,12 +298,12 @@ class AutoCancelService:
             logger.error(f"Error auto-cancelling topup {topup.id}: {str(e)}", exc_info=True)
             return False
 
-    def process_expired_topups(self, minutes: int = 30, send_notification: bool = True) -> dict:
+    def process_expired_topups(self, minutes: int = 10, send_notification: bool = True) -> dict:
         """
         Process all expired PENDING TopupOrders and cancel them.
 
         Args:
-            minutes: Age threshold in minutes (default: 30)
+            minutes: Age threshold in minutes (default: 10)
             send_notification: Whether to send notifications to users
 
         Returns:
@@ -330,3 +332,94 @@ class AutoCancelService:
 
         return results
 
+    # ------------------------------------------------------------------
+    # Expiry warning methods (1 minute before cancellation)
+    # ------------------------------------------------------------------
+
+    def find_expiring_soon_orders(self, expire_minutes: int = 10, warn_minutes: int = 1) -> List[Order]:
+        """Find PENDING orders that have `warn_minutes` left before expiry."""
+        now = datetime.now(timezone.utc)
+        # Orders created between (expire_minutes) and (expire_minutes - warn_minutes) ago
+        window_end = now - timedelta(minutes=expire_minutes - warn_minutes)
+        window_start = now - timedelta(minutes=expire_minutes)
+        return self.session.query(Order).filter(
+            and_(
+                Order.status == OrderStatus.PENDING,
+                Order.created_at >= window_start,
+                Order.created_at < window_end,
+            )
+        ).all()
+
+    def find_expiring_soon_topups(self, expire_minutes: int = 10, warn_minutes: int = 1) -> List[TopupOrder]:
+        """Find PENDING topups that have `warn_minutes` left before expiry."""
+        now = datetime.now(timezone.utc)
+        window_end = now - timedelta(minutes=expire_minutes - warn_minutes)
+        window_start = now - timedelta(minutes=expire_minutes)
+        return self.session.query(TopupOrder).filter(
+            and_(
+                TopupOrder.status == OrderStatus.PENDING,
+                TopupOrder.created_at >= window_start,
+                TopupOrder.created_at < window_end,
+            )
+        ).all()
+
+    def send_expiry_warning_order(self, order: Order) -> bool:
+        """Send a 1-minute-remaining warning to the user for a pending order."""
+        if not self.bot:
+            return False
+        try:
+            message = (
+                f"⚠️ Thanh toán sắp hết hạn!\n\n"
+                f"📦 Đơn hàng: {order.id}\n"
+                f"💰 Số tiền: {order.total_amount:,} VND\n\n"
+                f"Bạn còn 1 phút để hoàn tất thanh toán. "
+                f"Đơn hàng sẽ tự động bị huỷ nếu không thanh toán."
+            )
+            asyncio.run(self.bot.send_message(chat_id=order.user_id, text=message))
+            logger.info(f"Sent expiry warning for order {order.id} to user {order.user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send expiry warning for order {order.id}: {str(e)}")
+            return False
+
+    def send_expiry_warning_topup(self, topup: TopupOrder) -> bool:
+        """Send a 1-minute-remaining warning to the user for a pending topup."""
+        if not self.bot:
+            return False
+        try:
+            message = (
+                f"⚠️ Nạp tiền sắp hết hạn!\n\n"
+                f"💳 Mã nạp tiền: {topup.id}\n"
+                f"💰 Số tiền: {topup.amount:,} VND\n\n"
+                f"Bạn còn 1 phút để hoàn tất thanh toán. "
+                f"Yêu cầu nạp tiền sẽ tự động bị huỷ nếu không thanh toán."
+            )
+            asyncio.run(self.bot.send_message(chat_id=topup.user_id, text=message))
+            logger.info(f"Sent expiry warning for topup {topup.id} to user {topup.user_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send expiry warning for topup {topup.id}: {str(e)}")
+            return False
+
+    def process_expiring_soon(self, warned_order_ids: set, warned_topup_ids: set) -> dict:
+        """
+        Send 1-minute warnings for orders/topups about to expire.
+        Uses in-memory sets to avoid duplicate warnings per process lifetime.
+
+        Returns counts of newly warned orders and topups.
+        """
+        results = {"orders_warned": 0, "topups_warned": 0}
+
+        for order in self.find_expiring_soon_orders():
+            if order.id not in warned_order_ids:
+                if self.send_expiry_warning_order(order):
+                    warned_order_ids.add(order.id)
+                    results["orders_warned"] += 1
+
+        for topup in self.find_expiring_soon_topups():
+            if topup.id not in warned_topup_ids:
+                if self.send_expiry_warning_topup(topup):
+                    warned_topup_ids.add(topup.id)
+                    results["topups_warned"] += 1
+
+        return results

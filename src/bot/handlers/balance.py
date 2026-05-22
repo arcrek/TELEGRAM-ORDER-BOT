@@ -33,6 +33,7 @@ from src.database.connection import get_session_factory
 from src.database.models.enums import BalanceTxKind
 from src.database.services.balance_service import BalanceService
 from src.database.services.bot_user_service import BotUserService
+from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
 from src.database.services.topup_service import (
     BALANCE_TOPUP_MAX,
     BALANCE_TOPUP_MIN,
@@ -197,7 +198,7 @@ async def _create_topup_qr(
                 )
                 order_prefix = os.getenv("ORDER_PREFIX", "MTK")
                 description = f"{order_prefix}{topup_id}"[:9]
-                expired_at = int(time.time()) + 30 * 60
+                expired_at = int(time.time()) + PAYMENT_EXPIRE_MINUTES * 60
 
                 try:
                     payos_resp = payos.create_payment_link(

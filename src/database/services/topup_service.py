@@ -140,7 +140,7 @@ class TopupService:
         )
         return topups, total
 
-    def find_expired_pending_topups(self, minutes: int = 30) -> list[TopupOrder]:
+    def find_expired_pending_topups(self, minutes: int = 10) -> list[TopupOrder]:
         """
         Return all PENDING TopupOrders older than `minutes` minutes.
 

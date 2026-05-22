@@ -16,6 +16,7 @@ from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
 from src.bot.states.state_manager import StateManager
 from src.database.models.enums import DeliveryType, OrderStatus
+from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,8 @@ def format_payment_message(order, update, session) -> tuple[str, str]:
     # Get translations
     order_created = t('payment.order_created', update) if update else "✅ Order created successfully!"
     scan_qr = t('payment.scan_qr', update) if update else "💳 Scan QR code below to complete payment"
-    auto_cancel = t('payment.auto_cancel_30min', update) if update else "⏰ This order will be automatically cancelled if payment is not completed within 30 minutes."
-    auto_cancel_short = t('payment.auto_cancel_short', update) if update else "⏰ Auto-cancels in 30 minutes if unpaid"
+    auto_cancel = t('payment.auto_cancel_30min', update) if update else "⏰ This order will be automatically cancelled if payment is not completed within 10 minutes."
+    auto_cancel_short = t('payment.auto_cancel_short', update) if update else "⏰ Auto-cancels in 10 minutes if unpaid"
     product_label = t('payment.product_label', update) if update else "📌 Product"
     variation_label = t('payment.variation_label', update) if update else "➕ Type"
     quantity_label = t('payment.quantity_label', update) if update else "👉 Order quantity"
@@ -1024,8 +1025,8 @@ async def _create_qr_for_order(
 
                 order_prefix = os.getenv("ORDER_PREFIX", "MTK")
                 description = f"{order_prefix}{order.id}"[:9]
-                expired_at = int(time.time()) + 30 * 60
-                logger.info(f"Creating PayOS payment link for order {order.id} with 30-min expiration")
+                expired_at = int(time.time()) + PAYMENT_EXPIRE_MINUTES * 60
+                logger.info(f"Creating PayOS payment link for order {order.id} with {PAYMENT_EXPIRE_MINUTES}-min expiration")
 
                 try:
                     payos_resp = payos.create_payment_link(
