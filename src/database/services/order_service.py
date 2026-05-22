@@ -231,7 +231,25 @@ class OrderService:
         )
         self.session.add(order_item)
 
-        # Commit transaction
+        # For PRE_UPLOADED products, atomically reserve the exact rows now so no
+        # concurrent order can claim the same stock while this order is PENDING.
+        from src.database.models.enums import DeliveryType
+        from src.database.services.product_service import ProductService
+        from src.database.services.pre_uploaded_service import PreUploadedService
+        product_service = ProductService(self.session)
+        product = product_service.get_product_by_id(variation.product_id)
+
+        if product and product.delivery_type == DeliveryType.PRE_UPLOADED:
+            self.session.flush()  # write order/item rows before the UPDATE subquery
+            pre_service = PreUploadedService(self.session)
+            reserved = pre_service.reserve_products_for_order(order_id, variation_id, total_items)
+            if reserved < total_items:
+                self.session.rollback()
+                raise ValueError(
+                    f"Insufficient stock. Could only reserve {reserved} of {total_items} items."
+                )
+
+        # Commit transaction (includes order, order item, and any reservations)
         self.session.commit()
         self.session.refresh(order)
 
@@ -644,6 +662,11 @@ class OrderService:
                 f"Order {order_id} is not in PENDING status. "
                 f"Current status: {existing.status.value}"
             )
+
+        # Release any pre-uploaded product reservations in the same transaction.
+        from src.database.services.pre_uploaded_service import PreUploadedService
+        PreUploadedService(self.session).release_reservations_for_order(order_id)
+
         self.session.commit()
         order = self.get_order_by_id(order_id)
         return order  # type: ignore[return-value]

@@ -271,11 +271,16 @@ class VariationService:
         """
         from src.database.models import PreUploadedProduct
         
-        count = self.session.query(PreUploadedProduct).filter_by(
-            variation_id=variation_id,
-            is_used=False
-        ).count()
-        
+        count = (
+            self.session.query(PreUploadedProduct)
+            .filter(
+                PreUploadedProduct.variation_id == variation_id,
+                PreUploadedProduct.is_used.is_(False),
+                PreUploadedProduct.reserved_by_order_id.is_(None),
+            )
+            .count()
+        )
+
         return count
 
     def get_low_stock_variations(

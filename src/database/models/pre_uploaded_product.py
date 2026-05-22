@@ -19,6 +19,9 @@ class PreUploadedProduct(Base):
     is_used = Column(Boolean, default=False, nullable=False)
     used_at = Column(DateTime, nullable=True)
     used_by_order_id = Column(String, ForeignKey("orders.id"), nullable=True)
+    # Reservation: set when a PENDING order claims this row; cleared on cancel or delivery.
+    reserved_by_order_id = Column(String, nullable=True, index=True)
+    reserved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     # Relationships
