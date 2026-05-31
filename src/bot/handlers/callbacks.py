@@ -329,7 +329,18 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         # Get actual stock based on delivery type
         actual_stock = get_actual_stock(variation, product, variation_service)
         variation.stock = actual_stock  # Override with actual stock
-        
+
+        # Show out-of-stock screen instead of quantity form
+        if actual_stock == 0:
+            msg = t('products.order_confirmation.variation_out_of_stock', update)
+            msg = msg.format(variation_name=variation.name)
+            back_text = t('products.order_confirmation.back_to_product', update)
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton(back_text, callback_data=f"product_{product.id}")]
+            ])
+            await query.edit_message_text(msg, reply_markup=keyboard, parse_mode="HTML")
+            return
+
         # Update user state
         state_manager.update_user_state(
             user_id,

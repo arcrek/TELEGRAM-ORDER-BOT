@@ -83,7 +83,9 @@
       "custom_prompt": "📝 Please enter your desired quantity (1 - {max_stock}):",
       "custom_invalid": "❌ Invalid quantity. Please enter a number between 1 and {max_stock}.",
       "custom_success": "✅ Quantity updated to {quantity}",
-      "sold_count": "🔥 Sold: {count}"
+      "sold_count": "🔥 Sold: {count}",
+      "variation_out_of_stock": "❌ Variation <b>{variation_name}</b> is out of stock.\n\nPlease go back and choose another variation.",
+      "back_to_product": "◀️ Back"
     },
     "variation": {
       "title": "📦 VARIATION DETAILS",

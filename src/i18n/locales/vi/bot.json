@@ -83,7 +83,9 @@
       "custom_prompt": "📝 Vui lòng nhập số lượng bạn muốn (1 - {max_stock}):",
       "custom_invalid": "❌ Số lượng không hợp lệ. Vui lòng nhập số từ 1 đến {max_stock}.",
       "custom_success": "✅ Đã cập nhật số lượng thành {quantity}",
-      "sold_count": "🔥 Đã bán: {count}"
+      "sold_count": "🔥 Đã bán: {count}",
+      "variation_out_of_stock": "❌ Phân loại <b>{variation_name}</b> đã hết hàng.\n\nVui lòng quay lại và chọn phân loại khác.",
+      "back_to_product": "◀️ Quay lại"
     },
     "variation": {
       "title": "📦 CHI TIẾT PHÂN LOẠI",
