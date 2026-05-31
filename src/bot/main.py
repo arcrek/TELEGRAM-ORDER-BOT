@@ -17,6 +17,7 @@ from src.bot.handlers.commands import (
     balance_command,
     unknown_command,
     handle_top_buyers_button,
+    doanhthu_command,
 )
 from src.bot.handlers.notification_commands import notify_all, notify_user, notify_active
 from src.bot.handlers.callbacks import (
@@ -92,6 +93,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("sodu", balance_command))
     application.add_handler(CommandHandler("setadmin", setadmin_command))
     application.add_handler(CommandHandler("top", handle_top_buyers_button))
+    application.add_handler(CommandHandler("doanhthu", doanhthu_command))
     
     # Register admin notification commands
     application.add_handler(CommandHandler("notify_all", notify_all))

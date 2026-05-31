@@ -2,6 +2,8 @@
 Command handlers for the Telegram bot.
 """
 import os
+import re
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -599,3 +601,62 @@ async def handle_top_buyers_button(update: Update, context: ContextTypes.DEFAULT
         text = "\n".join(lines)
 
     await update.message.reply_text(text, parse_mode=None)
+
+
+async def doanhthu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/doanhthu [YYYY-MM-DD] — show revenue for a day (admin only)."""
+    if not update.message:
+        return
+
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        await update.message.reply_text("⛔ Chỉ admin mới dùng được lệnh này.")
+        return
+
+    # Parse optional date argument; default to today (UTC+7)
+    args = context.args or []
+    tz_offset = 7 * 3600  # Vietnam UTC+7
+    now_vn = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=tz_offset)
+
+    if args:
+        raw = args[0].strip()
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+            await update.message.reply_text("❌ Định dạng ngày không hợp lệ. Dùng: /doanhthu YYYY-MM-DD")
+            return
+        try:
+            target = datetime.strptime(raw, "%Y-%m-%d")
+        except ValueError:
+            await update.message.reply_text("❌ Ngày không hợp lệ.")
+            return
+    else:
+        target = now_vn.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Build UTC range covering the full Vietnam calendar day
+    day_start_utc = target - timedelta(seconds=tz_offset)
+    day_end_utc = day_start_utc + timedelta(days=1)
+
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        service = StatisticsService(session)
+        revenue = service.get_total_revenue(start_date=day_start_utc, end_date=day_end_utc)
+        order_count = service.get_total_orders_count(start_date=day_start_utc, end_date=day_end_utc)
+        by_status = service.get_orders_by_status(start_date=day_start_utc, end_date=day_end_utc)
+    finally:
+        session.close()
+
+    date_label = target.strftime("%d/%m/%Y")
+    revenue_fmt = f"{revenue:,}".replace(",", ".")
+    paid = by_status.get("paid", 0) + by_status.get("delivered", 0)
+    pending = by_status.get("pending", 0)
+    cancelled = by_status.get("cancelled", 0)
+
+    text = (
+        f"📊 DOANH THU NGÀY {date_label}\n\n"
+        f"💰 Tổng doanh thu: {revenue_fmt} VND\n"
+        f"📦 Tổng đơn hàng: {order_count}\n"
+        f"  ✅ Đã thanh toán/giao: {paid}\n"
+        f"  ⏳ Chờ thanh toán: {pending}\n"
+        f"  ❌ Đã hủy: {cancelled}"
+    )
+    await update.message.reply_text(text)
