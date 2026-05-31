@@ -9,6 +9,7 @@ from src.database.connection import get_session_factory
 from src.database.services.product_service import ProductService
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.order_service import OrderService
+from src.database.services.statistics_service import StatisticsService
 from src.database.models.enums import OrderStatus
 from src.database.services.user_preference_service import UserPreferenceService
 from src.bot.utils.admin_check import GLOBAL_ADMIN_ID, add_admin, get_admin_telegram_ids, is_admin, remove_admin
@@ -335,12 +336,14 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     language_text = t("buttons.language", update)
     order_history_text = t("buttons.order_history", update)
     balance_text = t("buttons.balance", update)
+    top_buyers_text = t("buttons.top_buyers", update)
 
     # Also check common variations (in case user switched language)
     products_variations = {products_text, "🛒 Products", "🛒 Sản phẩm", "Products", "Sản phẩm"}
     language_variations = {language_text, "🌐 Language", "🌐 Ngôn ngữ", "Language", "Ngôn ngữ"}
     order_history_variations = {order_history_text, "📋 Order History", "📋 Đơn hàng đã mua"}
     balance_variations = {balance_text, "💰 Balance", "💰 Số dư"}
+    top_buyers_variations = {top_buyers_text, "🏆 Top buyers today", "🏆 Top mua hôm nay"}
 
     if message_text in products_variations:
         await products_command(update, context)
@@ -357,6 +360,10 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
 
     if message_text in language_variations:
         await language_command(update, context)
+        return
+
+    if message_text in top_buyers_variations:
+        await handle_top_buyers_button(update, context)
         return
 
 
@@ -531,3 +538,64 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             t("commands.setadmin.already_admin", update, user_id=target_id)
         )
 
+
+def _mask_name(name: str) -> str:
+    """Mask a name/username, keeping first and last char with stars in between."""
+    if not name:
+        return "***"
+    if len(name) == 1:
+        return name[0] + "*"
+    if len(name) == 2:
+        return name[0] + "*"
+    return name[0] + "*" * (len(name) - 2) + name[-1]
+
+
+async def handle_top_buyers_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle Top Buyers button — shows top 5 users by spending today."""
+    if not update.message:
+        return
+
+    user = update.effective_user
+    user_id = user.id if user else None
+    caller_is_admin = is_admin(user_id) if user_id else False
+
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        service = StatisticsService(session)
+        buyers = service.get_top_buyers_today(limit=5)
+    finally:
+        session.close()
+
+    title = t("top_buyers.title", update)
+    if not buyers:
+        text = f"{title}\n\n{t('top_buyers.empty', update)}"
+    else:
+        lines = [title, ""]
+        for i, buyer in enumerate(buyers, start=1):
+            first = buyer["first_name"]
+            last = buyer["last_name"]
+            username = buyer["username"]
+            full_name = f"{first} {last}".strip() or "User"
+
+            if caller_is_admin:
+                name_display = full_name
+                if username:
+                    name_display += f" (@{username})"
+            else:
+                masked = _mask_name(full_name)
+                name_display = masked
+
+            total_fmt = f"{buyer['total_spent']:,}".replace(",", ".")
+            entry = t(
+                "top_buyers.entry",
+                update,
+                rank=i,
+                name=name_display,
+                total=total_fmt,
+                count=buyer["order_count"],
+            )
+            lines.append(entry)
+        text = "\n".join(lines)
+
+    await update.message.reply_text(text, parse_mode=None)

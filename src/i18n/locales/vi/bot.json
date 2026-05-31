@@ -216,7 +216,13 @@
     "products": "🛒 Sản phẩm",
     "language": "🌐 Ngôn ngữ",
     "order_history": "📋 Đơn hàng đã mua",
-    "balance": "💰 Số dư"
+    "balance": "💰 Số dư",
+    "top_buyers": "🏆 Top mua hôm nay"
+  },
+  "top_buyers": {
+    "title": "🏆 TOP 5 KHÁCH MUA NHIỀU NHẤT HÔM NAY",
+    "empty": "📭 Chưa có đơn hàng nào hôm nay.",
+    "entry": "{rank}. {name} — {total} VND ({count} đơn)"
   },
   "balance": {
     "view_title": "💰 SỐ DƯ VÍ",

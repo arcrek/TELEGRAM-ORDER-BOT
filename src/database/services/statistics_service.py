@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract
-from src.database.models import Order, OrderItem, Product
+from src.database.models import Order, OrderItem, Product, BotUser
 from src.database.models.enums import OrderStatus
 
 
@@ -495,4 +495,46 @@ class StatisticsService:
             base["revenue_delta"] = None
             base["orders_delta"] = None
         return base
+
+    def get_top_buyers_today(self, limit: int = 5) -> List[Dict[str, Any]]:
+        """
+        Get top buyers by total amount spent today (paid/delivered orders only).
+
+        Returns:
+            List of dicts with user_id, first_name, last_name, username, total_spent, order_count.
+        """
+        now = datetime.now(timezone.utc)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        results = (
+            self.session.query(
+                Order.user_id,
+                BotUser.first_name,
+                BotUser.last_name,
+                BotUser.username,
+                func.sum(Order.total_amount).label("total_spent"),
+                func.count(Order.id).label("order_count"),
+            )
+            .join(BotUser, Order.user_id == BotUser.telegram_user_id)
+            .filter(
+                Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
+                Order.created_at >= today_start,
+            )
+            .group_by(Order.user_id, BotUser.first_name, BotUser.last_name, BotUser.username)
+            .order_by(func.sum(Order.total_amount).desc())
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "user_id": user_id,
+                "first_name": first_name or "",
+                "last_name": last_name or "",
+                "username": username or "",
+                "total_spent": int(total_spent) if total_spent else 0,
+                "order_count": int(order_count) if order_count else 0,
+            }
+            for user_id, first_name, last_name, username, total_spent, order_count in results
+        ]
 

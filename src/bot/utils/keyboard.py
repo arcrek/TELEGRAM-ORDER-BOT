@@ -19,10 +19,11 @@ def get_persistent_keyboard(update: Update) -> ReplyKeyboardMarkup:
     order_history_text = t("buttons.order_history", update)
     balance_text = t("buttons.balance", update)
     language_text = t("buttons.language", update)
+    top_buyers_text = t("buttons.top_buyers", update)
 
     keyboard = [
         [KeyboardButton(products_text), KeyboardButton(order_history_text)],
-        [KeyboardButton(balance_text)],
+        [KeyboardButton(balance_text), KeyboardButton(top_buyers_text)],
         [KeyboardButton(language_text)],
     ]
 

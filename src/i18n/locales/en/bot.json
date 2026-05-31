@@ -216,7 +216,13 @@
     "products": "🛒 Products",
     "language": "🌐 Language",
     "order_history": "📋 Order History",
-    "balance": "💰 Balance"
+    "balance": "💰 Balance",
+    "top_buyers": "🏆 Top buyers today"
+  },
+  "top_buyers": {
+    "title": "🏆 TOP 5 BUYERS TODAY",
+    "empty": "📭 No orders yet today.",
+    "entry": "{rank}. {name} — {total} VND ({count} orders)"
   },
   "balance": {
     "view_title": "💰 WALLET BALANCE",
