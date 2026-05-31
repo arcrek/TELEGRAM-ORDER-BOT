@@ -282,7 +282,7 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
             variation_choose_text=variation_choose_text,
             sold_count=sold_count,
         )
-        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
+        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update, delivery_type=product.delivery_type)
 
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)
@@ -726,7 +726,7 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
             variation_choose_text=variation_choose_text,
             sold_count=sold_count,
         )
-        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update)
+        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update, delivery_type=product.delivery_type)
         
         # Update message
         await query.edit_message_text(message, reply_markup=keyboard)

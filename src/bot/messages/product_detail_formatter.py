@@ -3,7 +3,9 @@ Product detail formatter for Telegram messages.
 """
 from typing import List, Optional, Dict
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import KeyboardButtonStyle
 from src.database.models import Product, ProductVariation
+from src.database.models.enums import DeliveryType
 from src.bot.utils.language import t, get_user_language
 
 
@@ -158,11 +160,19 @@ class ProductDetailFormatter:
             lines.append(f"- {variation.name}: {variation.price:,} VND - Stock: {variation.stock}")
         return "\n".join(lines)
 
+    def _variation_style(self, variation: ProductVariation, delivery_type: Optional[str]) -> Optional[str]:
+        if delivery_type == DeliveryType.UPGRADE:
+            return KeyboardButtonStyle.PRIMARY
+        if delivery_type == DeliveryType.PRE_UPLOADED:
+            return KeyboardButtonStyle.SUCCESS if variation.stock > 0 else KeyboardButtonStyle.DANGER
+        return None
+
     def create_variation_keyboard(
         self,
         variations: List[ProductVariation],
         product_id: str,
         update: Optional[Update] = None,
+        delivery_type: Optional[str] = None,
     ) -> InlineKeyboardMarkup:
         """
         Create inline keyboard for variation selection.
@@ -182,6 +192,7 @@ class ProductDetailFormatter:
             button = InlineKeyboardButton(
                 self._variation_button_text(variation, update),
                 callback_data=f"variation_{variation.id}",
+                style=self._variation_style(variation, delivery_type),
             )
             row.append(button)
 
@@ -208,6 +219,7 @@ class ProductDetailFormatter:
         page: int = 1,
         variations: List[ProductVariation] = None,
         update: Optional[Update] = None,
+        delivery_type: Optional[str] = None,
     ) -> InlineKeyboardMarkup:
         """
         Create inline keyboard for product detail view.
@@ -228,6 +240,7 @@ class ProductDetailFormatter:
                 button = InlineKeyboardButton(
                     self._variation_button_text(variation, update),
                     callback_data=f"variation_{variation.id}",
+                    style=self._variation_style(variation, delivery_type),
                 )
                 row.append(button)
 
