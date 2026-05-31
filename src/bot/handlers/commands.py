@@ -16,6 +16,7 @@ from src.database.models.enums import OrderStatus
 from src.database.services.user_preference_service import UserPreferenceService
 from src.bot.utils.admin_check import GLOBAL_ADMIN_ID, add_admin, get_admin_telegram_ids, is_admin, remove_admin
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
+from src.database.services.pre_uploaded_service import PreUploadedService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.language import get_user_language, t
@@ -205,8 +206,15 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         products = product_service.list_products(page=1, per_page=9999, only_active=True)
 
+        pre_uploaded_service = PreUploadedService(session)
+        pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
+            [p.id for p in products]
+        )
+
         message = formatter.format_product_list(product_choose_text=product_choose_text)
-        inline_keyboard = formatter.create_product_keyboard(products, update)
+        inline_keyboard = formatter.create_product_keyboard(
+            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
+        )
 
         # Send main message with inline keyboard
         await update.message.reply_text(message, reply_markup=inline_keyboard)

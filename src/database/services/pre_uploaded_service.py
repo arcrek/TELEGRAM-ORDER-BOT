@@ -4,7 +4,7 @@ Pre-uploaded product service layer.
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from sqlalchemy import text, or_
+from sqlalchemy import text, or_, func
 from sqlalchemy.orm import Session
 from dateutil.relativedelta import relativedelta
 from src.database.models.pre_uploaded_product import PreUploadedProduct
@@ -61,6 +61,33 @@ class PreUploadedService:
             .all()
         )
         return products
+
+    def get_in_stock_product_ids(self, product_ids: List[str]) -> set[str]:
+        """
+        Return the subset of product_ids that have at least one available
+        (is_used=False, unreserved) pre-uploaded item across any of their variations.
+        Single aggregate query — safe to call for the full product list.
+        """
+        from src.database.models.product_variation import ProductVariation
+
+        if not product_ids:
+            return set()
+
+        rows = (
+            self.session.query(ProductVariation.product_id)
+            .join(
+                PreUploadedProduct,
+                PreUploadedProduct.variation_id == ProductVariation.id,
+            )
+            .filter(
+                ProductVariation.product_id.in_(product_ids),
+                PreUploadedProduct.is_used.is_(False),
+                PreUploadedProduct.reserved_by_order_id.is_(None),
+            )
+            .distinct()
+            .all()
+        )
+        return {row.product_id for row in rows}
 
     def reserve_products_for_order(
         self, order_id: str, variation_id: str, quantity: int
