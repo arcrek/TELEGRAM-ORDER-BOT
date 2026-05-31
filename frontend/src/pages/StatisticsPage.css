@@ -24,6 +24,122 @@
   .stats-page__kpi-row { grid-template-columns: 1fr; }
 }
 
+/* Product Revenue Table */
+.stats-product-revenue {
+  margin-bottom: var(--space-5);
+}
+
+.stats-product-revenue__table-wrap {
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.stats-product-revenue__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-xs, 12px);
+}
+
+.stats-product-revenue__th {
+  position: sticky;
+  top: 0;
+  padding: var(--space-2) var(--space-4);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-card, #181816);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  user-select: none;
+  z-index: 1;
+}
+
+.stats-product-revenue__th--right {
+  text-align: right;
+}
+
+.stats-product-revenue__th--sortable {
+  cursor: pointer;
+}
+
+.stats-product-revenue__th--sortable:hover,
+.stats-product-revenue__th.active {
+  color: var(--text-secondary);
+}
+
+.stats-product-revenue__sort-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  opacity: 0.5;
+}
+
+.stats-product-revenue__th.active .stats-product-revenue__sort-icon {
+  opacity: 1;
+  color: var(--brand-500, #6EA8FF);
+}
+
+.stats-product-revenue__row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+
+.stats-product-revenue__row:last-child {
+  border-bottom: none;
+}
+
+.stats-product-revenue__row:hover {
+  background: var(--surface-hover, rgba(255,255,255,0.03));
+}
+
+.stats-product-revenue__td {
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.stats-product-revenue__td--num {
+  color: var(--text-disabled);
+  width: 36px;
+  text-align: center;
+  font-size: 10px;
+}
+
+.stats-product-revenue__td--name {
+  color: var(--text-primary);
+  max-width: 360px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-product-revenue__td--right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+.stats-product-revenue__td--revenue {
+  color: var(--brand-400, #93BBFF);
+  font-weight: 500;
+}
+
+.stats-product-revenue__empty {
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-disabled);
+}
+
+.stats-product-revenue__row--skeleton .skeleton-line {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: var(--border-subtle);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
 /* Bento grid */
 .stats-page__bento {
   display: grid;

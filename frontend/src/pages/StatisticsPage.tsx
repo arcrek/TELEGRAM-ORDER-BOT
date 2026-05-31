@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp, Image as ImageIcon } from 'lucide-react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -27,6 +27,13 @@ ChartJS.register(
   BarElement, ArcElement, Title, Tooltip, Legend, Filler,
 )
 
+interface RevenueByProduct {
+  product_id: number
+  product_name: string
+  total_sold: number
+  revenue: number
+}
+
 interface StatisticsData {
   total_orders: number
   total_revenue: number
@@ -38,6 +45,7 @@ interface StatisticsData {
   revenue_over_time_weekly: Array<{ date: string; revenue: number }>
   revenue_over_time_monthly: Array<{ date: string; revenue: number }>
   top_selling_products: Array<{ product_name: string; quantity_sold: number; revenue: number }>
+  revenue_by_product: RevenueByProduct[]
   recent_orders: Array<{ id: string; user_id: number; status: string; total_amount: number; created_at: string }>
   funnel: Array<{ status: string; count: number }>
   orders_heatmap: Array<{ day: number; hour: number; count: number }>
@@ -57,6 +65,7 @@ export function StatisticsPage() {
   const [range, setRange] = useState<DateRange>({ from: null, to: null })
   const [rangePreset, setRangePreset] = useState<RangePreset>('30d')
   const [revTab, setRevTab] = useState('daily')
+  const [productSort, setProductSort] = useState<{ key: keyof RevenueByProduct; dir: 'asc' | 'desc' }>({ key: 'revenue', dir: 'desc' })
 
   const theme = useMemo(() => getChartTheme(), [resolvedTheme])
   const baseOpts = useMemo(() => getBaseChartOptions(theme), [theme])
@@ -169,6 +178,20 @@ export function StatisticsPage() {
     [data],
   )
 
+  const sortedProducts = useMemo(() => {
+    if (!data?.revenue_by_product) return []
+    return [...data.revenue_by_product].sort((a, b) => {
+      const va = a[productSort.key] as number | string
+      const vb = b[productSort.key] as number | string
+      if (typeof va === 'string') return productSort.dir === 'asc' ? va.localeCompare(vb as string) : (vb as string).localeCompare(va)
+      return productSort.dir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number)
+    })
+  }, [data?.revenue_by_product, productSort])
+
+  const toggleProductSort = useCallback((key: keyof RevenueByProduct) => {
+    setProductSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
+  }, [])
+
   const [iotdUrl, setIotdUrl] = useState<string | null>(null)
   const [iotdImgError, setIotdImgError] = useState(false)
   useEffect(() => {
@@ -226,6 +249,74 @@ export function StatisticsPage() {
           icon={<TrendingUp size={16} />}
           loading={loading}
         />
+      </div>
+
+      {/* Product Revenue Table */}
+      <div className="stats-product-revenue chart-card">
+        <div className="chart-card__header">
+          <h3 className="chart-card__title">{t('statistics.revenueByProduct', 'Doanh thu theo sản phẩm')}</h3>
+        </div>
+        <div className="stats-product-revenue__table-wrap">
+          <table className="stats-product-revenue__table">
+            <thead>
+              <tr>
+                <th className="stats-product-revenue__th stats-product-revenue__th--num">#</th>
+                <th
+                  className={`stats-product-revenue__th stats-product-revenue__th--sortable${productSort.key === 'product_name' ? ' active' : ''}`}
+                  onClick={() => toggleProductSort('product_name')}
+                >
+                  {t('statistics.productName', 'Sản phẩm')}
+                  <span className="stats-product-revenue__sort-icon">
+                    {productSort.key === 'product_name' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
+                  </span>
+                </th>
+                <th
+                  className={`stats-product-revenue__th stats-product-revenue__th--right stats-product-revenue__th--sortable${productSort.key === 'total_sold' ? ' active' : ''}`}
+                  onClick={() => toggleProductSort('total_sold')}
+                >
+                  {t('statistics.unitsSold', 'Đã bán')}
+                  <span className="stats-product-revenue__sort-icon">
+                    {productSort.key === 'total_sold' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
+                  </span>
+                </th>
+                <th
+                  className={`stats-product-revenue__th stats-product-revenue__th--right stats-product-revenue__th--sortable${productSort.key === 'revenue' ? ' active' : ''}`}
+                  onClick={() => toggleProductSort('revenue')}
+                >
+                  {t('statistics.revenue', 'Doanh thu')}
+                  <span className="stats-product-revenue__sort-icon">
+                    {productSort.key === 'revenue' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="stats-product-revenue__row stats-product-revenue__row--skeleton">
+                    <td className="stats-product-revenue__td stats-product-revenue__td--num"><span className="skeleton-line" /></td>
+                    <td className="stats-product-revenue__td"><span className="skeleton-line" /></td>
+                    <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>
+                    <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>
+                  </tr>
+                ))
+              ) : sortedProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="stats-product-revenue__empty">{t('statistics.noData', 'Chưa có dữ liệu')}</td>
+                </tr>
+              ) : (
+                sortedProducts.map((p, idx) => (
+                  <tr key={p.product_id} className="stats-product-revenue__row">
+                    <td className="stats-product-revenue__td stats-product-revenue__td--num">{idx + 1}</td>
+                    <td className="stats-product-revenue__td stats-product-revenue__td--name">{p.product_name}</td>
+                    <td className="stats-product-revenue__td stats-product-revenue__td--right num">{fmt.number(p.total_sold)}</td>
+                    <td className="stats-product-revenue__td stats-product-revenue__td--right num stats-product-revenue__td--revenue">{fmt.currency(p.revenue)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Bento grid */}

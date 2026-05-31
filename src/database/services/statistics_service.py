@@ -256,14 +256,18 @@ class StatisticsService:
             for product_id, product_name, quantity_sold, revenue in results
         ]
 
-    def get_total_sold_by_product(self) -> List[Dict[str, any]]:
+    def get_total_sold_by_product(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[Dict[str, any]]:
         """
         Get total sold quantity by product.
-        
+
         Returns:
-            List of dictionaries with product info and total sold
+            List of dictionaries with product info and total sold, sorted by revenue desc
         """
-        results = (
+        query = (
             self.session.query(
                 Product.id,
                 Product.name,
@@ -273,10 +277,17 @@ class StatisticsService:
             .join(OrderItem, Product.id == OrderItem.product_id)
             .join(Order, OrderItem.order_id == Order.id)
             .filter(Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]))
-            .group_by(Product.id, Product.name)
+        )
+        if start_date:
+            query = query.filter(Order.created_at >= start_date)
+        if end_date:
+            query = query.filter(Order.created_at <= end_date)
+        results = (
+            query.group_by(Product.id, Product.name)
+            .order_by(func.sum(OrderItem.subtotal).desc())
             .all()
         )
-        
+
         return [
             {
                 "product_id": product_id,
@@ -484,6 +495,7 @@ class StatisticsService:
             "revenue_over_time_daily": self.get_revenue_over_time(interval="daily", days=30, start_date=start_date, end_date=end_date),
             "revenue_over_time_weekly": self.get_revenue_over_time(interval="weekly", days=90, start_date=start_date, end_date=end_date),
             "revenue_over_time_monthly": self.get_revenue_over_time(interval="monthly", days=365, start_date=start_date, end_date=end_date),
+            "revenue_by_product": self.get_total_sold_by_product(start_date, end_date),
             "recent_orders": self.get_recent_orders(limit=10, start_date=start_date, end_date=end_date),
             "funnel": self.get_funnel(start_date, end_date),
             "orders_heatmap": self.get_orders_heatmap(start_date, end_date),
