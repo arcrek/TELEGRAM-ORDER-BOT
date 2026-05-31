@@ -6,6 +6,7 @@ from typing import List, Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 from src.database.models import Product
+from src.database.models.enums import DeliveryType
 from src.bot.utils.language import t
 
 
@@ -47,9 +48,13 @@ class ProductFormatter:
             else:
                 short_products.append(product)
 
-        def _stock_style(product: Product) -> str:
-            in_stock = any(v.stock > 0 for v in product.variations)
-            return KeyboardButtonStyle.SUCCESS if in_stock else KeyboardButtonStyle.DANGER
+        def _button_style(product: Product) -> str | None:
+            if product.delivery_type == DeliveryType.UPGRADE:
+                return KeyboardButtonStyle.PRIMARY
+            if product.delivery_type == DeliveryType.PRE_UPLOADED:
+                in_stock = any(v.stock > 0 for v in product.variations)
+                return KeyboardButtonStyle.SUCCESS if in_stock else KeyboardButtonStyle.DANGER
+            return None
 
         # Short-name products in 3-column layout.
         row = []
@@ -58,7 +63,7 @@ class ProductFormatter:
                 InlineKeyboardButton(
                     product.name,
                     callback_data=f"product_{product.id}",
-                    style=_stock_style(product),
+                    style=_button_style(product),
                 )
             )
             if len(row) == 3:
@@ -74,7 +79,7 @@ class ProductFormatter:
                     InlineKeyboardButton(
                         product.name,
                         callback_data=f"product_{product.id}",
-                        style=_stock_style(product),
+                        style=_button_style(product),
                     )
                 ]
             )
