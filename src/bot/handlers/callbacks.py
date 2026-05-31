@@ -11,6 +11,7 @@ from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService
 from src.database.services.order_service import OrderService
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
+from src.database.services.pre_uploaded_service import PreUploadedService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
@@ -761,8 +762,16 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
         products = product_service.list_products(page=1, per_page=9999, only_active=True)
+
+        pre_uploaded_service = PreUploadedService(session)
+        pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
+            [p.id for p in products]
+        )
+
         message = formatter.format_product_list(product_choose_text=product_choose_text)
-        keyboard = formatter.create_product_keyboard(products, update)
+        keyboard = formatter.create_product_keyboard(
+            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
+        )
 
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
