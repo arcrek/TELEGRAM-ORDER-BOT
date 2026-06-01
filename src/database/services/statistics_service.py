@@ -464,6 +464,74 @@ class StatisticsService:
             return None
         return round((current - previous) / previous * 100, 1)
 
+    def get_revenue_by_product_with_delta(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> List[Dict[str, Any]]:
+        """Revenue by product with % change vs equal-length prior period."""
+        current = self.get_total_sold_by_product(start_date, end_date)
+        period_len = end_date - start_date
+        prev_start = start_date - period_len
+        previous = self.get_total_sold_by_product(prev_start, start_date)
+        prev_lookup = {p["product_id"]: p["revenue"] for p in previous}
+
+        result = []
+        for item in current:
+            prev_rev = prev_lookup.get(item["product_id"], 0)
+            pct_change: Optional[float] = (
+                round((item["revenue"] - prev_rev) / prev_rev * 100, 1)
+                if prev_rev > 0
+                else None
+            )
+            result.append({**item, "pct_change": pct_change})
+        return result
+
+    def get_active_users(
+        self,
+        start_date: Optional[datetime],
+        end_date: Optional[datetime],
+    ) -> Dict[str, Any]:
+        """
+        Count active users for a period.
+
+        With a date range: counts distinct buyers (users with PAID/DELIVERED orders)
+        in the current period and computes % change vs the equal-length prior period.
+        Without a range: returns total registered users (has_started=True).
+        """
+        if start_date and end_date:
+            def _buyers(s: datetime, e: datetime) -> int:
+                return (
+                    self.session.query(func.count(Order.user_id.distinct()))
+                    .filter(
+                        and_(
+                            Order.created_at >= s,
+                            Order.created_at < e,
+                            Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
+                        )
+                    )
+                    .scalar()
+                    or 0
+                )
+
+            current = _buyers(start_date, end_date)
+            period_len = end_date - start_date
+            previous = _buyers(start_date - period_len, start_date)
+            pct_change: Optional[float] = (
+                round((current - previous) / previous * 100, 1)
+                if previous > 0
+                else None
+            )
+            return {"current": current, "previous": previous, "pct_change": pct_change}
+        else:
+            count = (
+                self.session.query(func.count(BotUser.id))
+                .filter(BotUser.has_started.is_(True))
+                .scalar()
+                or 0
+            )
+            return {"current": count, "previous": 0, "pct_change": None}
+
     def get_statistics_overview(
         self,
         start_date: Optional[datetime] = None,
@@ -495,10 +563,15 @@ class StatisticsService:
             "revenue_over_time_daily": self.get_revenue_over_time(interval="daily", days=30, start_date=start_date, end_date=end_date),
             "revenue_over_time_weekly": self.get_revenue_over_time(interval="weekly", days=90, start_date=start_date, end_date=end_date),
             "revenue_over_time_monthly": self.get_revenue_over_time(interval="monthly", days=365, start_date=start_date, end_date=end_date),
-            "revenue_by_product": self.get_total_sold_by_product(start_date, end_date),
+            "revenue_by_product": (
+                self.get_revenue_by_product_with_delta(start_date, end_date)
+                if start_date and end_date
+                else self.get_total_sold_by_product(start_date, end_date)
+            ),
             "recent_orders": self.get_recent_orders(limit=10, start_date=start_date, end_date=end_date),
             "funnel": self.get_funnel(start_date, end_date),
             "orders_heatmap": self.get_orders_heatmap(start_date, end_date),
+            "active_users": self.get_active_users(start_date, end_date),
         }
         if start_date and end_date:
             base["revenue_delta"] = self.get_revenue_delta(start_date, end_date)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react'
+import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp, Image as ImageIcon, ChevronUp, ChevronDown, Users } from 'lucide-react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -32,6 +32,7 @@ interface RevenueByProduct {
   product_name: string
   total_sold: number
   revenue: number
+  pct_change?: number | null
 }
 
 interface StatisticsData {
@@ -51,6 +52,7 @@ interface StatisticsData {
   orders_heatmap: Array<{ day: number; hour: number; count: number }>
   revenue_delta: number | null
   orders_delta: number | null
+  active_users?: { current: number; previous: number; pct_change: number | null }
 }
 
 const DAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -178,6 +180,11 @@ export function StatisticsPage() {
     [data],
   )
 
+  const hasDelta = useMemo(
+    () => (data?.revenue_by_product?.length ?? 0) > 0 && 'pct_change' in (data?.revenue_by_product[0] ?? {}),
+    [data?.revenue_by_product],
+  )
+
   const sortedProducts = useMemo(() => {
     if (!data?.revenue_by_product) return []
     return [...data.revenue_by_product].sort((a, b) => {
@@ -251,6 +258,20 @@ export function StatisticsPage() {
         />
       </div>
 
+      {/* Active Users */}
+      <StatCard
+        label={
+          data?.active_users && hasDelta
+            ? t('statistics.activeBuyers', 'Người mua trong kỳ')
+            : t('statistics.registeredUsers', 'Người dùng đã đăng ký')
+        }
+        value={fmt.number(data?.active_users?.current ?? 0)}
+        delta={data?.active_users?.pct_change ?? null}
+        deltaLabel={t('statistics.vsPreviousPeriod', 'So với kỳ trước')}
+        icon={<Users size={16} />}
+        loading={loading}
+      />
+
       {/* Product Revenue Table */}
       <div className="stats-product-revenue chart-card">
         <div className="chart-card__header">
@@ -288,6 +309,11 @@ export function StatisticsPage() {
                     {productSort.key === 'revenue' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
                   </span>
                 </th>
+                {hasDelta && (
+                  <th className="stats-product-revenue__th stats-product-revenue__th--right stats-product-revenue__th--delta">
+                    {t('statistics.pctChange', '% Thay đổi')}
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -298,11 +324,12 @@ export function StatisticsPage() {
                     <td className="stats-product-revenue__td"><span className="skeleton-line" /></td>
                     <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>
                     <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>
+                    {hasDelta && <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>}
                   </tr>
                 ))
               ) : sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="stats-product-revenue__empty">{t('statistics.noData', 'Chưa có dữ liệu')}</td>
+                  <td colSpan={hasDelta ? 5 : 4} className="stats-product-revenue__empty">{t('statistics.noData', 'Chưa có dữ liệu')}</td>
                 </tr>
               ) : (
                 sortedProducts.map((p, idx) => (
@@ -311,6 +338,19 @@ export function StatisticsPage() {
                     <td className="stats-product-revenue__td stats-product-revenue__td--name">{p.product_name}</td>
                     <td className="stats-product-revenue__td stats-product-revenue__td--right num">{fmt.number(p.total_sold)}</td>
                     <td className="stats-product-revenue__td stats-product-revenue__td--right num stats-product-revenue__td--revenue">{fmt.currency(p.revenue)}</td>
+                    {hasDelta && (
+                      <td className="stats-product-revenue__td stats-product-revenue__td--right stats-product-revenue__td--delta num">
+                        {p.pct_change == null ? (
+                          <span className="stats-product-revenue__delta stats-product-revenue__delta--neutral">—</span>
+                        ) : p.pct_change > 0 ? (
+                          <span className="stats-product-revenue__delta stats-product-revenue__delta--pos">▲ {p.pct_change}%</span>
+                        ) : p.pct_change < 0 ? (
+                          <span className="stats-product-revenue__delta stats-product-revenue__delta--neg">▼ {Math.abs(p.pct_change)}%</span>
+                        ) : (
+                          <span className="stats-product-revenue__delta stats-product-revenue__delta--neutral">0%</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
