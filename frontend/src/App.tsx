@@ -55,6 +55,7 @@ export function AppRoutes() {
       <ApiBindings />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/api" element={<ApiPage />} />
         <Route
           path="/"
           element={
@@ -78,7 +79,6 @@ export function AppRoutes() {
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />
           <Route path="iotd" element={<IotdPage />} />
         </Route>
-        <Route path="api" element={<ApiPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
