@@ -71,20 +71,34 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await _restore_reply_keyboard(update, context)
 
 
+def _start_inline_keyboard(update: Update) -> InlineKeyboardMarkup:
+    """Build the 4-button start menu inline keyboard."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(t("buttons.products", update), callback_data="start_products"),
+            InlineKeyboardButton(t("buttons.balance", update), callback_data="balance_view"),
+        ],
+        [
+            InlineKeyboardButton(t("buttons.order_history", update), callback_data="start_history"),
+            InlineKeyboardButton(t("start_menu.api_button", update), callback_data="start_api"),
+        ],
+    ])
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle /start command.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     user = update.effective_user
-    
+
     # Track user in database
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         bot_user_service = BotUserService(session)
         bot_user_service.track_user(
@@ -100,21 +114,125 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Error tracking user: {str(e)}", exc_info=True)
     finally:
         session.close()
-    
-    # Get user language
-    language = get_user_language(update)
-    
+
     # Get system name from environment
     system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
-    
+
     welcome_message = (
         f"{t('commands.start.welcome', update, name=user.first_name or 'User')}\n\n"
         f"{t('commands.start.description', update, system_name=system_name)}\n"
         f"{t('commands.start.help_hint', update)}"
     )
-    # Show persistent keyboard with Products button
+    # Send welcome text with the reply keyboard, then send the inline menu
     keyboard = get_persistent_keyboard(update)
     await update.message.reply_text(welcome_message, reply_markup=keyboard)
+
+    menu_title = t("start_menu.title", update)
+    inline_kb = _start_inline_keyboard(update)
+    await update.message.reply_text(menu_title, reply_markup=inline_kb)
+
+
+async def handle_start_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback: start_menu — restore the 4-button start inline keyboard (used as back button)."""
+    query = update.callback_query
+    await query.answer()
+    menu_title = t("start_menu.title", update)
+    await query.edit_message_text(menu_title, reply_markup=_start_inline_keyboard(update))
+
+
+async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback: start_products — show product list from the start menu."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    state_manager.update_user_state(user_id, current_page=1)
+
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        product_service = ProductService(session)
+        formatter = ProductFormatter()
+        product_choose_text, _ = _get_bot_selection_prompts(session)
+
+        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+
+        pre_uploaded_service = PreUploadedService(session)
+        pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
+            [p.id for p in products]
+        )
+
+        message = formatter.format_product_list(product_choose_text=product_choose_text)
+        inline_keyboard = formatter.create_product_keyboard(
+            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
+        )
+        await query.edit_message_text(message, reply_markup=inline_keyboard)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in handle_start_products: {str(e)}", exc_info=True)
+        await query.edit_message_text(t("commands.products.error", update))
+    finally:
+        session.close()
+
+
+async def handle_start_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Callback: start_history — show order history from the start menu."""
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        order_service = OrderService(session)
+        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
+
+        total = len(orders)
+        total_pages = max(1, (total + _ORDERS_PER_PAGE - 1) // _ORDERS_PER_PAGE)
+        page = 1
+        page_orders = orders[:_ORDERS_PER_PAGE]
+
+        status_emoji = {
+            "pending": "⏳",
+            "paid": "✅",
+            "processing": "🔄",
+            "delivered": "📦",
+            "cancelled": "❌",
+        }
+
+        title = t("order_history.title", update)
+        if total == 0:
+            body = t("order_history.empty", update)
+        else:
+            body = t("order_history.count", update, count=total)
+
+        message = f"{title}\n\n{body}"
+
+        keyboard = []
+        for order in page_orders:
+            status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+            emoji = status_emoji.get(status_val, "❓")
+            label = f"#{order.id} | {emoji} | {order.total_amount:,}đ"
+            keyboard.append([InlineKeyboardButton(label, callback_data=f"order_detail_{order.id}_from_{page}")])
+
+        nav_row = []
+        if page < total_pages:
+            next_text = t("buttons.next", update)
+            nav_row.append(InlineKeyboardButton(next_text, callback_data=f"order_history_page_{page + 1}"))
+        if nav_row:
+            keyboard.append(nav_row)
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(message, reply_markup=reply_markup)
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in handle_start_history: {str(e)}", exc_info=True)
+        await query.edit_message_text(t("order_history.error", update))
+    finally:
+        session.close()
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

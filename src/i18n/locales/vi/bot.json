@@ -270,6 +270,21 @@
     "user_not_found": "❌ Bạn chưa đăng ký. Vui lòng gửi /start trước.",
     "error": "❌ Không thể tạo token. Vui lòng thử lại sau."
   },
+  "start_menu": {
+    "title": "🏪 Trung tâm mua hàng\nChọn chức năng bên dưới:",
+    "api_button": "🔑 API"
+  },
+  "api_menu": {
+    "title": "🔑 Quản lý API Token",
+    "has_token": "Token hiện tại:\n\n<code>{token}</code>\n\n📌 Dùng trong header:\n<code>Authorization: Bearer {token}</code>",
+    "no_token": "Bạn chưa có API token.",
+    "create": "✨ Tạo token",
+    "regenerate": "🔄 Tạo lại token",
+    "revoke": "❌ Thu hồi token",
+    "docs": "📖 Tài liệu API",
+    "back": "◀️ Quay lại",
+    "error": "❌ Có lỗi xảy ra. Vui lòng thử lại."
+  },
   "languages": {
     "en": "🇬🇧 English",
     "vi": "🇻🇳 Tiếng Việt"

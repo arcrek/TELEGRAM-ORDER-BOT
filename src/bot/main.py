@@ -19,6 +19,9 @@ from src.bot.handlers.commands import (
     unknown_command,
     handle_top_buyers_button,
     doanhthu_command,
+    handle_start_menu,
+    handle_start_products,
+    handle_start_history,
 )
 from src.bot.handlers.notification_commands import (
     notify_all,
@@ -55,7 +58,12 @@ from src.bot.handlers.balance import (
     handle_topup_cancel,
 )
 from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
-from src.bot.handlers.apitoken import apitoken_command
+from src.bot.handlers.apitoken import (
+    apitoken_command,
+    handle_api_menu,
+    handle_api_create,
+    handle_api_revoke,
+)
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -153,6 +161,27 @@ def create_bot_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(handle_show_products_list, pattern="^show_products_list$")
+    )
+
+    # Start menu callbacks
+    application.add_handler(
+        CallbackQueryHandler(handle_start_products, pattern="^start_products$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_start_history, pattern="^start_history$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_start_menu, pattern="^start_menu$")
+    )
+    # API management callbacks
+    application.add_handler(
+        CallbackQueryHandler(handle_api_menu, pattern="^start_api$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_api_create, pattern="^api_create$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_api_revoke, pattern="^api_revoke$")
     )
 
     # Balance / topup callback handlers

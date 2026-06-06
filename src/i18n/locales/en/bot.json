@@ -270,6 +270,21 @@
     "user_not_found": "❌ You are not registered. Please send /start first.",
     "error": "❌ Could not generate token. Please try again later."
   },
+  "start_menu": {
+    "title": "🏪 Shopping Center\nSelect a feature below:",
+    "api_button": "🔑 API"
+  },
+  "api_menu": {
+    "title": "🔑 API Token Management",
+    "has_token": "Current token:\n\n<code>{token}</code>\n\n📌 Use in header:\n<code>Authorization: Bearer {token}</code>",
+    "no_token": "You don't have an API token yet.",
+    "create": "✨ Create token",
+    "regenerate": "🔄 Regenerate token",
+    "revoke": "❌ Revoke token",
+    "docs": "📖 API Docs",
+    "back": "◀️ Back",
+    "error": "❌ An error occurred. Please try again."
+  },
   "languages": {
     "en": "🇬🇧 English",
     "vi": "🇻🇳 Tiếng Việt"
