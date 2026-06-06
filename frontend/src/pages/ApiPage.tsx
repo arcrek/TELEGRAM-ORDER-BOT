@@ -170,19 +170,12 @@ export function ApiPage() {
               Mỗi request cần header <code>Authorization: Bearer &lt;token&gt;</code>.
               Token gắn với một BotUser cụ thể — mọi thao tác đều thực hiện nhân danh người dùng đó.
             </p>
-            <div className="api-auth-cards">
+            <div className="api-auth-cards api-auth-cards--single">
               <div className="api-auth-card">
                 <div className="api-auth-card__icon"><Zap size={15} /></div>
                 <div>
-                  <strong>Lệnh bot (tự cấp)</strong>
-                  <p>Gõ <code>/apitoken</code> trong Telegram để tự tạo / làm mới token.</p>
-                </div>
-              </div>
-              <div className="api-auth-card">
-                <div className="api-auth-card__icon"><ShieldCheck size={15} /></div>
-                <div>
-                  <strong>Dashboard (admin cấp)</strong>
-                  <p>Admin tạo / thu hồi token từ trang <strong>Số dư</strong> trong dashboard.</p>
+                  <strong>Lấy token</strong>
+                  <p>Gõ <code>/apitoken</code> trong Telegram để tự tạo / làm mới token của bạn.</p>
                 </div>
               </div>
             </div>

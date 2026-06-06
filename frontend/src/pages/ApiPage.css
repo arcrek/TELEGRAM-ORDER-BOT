@@ -177,6 +177,11 @@
   gap: var(--space-3);
 }
 
+.api-auth-cards--single {
+  grid-template-columns: 1fr;
+  max-width: 420px;
+}
+
 .api-auth-card {
   display: flex;
   gap: var(--space-3);
