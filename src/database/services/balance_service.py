@@ -5,6 +5,7 @@ All balance mutations use atomic conditional UPDATE statements (no read-then-wri
 Both the order/topup status transition and the balance change happen inside a single
 transaction so they either both succeed or both roll back.
 """
+
 from typing import Optional
 from uuid import uuid4
 
@@ -44,11 +45,9 @@ class BalanceService:
         # Validate order belongs to this user (non-atomic pre-check is fine — if
         # the order doesn't exist or belongs to someone else we return not_found
         # without touching any balance).
-        order = (
-            self.session.execute(
-                select(Order).where(Order.id == order_id)
-            ).scalar_one_or_none()
-        )
+        order = self.session.execute(
+            select(Order).where(Order.id == order_id)
+        ).scalar_one_or_none()
         if order is None or order.user_id != bot_user.telegram_user_id:
             return False, "not_found"
 
@@ -229,16 +228,15 @@ class BalanceService:
         else:  # set
             # Read current balance first (same transaction) so we can compute delta.
             old_balance = self.session.execute(
-                select(BotUser.balance).where(BotUser.id == bot_user_id)
+                select(BotUser.balance)
+                .where(BotUser.id == bot_user_id)
                 .with_for_update()  # no-op on SQLite, useful row-lock on Postgres
             ).scalar_one_or_none()
             if old_balance is None:
                 return False, "not_found", 0
 
             self.session.execute(
-                update(BotUser)
-                .where(BotUser.id == bot_user_id)
-                .values(balance=amount)
+                update(BotUser).where(BotUser.id == bot_user_id).values(balance=amount)
             )
             new_balance = amount
             signed_amount = amount - old_balance
@@ -325,6 +323,7 @@ class BalanceService:
             pattern = f"%{search}%"
             from sqlalchemy import or_, cast
             from sqlalchemy import String as SAString
+
             query = query.filter(
                 or_(
                     BotUser.username.ilike(pattern),
@@ -348,7 +347,9 @@ class BalanceService:
                 else func.coalesce(topup_sub.c.total_topup, 0).asc()
             )
         else:  # updated_at / default
-            order_col = BotUser.updated_at.desc() if desc_order else BotUser.updated_at.asc()
+            order_col = (
+                BotUser.updated_at.desc() if desc_order else BotUser.updated_at.asc()
+            )
 
         query = query.order_by(order_col)
 
@@ -366,6 +367,7 @@ class BalanceService:
                 "balance": user.balance,
                 "total_topup": total_topup,
                 "last_topup_at": last_topup_at.isoformat() if last_topup_at else None,
+                "api_token": user.api_token,
             }
             for user, total_topup, last_topup_at in rows
         ]
@@ -417,7 +419,10 @@ class BalanceService:
             "last_name": user.last_name,
             "balance": user.balance,
             "total_topup": topup_agg.total_topup or 0,
-            "last_topup_at": topup_agg.last_topup_at.isoformat() if topup_agg.last_topup_at else None,
+            "last_topup_at": topup_agg.last_topup_at.isoformat()
+            if topup_agg.last_topup_at
+            else None,
+            "api_token": user.api_token,
         }
 
     def get_user_history(
@@ -433,9 +438,8 @@ class BalanceService:
         Returns:
             (transactions, total)
         """
-        base = (
-            self.session.query(BalanceTransaction)
-            .filter(BalanceTransaction.bot_user_id == bot_user_id)
+        base = self.session.query(BalanceTransaction).filter(
+            BalanceTransaction.bot_user_id == bot_user_id
         )
         total: int = base.count()
         txns = (

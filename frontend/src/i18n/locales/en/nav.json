@@ -12,6 +12,7 @@
     "preUploaded": "Inventory",
     "inventoryUpdate": "Stock Update",
     "balances": "Balances",
+    "apiDocs": "API",
     "logout": "Logout",
     "groups": {
       "overview": "Overview",

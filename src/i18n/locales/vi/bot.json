@@ -265,6 +265,11 @@
     "preset_1m": "1.000.000 VND",
     "preset_custom": "⚙️ Tùy chọn"
   },
+  "apitoken": {
+    "generated": "🔑 API Token của bạn:\n\n<code>{token}</code>\n\n📌 Sử dụng token này trong header:\n<code>Authorization: Bearer {token}</code>\n\n⚠️ Giữ bí mật token. Ai có token sẽ có thể đặt hàng thay bạn.\n\nGọi /apitoken bất kỳ lúc nào để tạo token mới (token cũ sẽ bị vô hiệu).",
+    "user_not_found": "❌ Bạn chưa đăng ký. Vui lòng gửi /start trước.",
+    "error": "❌ Không thể tạo token. Vui lòng thử lại sau."
+  },
   "languages": {
     "en": "🇬🇧 English",
     "vi": "🇻🇳 Tiếng Việt"

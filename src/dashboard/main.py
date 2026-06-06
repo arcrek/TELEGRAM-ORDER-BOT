@@ -1,17 +1,35 @@
 """
 Main FastAPI application for dashboard.
 """
+
 import logging
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from src.dashboard.limiter import limiter
+
 # Supplier functionality disabled
 # from src.dashboard.routers import auth, statistics, products, orders, suppliers, product_upload, pre_uploaded, variations, product_supplier_assignments, notifications, payos_webhook, iotd
-from src.dashboard.routers import auth, statistics, products, orders, product_upload, pre_uploaded, variations, notifications, payos_webhook, iotd, bonus_tiers, discount_tiers, bot_ui_settings, balances
+from src.dashboard.routers import (
+    auth,
+    statistics,
+    products,
+    orders,
+    product_upload,
+    pre_uploaded,
+    variations,
+    notifications,
+    payos_webhook,
+    iotd,
+    bonus_tiers,
+    discount_tiers,
+    bot_ui_settings,
+    balances,
+)
+from src.dashboard.routers import api_v1
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,9 +40,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
-
-# Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="MTK Bot Order Dashboard API",
@@ -63,11 +78,16 @@ app.include_router(bonus_tiers.router, prefix="/api", tags=["bonus-tiers"])
 app.include_router(discount_tiers.router, prefix="/api", tags=["discount-tiers"])
 # Supplier functionality disabled
 # app.include_router(product_supplier_assignments.router, prefix="/api/suppliers", tags=["product-supplier-assignments"])
-app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
-app.include_router(bot_ui_settings.router, prefix="/api/bot-ui-settings", tags=["bot-ui-settings"])
+app.include_router(
+    notifications.router, prefix="/api/notifications", tags=["notifications"]
+)
+app.include_router(
+    bot_ui_settings.router, prefix="/api/bot-ui-settings", tags=["bot-ui-settings"]
+)
 app.include_router(payos_webhook.router, prefix="/api/payos", tags=["payos"])
 app.include_router(iotd.router, prefix="/api/iotd", tags=["iotd"])
 app.include_router(balances.router, prefix="/api/balances", tags=["balances"])
+app.include_router(api_v1.router, prefix="/api/v1", tags=["public-api"])
 
 
 @app.get("/")
@@ -80,4 +100,3 @@ async def root():
 async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
-

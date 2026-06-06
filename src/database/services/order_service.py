@@ -1,6 +1,7 @@
 """
 Order service layer for business logic.
 """
+
 import secrets
 import uuid
 from typing import Optional, List, Dict
@@ -17,7 +18,7 @@ class OrderService:
     def __init__(self, session: Session):
         """
         Initialize order service.
-        
+
         Args:
             session: Database session
         """
@@ -27,7 +28,7 @@ class OrderService:
     def generate_order_id(self) -> str:
         """
         Generate a unique order ID.
-        
+
         Returns:
             Order ID string
         """
@@ -37,7 +38,7 @@ class OrderService:
     def generate_order_item_id(self) -> str:
         """
         Generate a unique order item ID.
-        
+
         Returns:
             Order item ID string
         """
@@ -71,64 +72,71 @@ class OrderService:
                 return candidate
         raise RuntimeError("Unable to generate unique PayOS orderCode after retries")
 
-    def validate_stock(self, variation_id: str, quantity: int, include_bonus: bool = True) -> bool:
+    def validate_stock(
+        self, variation_id: str, quantity: int, include_bonus: bool = True
+    ) -> bool:
         """
         Validate that sufficient stock is available including bonus items.
-        
+
         Args:
             variation_id: Variation ID
             quantity: Requested quantity
             include_bonus: If True, include bonus items in validation
-        
+
         Returns:
             True if stock is available, False otherwise
         """
         variation = self.variation_service.get_variation_by_id(variation_id)
         if not variation:
             return False
-        
+
         # Get actual available stock based on delivery type
         actual_stock = self._get_actual_stock(variation_id)
-        
+
         if quantity <= 0:
             return False
-        
+
         # Calculate total items including bonus
         total_items = quantity
         if include_bonus:
             from src.database.services.bonus_tier_service import BonusTierService
+
             bonus_service = BonusTierService(self.session)
-            bonus_tier = bonus_service.get_applicable_bonus(variation_id, quantity, actual_stock)
+            bonus_tier = bonus_service.get_applicable_bonus(
+                variation_id, quantity, actual_stock
+            )
             if bonus_tier:
                 total_items = quantity + bonus_tier.bonus_quantity
-        
+
         return actual_stock >= total_items
-    
+
     def _get_actual_stock(self, variation_id: str) -> int:
         """
         Get actual available stock for a variation based on product delivery type.
-        
+
         Args:
             variation_id: Variation ID
-        
+
         Returns:
             Actual available stock count
         """
         from src.database.services.product_service import ProductService
         from src.database.models.enums import DeliveryType
-        
+
         variation = self.variation_service.get_variation_by_id(variation_id)
         if not variation:
             return 0
-        
+
         product_service = ProductService(self.session)
         product = product_service.get_product_by_id(variation.product_id)
         if not product:
             return 0
-        
+
         if product.delivery_type == DeliveryType.PRE_UPLOADED:
             # For PRE_UPLOADED products, calculate from available pre-uploaded products
-            return self.variation_service.calculate_stock_from_pre_uploaded(variation_id)
+            return self.variation_service.calculate_stock_from_pre_uploaded(
+                variation_id
+            )
         if product.delivery_type == DeliveryType.UPGRADE:
             # UPGRADE products are not inventory-backed — only is_active gates ordering.
             return 999_999
@@ -138,11 +146,11 @@ class OrderService:
     def calculate_total(self, variation_id: str, quantity: int) -> int:
         """
         Calculate total price for an order item.
-        
+
         Args:
             variation_id: Variation ID
             quantity: Quantity
-        
+
         Returns:
             Total price in VND
         """
@@ -196,6 +204,7 @@ class OrderService:
         # Calculate total — apply discount if provided
         if discount_tier is not None:
             from src.database.services.discount_tier_service import DiscountTierService
+
             discount_service = DiscountTierService(self.session)
             total_amount, discount_amount = discount_service.calculate_discounted_total(
                 variation.price, quantity, discount_tier
@@ -236,13 +245,16 @@ class OrderService:
         from src.database.models.enums import DeliveryType
         from src.database.services.product_service import ProductService
         from src.database.services.pre_uploaded_service import PreUploadedService
+
         product_service = ProductService(self.session)
         product = product_service.get_product_by_id(variation.product_id)
 
         if product and product.delivery_type == DeliveryType.PRE_UPLOADED:
             self.session.flush()  # write order/item rows before the UPDATE subquery
             pre_service = PreUploadedService(self.session)
-            reserved = pre_service.reserve_products_for_order(order_id, variation_id, total_items)
+            reserved = pre_service.reserve_products_for_order(
+                order_id, variation_id, total_items
+            )
             if reserved < total_items:
                 self.session.rollback()
                 raise ValueError(
@@ -258,10 +270,10 @@ class OrderService:
     def get_order_by_id(self, order_id: str) -> Optional[Order]:
         """
         Get order by ID.
-        
+
         Args:
             order_id: Order ID
-        
+
         Returns:
             Order instance or None if not found
         """
@@ -302,12 +314,12 @@ class OrderService:
     ) -> List[Order]:
         """
         Get orders for a user.
-        
+
         Args:
             user_id: Telegram user ID
             status: Optional status filter
             limit: Maximum number of orders to return
-        
+
         Returns:
             List of Order instances
         """
@@ -324,12 +336,12 @@ class OrderService:
     ) -> Optional[Order]:
         """
         Update order status.
-        
+
         Args:
             order_id: Order ID
             status: New status
             payment_transaction_id: Optional payment transaction ID
-        
+
         Returns:
             Updated Order instance or None if not found
         """
@@ -348,11 +360,11 @@ class OrderService:
     def decrease_stock(self, variation_id: str, quantity: int) -> None:
         """
         Decrease stock for a variation (called after payment confirmation).
-        
+
         Args:
             variation_id: Variation ID
             quantity: Quantity to decrease
-        
+
         Raises:
             ValueError: If stock is insufficient
         """
@@ -373,7 +385,7 @@ class OrderService:
     ) -> List[Order]:
         """
         List orders with pagination, filters, and search.
-        
+
         Args:
             page: Page number (1-indexed)
             per_page: Items per page
@@ -385,45 +397,45 @@ class OrderService:
             sort_order: Sort order (asc, desc)
             start_date: Filter orders from this date (ISO format)
             end_date: Filter orders until this date (ISO format)
-        
+
         Returns:
             List of Order instances
         """
         from datetime import datetime
-        
+
         query = self.session.query(Order)
-        
+
         # Apply status filter
         if status:
             query = query.filter_by(status=status)
-        
+
         # Apply user_id filter
         if user_id:
             query = query.filter_by(user_id=user_id)
-        
+
         # Apply product_id filter (through order items)
         if product_id:
             query = query.join(OrderItem).filter(OrderItem.product_id == product_id)
-        
+
         # Apply search filter (order ID)
         if search:
             query = query.filter(Order.id.ilike(f"%{search}%"))
-        
+
         # Apply date filters
         if start_date:
             try:
-                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
                 query = query.filter(Order.created_at >= start_dt)
             except ValueError:
                 pass  # Invalid date format, ignore
-        
+
         if end_date:
             try:
-                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
                 query = query.filter(Order.created_at <= end_dt)
             except ValueError:
                 pass  # Invalid date format, ignore
-        
+
         # Apply sorting
         if sort_by == "created_at":
             if sort_order == "desc":
@@ -443,7 +455,7 @@ class OrderService:
         else:
             # Default: newest first
             query = query.order_by(Order.created_at.desc())
-        
+
         # Apply pagination
         offset = (page - 1) * per_page
         return query.offset(offset).limit(per_page).all()
@@ -459,7 +471,7 @@ class OrderService:
     ) -> int:
         """
         Get total count of orders matching filters.
-        
+
         Args:
             status: Filter by order status
             user_id: Filter by user ID
@@ -467,51 +479,51 @@ class OrderService:
             search: Search term
             start_date: Filter orders from this date
             end_date: Filter orders until this date
-        
+
         Returns:
             Total count
         """
         from sqlalchemy import func
         from datetime import datetime
-        
+
         query = self.session.query(func.count(Order.id))
-        
+
         # Apply same filters as list_orders
         if status:
             query = query.filter_by(status=status)
-        
+
         if user_id:
             query = query.filter_by(user_id=user_id)
-        
+
         if product_id:
             query = query.join(OrderItem).filter(OrderItem.product_id == product_id)
-        
+
         if search:
             query = query.filter(Order.id.ilike(f"%{search}%"))
-        
+
         if start_date:
             try:
-                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
                 query = query.filter(Order.created_at >= start_dt)
             except ValueError:
                 pass
-        
+
         if end_date:
             try:
-                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
                 query = query.filter(Order.created_at <= end_dt)
             except ValueError:
                 pass
-        
+
         return query.scalar() or 0
 
     def get_order_with_details(self, order_id: str) -> Optional[Dict]:
         """
         Get order with all related details (items, products, variations).
-        
+
         Args:
             order_id: Order ID
-        
+
         Returns:
             Dictionary with order details or None if not found
         """
@@ -557,12 +569,13 @@ class OrderService:
                         "id": row.id,
                         "used_at": row.used_at.isoformat() if row.used_at else None,
                         "display": _format_delivered_data(parsed),
+                        "data": parsed if isinstance(parsed, dict) else None,
                     }
                 )
         except Exception:
             # Best-effort: do not break order details if delivery rows cannot be loaded
             delivered_by_variation = {}
-        
+
         # Get order items with product and variation info
         items = []
         for item in order.items:
@@ -575,7 +588,7 @@ class OrderService:
                 "subtotal": item.subtotal,
                 "discount_amount": item.discount_amount or 0,
             }
-            
+
             # Add product info if available
             if item.product:
                 item_data["product"] = {
@@ -585,7 +598,7 @@ class OrderService:
                 }
             else:
                 item_data["product"] = None
-            
+
             # Add variation info if available
             if item.variation:
                 item_data["variation"] = {
@@ -604,20 +617,22 @@ class OrderService:
             else:
                 item_data["delivered_products"] = []
                 item_data["delivered_count"] = 0
-            
+
             items.append(item_data)
-        
+
         # Get supplier orders if any
         supplier_orders = []
         for so in order.supplier_orders:
-            supplier_orders.append({
-                "id": so.id,
-                "supplier_id": so.supplier_id,
-                "status": so.status.value,
-                "created_at": so.created_at.isoformat(),
-                "updated_at": so.updated_at.isoformat(),
-            })
-        
+            supplier_orders.append(
+                {
+                    "id": so.id,
+                    "supplier_id": so.supplier_id,
+                    "status": so.status.value,
+                    "created_at": so.created_at.isoformat(),
+                    "updated_at": so.updated_at.isoformat(),
+                }
+            )
+
         return {
             "id": order.id,
             "user_id": order.user_id,
@@ -665,9 +680,9 @@ class OrderService:
 
         # Release any pre-uploaded product reservations in the same transaction.
         from src.database.services.pre_uploaded_service import PreUploadedService
+
         PreUploadedService(self.session).release_reservations_for_order(order_id)
 
         self.session.commit()
         order = self.get_order_by_id(order_id)
         return order  # type: ignore[return-value]
-

@@ -8,7 +8,7 @@ import { Pagination } from '../../shared/components/Pagination'
 import { Spinner } from '../../shared/components/Spinner'
 import { apiClient, formatApiError } from '../../shared/lib/api'
 import { useFormat } from '../../shared/lib/format'
-import type { BalanceUserRow, BalanceUserDetail, BalanceTxRow, TopupRow } from './types'
+import type { BalanceUserRow, BalanceUserDetail, BalanceTxRow, TopupRow, ApiTokenResponse } from './types'
 
 interface BalanceDetailDrawerProps {
   open: boolean
@@ -55,6 +55,55 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
   const [txPerPage] = useState(10)
   const [topupPage, setTopupPage] = useState(1)
   const [topupPerPage] = useState(10)
+
+  // API token state (initially populated from the user prop; updated by generate/revoke)
+  const [apiToken, setApiToken] = useState<string | null>(null)
+  const [tokenLoading, setTokenLoading] = useState(false)
+  const [tokenError, setTokenError] = useState<string | null>(null)
+  const [copyFeedback, setCopyFeedback] = useState(false)
+
+  // Sync token from user prop when drawer opens
+  useEffect(() => {
+    if (open && user) setApiToken(user.api_token ?? null)
+    if (!open) { setApiToken(null); setTokenError(null) }
+  }, [open, user?.bot_user_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleGenerateToken = useCallback(async () => {
+    if (!user) return
+    setTokenLoading(true)
+    setTokenError(null)
+    try {
+      const res = await apiClient.post<ApiTokenResponse>(`/api/balances/${user.bot_user_id}/api-token`)
+      setApiToken(res.data.api_token)
+    } catch (err) {
+      setTokenError(formatApiError(err, 'Không thể tạo token'))
+    } finally {
+      setTokenLoading(false)
+    }
+  }, [user])
+
+  const handleRevokeToken = useCallback(async () => {
+    if (!user) return
+    if (!window.confirm('Thu hồi token API? Token hiện tại sẽ lập tức vô hiệu.')) return
+    setTokenLoading(true)
+    setTokenError(null)
+    try {
+      await apiClient.delete(`/api/balances/${user.bot_user_id}/api-token`)
+      setApiToken(null)
+    } catch (err) {
+      setTokenError(formatApiError(err, 'Không thể thu hồi token'))
+    } finally {
+      setTokenLoading(false)
+    }
+  }, [user])
+
+  const handleCopyToken = useCallback(() => {
+    if (!apiToken) return
+    navigator.clipboard.writeText(apiToken).then(() => {
+      setCopyFeedback(true)
+      setTimeout(() => setCopyFeedback(false), 2000)
+    })
+  }, [apiToken])
 
   const fetchDetail = useCallback(async () => {
     if (!user) return
@@ -303,6 +352,55 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nạp cuối</div>
                 <div style={{ fontSize: 13 }}>{fmt.dateTime(detail.user.last_topup_at)}</div>
               </div>
+            )}
+          </div>
+
+          {/* API Token section */}
+          <div style={{
+            marginBottom: 20,
+            padding: 16,
+            background: 'var(--bg-sunken)',
+            borderRadius: 8,
+            border: '1px solid var(--border-subtle)',
+          }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+              API Token
+            </div>
+            {apiToken ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <code style={{
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  background: 'var(--bg-surface)',
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  border: '1px solid var(--border-subtle)',
+                  wordBreak: 'break-all',
+                  flex: 1,
+                  minWidth: 0,
+                }}>
+                  {apiToken}
+                </code>
+                <Button size="sm" variant="secondary" tone="ghost" onClick={handleCopyToken} disabled={tokenLoading}>
+                  {copyFeedback ? '✓ Đã copy' : 'Copy'}
+                </Button>
+                <Button size="sm" variant="primary" onClick={handleGenerateToken} disabled={tokenLoading}>
+                  {tokenLoading ? '...' : 'Tạo mới'}
+                </Button>
+                <Button size="sm" variant="destructive" tone="ghost" onClick={handleRevokeToken} disabled={tokenLoading}>
+                  Thu hồi
+                </Button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Chưa có token</span>
+                <Button size="sm" variant="primary" onClick={handleGenerateToken} disabled={tokenLoading}>
+                  {tokenLoading ? '...' : 'Tạo token'}
+                </Button>
+              </div>
+            )}
+            {tokenError && (
+              <div style={{ color: 'var(--danger-500)', fontSize: 12, marginTop: 6 }}>{tokenError}</div>
             )}
           </div>
 

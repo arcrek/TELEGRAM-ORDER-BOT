@@ -13,6 +13,7 @@
     "inventoryUpdate": "Cập nhật kho hàng",
     "balances": "Số dư",
     "iotd": "Ảnh trong Ngày",
+    "apiDocs": "API",
     "logout": "Đăng xuất",
     "groups": {
       "overview": "Tổng quan",

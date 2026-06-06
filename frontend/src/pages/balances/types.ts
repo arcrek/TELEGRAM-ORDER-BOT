@@ -9,6 +9,7 @@ export interface BalanceUserRow {
   balance: number
   total_topup: number
   last_topup_at: string | null
+  api_token: string | null
 }
 
 export interface BalanceTxRow {
@@ -61,4 +62,9 @@ export interface BalanceAdjustResponse {
   success: boolean
   new_balance: number
   reason?: string
+}
+
+export interface ApiTokenResponse {
+  bot_user_id: string
+  api_token: string | null
 }

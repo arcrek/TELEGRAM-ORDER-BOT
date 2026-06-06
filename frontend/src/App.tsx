@@ -21,6 +21,7 @@ import { IotdPage } from './pages/IotdPage'
 import { BotUiSettingsPage } from './pages/BotUiSettingsPage'
 import { InventoryUpdatePage } from './pages/InventoryUpdatePage'
 import { BalancesPage } from './pages/BalancesPage'
+import { ApiPage } from './pages/ApiPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -77,6 +78,7 @@ export function AppRoutes() {
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />
           <Route path="iotd" element={<IotdPage />} />
         </Route>
+        <Route path="api" element={<ApiPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

@@ -1,6 +1,7 @@
 """
 Main entry point for the Telegram bot.
 """
+
 import os
 import logging
 from telegram import Update
@@ -19,7 +20,11 @@ from src.bot.handlers.commands import (
     handle_top_buyers_button,
     doanhthu_command,
 )
-from src.bot.handlers.notification_commands import notify_all, notify_user, notify_active
+from src.bot.handlers.notification_commands import (
+    notify_all,
+    notify_user,
+    notify_active,
+)
 from src.bot.handlers.callbacks import (
     handle_page_navigation,
     handle_product_selection,
@@ -50,6 +55,7 @@ from src.bot.handlers.balance import (
     handle_topup_cancel,
 )
 from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
+from src.bot.handlers.apitoken import apitoken_command
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -69,7 +75,7 @@ logger = logging.getLogger(__name__)
 def create_bot_application() -> Application:
     """
     Create and configure the Telegram bot application.
-    
+
     Returns:
         Configured Application instance.
     """
@@ -77,10 +83,10 @@ def create_bot_application() -> Application:
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not bot_token:
         raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
-    
+
     # Create application
     application = Application.builder().token(bot_token).build()
-    
+
     # Register command handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
@@ -94,83 +100,142 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("setadmin", setadmin_command))
     application.add_handler(CommandHandler("top", handle_top_buyers_button))
     application.add_handler(CommandHandler("doanhthu", doanhthu_command))
-    
+    application.add_handler(CommandHandler("apitoken", apitoken_command))
+
     # Register admin notification commands
     application.add_handler(CommandHandler("notify_all", notify_all))
     application.add_handler(CommandHandler("notify_user", notify_user))
     application.add_handler(CommandHandler("notify_active", notify_active))
-    
+
     # Register callback query handlers
-    application.add_handler(CallbackQueryHandler(handle_page_navigation, pattern="^page_"))
-    application.add_handler(CallbackQueryHandler(handle_product_selection, pattern="^product_"))
-    application.add_handler(CallbackQueryHandler(handle_variation_selection, pattern="^variation_"))
+    application.add_handler(
+        CallbackQueryHandler(handle_page_navigation, pattern="^page_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_product_selection, pattern="^product_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_variation_selection, pattern="^variation_")
+    )
     # Custom quantity handler must be registered BEFORE the general qty_ handler
-    application.add_handler(CallbackQueryHandler(handle_custom_quantity_prompt, pattern="^qty_custom_"))
-    application.add_handler(CallbackQueryHandler(handle_quantity_adjustment, pattern="^qty_"))
-    application.add_handler(CallbackQueryHandler(handle_refresh_product, pattern="^refresh_product$"))
-    application.add_handler(CallbackQueryHandler(handle_back_to_list, pattern="^back_to_list$"))
+    application.add_handler(
+        CallbackQueryHandler(handle_custom_quantity_prompt, pattern="^qty_custom_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_quantity_adjustment, pattern="^qty_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_refresh_product, pattern="^refresh_product$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_back_to_list, pattern="^back_to_list$")
+    )
     application.add_handler(CallbackQueryHandler(handle_payment, pattern="^payment_"))
-    application.add_handler(CallbackQueryHandler(handle_cancel_order, pattern="^cancel_order_"))
-    application.add_handler(CallbackQueryHandler(handle_language_selection, pattern="^lang_"))
-    application.add_handler(CallbackQueryHandler(handle_order_history_page, pattern="^order_history"))
-    application.add_handler(CallbackQueryHandler(handle_order_detail, pattern="^order_detail_"))
-    application.add_handler(CallbackQueryHandler(handle_back_to_order_history, pattern="^back_to_order_history"))
-    application.add_handler(CallbackQueryHandler(handle_upgrade_done, pattern="^upgrade_done_"))
-    application.add_handler(CallbackQueryHandler(handle_show_products_list, pattern="^show_products_list$"))
+    application.add_handler(
+        CallbackQueryHandler(handle_cancel_order, pattern="^cancel_order_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_language_selection, pattern="^lang_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_order_history_page, pattern="^order_history")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_order_detail, pattern="^order_detail_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_back_to_order_history, pattern="^back_to_order_history"
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_upgrade_done, pattern="^upgrade_done_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_show_products_list, pattern="^show_products_list$")
+    )
 
     # Balance / topup callback handlers
-    application.add_handler(CallbackQueryHandler(handle_balance_view, pattern="^balance_view$"))
-    application.add_handler(CallbackQueryHandler(handle_balance_topup_start, pattern="^topup_start$"))
-    application.add_handler(CallbackQueryHandler(handle_balance_topup_amount, pattern="^topup_amount_"))
-    application.add_handler(CallbackQueryHandler(handle_balance_topup_custom, pattern="^topup_custom$"))
-    application.add_handler(CallbackQueryHandler(handle_balance_history, pattern="^balance_history$"))
-    application.add_handler(CallbackQueryHandler(handle_balance_close, pattern="^balance_close$"))
-    application.add_handler(CallbackQueryHandler(handle_topup_cancel, pattern="^cancel_topup_"))
+    application.add_handler(
+        CallbackQueryHandler(handle_balance_view, pattern="^balance_view$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_balance_topup_start, pattern="^topup_start$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_balance_topup_amount, pattern="^topup_amount_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_balance_topup_custom, pattern="^topup_custom$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_balance_history, pattern="^balance_history$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_balance_close, pattern="^balance_close$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_topup_cancel, pattern="^cancel_topup_")
+    )
     # Payment method picker callbacks
-    application.add_handler(CallbackQueryHandler(handle_pay_with_balance, pattern="^pay_balance_"))
-    application.add_handler(CallbackQueryHandler(handle_pay_with_qr, pattern="^pay_qr_"))
+    application.add_handler(
+        CallbackQueryHandler(handle_pay_with_balance, pattern="^pay_balance_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_pay_with_qr, pattern="^pay_qr_")
+    )
 
     # Register message handlers
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button))
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button)
+    )
     # Custom quantity input handler runs in a separate group so it is not blocked
     # by handle_products_button which matches the same filter.
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input), group=1)
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input),
+        group=1,
+    )
     # Custom topup amount input — own group so it is not shadowed by the
     # custom-quantity handler in group=1 (PTB runs only one matching handler
     # per group; identical TEXT filters mean only the first registered one
     # ever fires). Gates internally on awaiting_topup_amount flag.
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topup_amount_text), group=3)
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topup_amount_text),
+        group=3,
+    )
     # UPGRADE-delivery dispatcher: handles both the customer's account-info reply
     # (private chat) and admin status-update replies (notification chat).
     # Matches any non-command message so we can carry text/photo/document.
-    application.add_handler(MessageHandler(~filters.COMMAND, handle_upgrade_message), group=2)
+    application.add_handler(
+        MessageHandler(~filters.COMMAND, handle_upgrade_message), group=2
+    )
 
     # Catch-all for unknown slash commands (including sending just "/")
     application.add_handler(MessageHandler(filters.COMMAND, unknown_command))
-    
+
     return application
 
 
 def main():
     """Run the bot."""
     logger.info("Starting Telegram bot...")
-    
+
     application = create_bot_application()
-    
+
     # Set global bot instance for IPN processing
     bot = application.bot
     set_global_bot(bot)
     logger.info("Bot instance set for IPN processing")
-    
+
     # Set shared bot instance for dashboard and other services
     set_shared_bot_instance(bot)
     logger.info("Bot instance set for dashboard access")
-    
+
     # Start auto-cancel task
     auto_cancel_task = AutoCancelTask(bot_instance=bot, interval_minutes=5)
     auto_cancel_task.start()
     logger.info("Auto-cancel task started")
-    
+
     try:
         # Start the bot
         logger.info("Bot is running. Press Ctrl+C to stop.")
@@ -183,4 +248,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

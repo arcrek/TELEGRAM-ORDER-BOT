@@ -265,6 +265,11 @@
     "preset_1m": "1,000,000 VND",
     "preset_custom": "⚙️ Custom"
   },
+  "apitoken": {
+    "generated": "🔑 Your API Token:\n\n<code>{token}</code>\n\n📌 Use this token in the Authorization header:\n<code>Authorization: Bearer {token}</code>\n\n⚠️ Keep this token secret. Anyone with it can place orders on your behalf.\n\nRun /apitoken again at any time to regenerate (the old token will be invalidated immediately).",
+    "user_not_found": "❌ You are not registered. Please send /start first.",
+    "error": "❌ Could not generate token. Please try again later."
+  },
   "languages": {
     "en": "🇬🇧 English",
     "vi": "🇻🇳 Tiếng Việt"

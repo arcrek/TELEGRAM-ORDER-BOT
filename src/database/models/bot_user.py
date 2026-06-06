@@ -1,6 +1,7 @@
 """
 Bot user model for tracking Telegram users.
 """
+
 import uuid
 from sqlalchemy import Column, String, BigInteger, Boolean, DateTime
 from sqlalchemy.sql import func
@@ -21,6 +22,8 @@ class BotUser(Base):
     started_at = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     balance = Column(BigInteger, nullable=False, default=0, server_default="0")
+    api_token = Column(String, unique=True, nullable=True, index=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
-
+    updated_at = Column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )

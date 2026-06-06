@@ -1,6 +1,7 @@
 """
 Balances router — admin management of user wallet balances.
 """
+
 from datetime import datetime
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,8 +9,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
 from src.database.services.balance_service import BalanceService
+from src.database.services.bot_user_service import BotUserService
 from src.database.services.topup_service import TopupService
 from src.database.models.admin import Admin
+from src.database.models.bot_user import BotUser
 
 
 router = APIRouter()
@@ -19,8 +22,10 @@ router = APIRouter()
 # Pydantic schemas
 # ---------------------------------------------------------------------------
 
+
 class BalanceUserRow(BaseModel):
     """Single user row returned in the paginated list."""
+
     bot_user_id: str
     telegram_user_id: int
     username: Optional[str]
@@ -29,10 +34,12 @@ class BalanceUserRow(BaseModel):
     balance: int
     total_topup: int
     last_topup_at: Optional[str]  # ISO string from service
+    api_token: Optional[str] = None
 
 
 class BalanceTxRow(BaseModel):
     """Single balance transaction row."""
+
     id: str
     amount: int
     balance_after: int
@@ -46,6 +53,7 @@ class BalanceTxRow(BaseModel):
 
 class TopupRow(BaseModel):
     """Single topup order row."""
+
     id: str
     amount: int
     status: str
@@ -57,6 +65,7 @@ class TopupRow(BaseModel):
 
 class BalanceUserDetail(BaseModel):
     """Detail view for a single user."""
+
     user: BalanceUserRow
     transactions: list[BalanceTxRow]
     transactions_total: int
@@ -66,6 +75,7 @@ class BalanceUserDetail(BaseModel):
 
 class BalanceAdjustRequest(BaseModel):
     """Admin balance adjustment request."""
+
     action: Literal["add", "subtract", "set"]
     amount: int = Field(ge=0)
     reason: Optional[str] = None
@@ -73,14 +83,23 @@ class BalanceAdjustRequest(BaseModel):
 
 class BalanceAdjustResponse(BaseModel):
     """Admin balance adjustment response."""
+
     success: bool
     new_balance: int
     reason: Optional[str] = None  # error code when success=False
 
 
+class ApiTokenResponse(BaseModel):
+    """Response after generating or revoking an API token."""
+
+    bot_user_id: str
+    api_token: Optional[str]  # None after revocation
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @router.get("", include_in_schema=True)
 @router.get("/", include_in_schema=False)
@@ -213,10 +232,56 @@ async def adjust_balance(
         if code == "not_found":
             raise HTTPException(status_code=404, detail="User not found")
         if code == "insufficient":
-            raise HTTPException(status_code=400, detail="Insufficient balance for subtraction")
+            raise HTTPException(
+                status_code=400, detail="Insufficient balance for subtraction"
+            )
         if code == "invalid_amount":
             raise HTTPException(status_code=400, detail="Invalid amount")
         if code == "invalid_action":
             raise HTTPException(status_code=400, detail="Invalid action")
         raise HTTPException(status_code=400, detail=code)
     return BalanceAdjustResponse(success=True, new_balance=new_balance)
+
+
+@router.post("/{bot_user_id}/api-token", response_model=ApiTokenResponse)
+async def generate_api_token(
+    bot_user_id: str,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin_role),
+):
+    """
+    Admin: generate (or regenerate) an API token for a bot user.
+    The token is stored in plaintext so the dashboard can display it.
+    Calling this endpoint again replaces the existing token.
+    """
+    # Resolve telegram_user_id from bot_user_id (UUID primary key)
+    bot_user = db.query(BotUser).filter_by(id=bot_user_id).first()
+    if not bot_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    token = BotUserService(db).generate_api_token(bot_user.telegram_user_id)
+    if token is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return ApiTokenResponse(bot_user_id=bot_user_id, api_token=token)
+
+
+@router.delete("/{bot_user_id}/api-token", response_model=ApiTokenResponse)
+async def revoke_api_token(
+    bot_user_id: str,
+    db: Session = Depends(get_db),
+    current_admin=Depends(require_admin_role),
+):
+    """
+    Admin: revoke (delete) the API token for a bot user.
+    After this, any existing Bearer token for this user returns 401.
+    """
+    bot_user = db.query(BotUser).filter_by(id=bot_user_id).first()
+    if not bot_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    revoked = BotUserService(db).revoke_api_token(bot_user.telegram_user_id)
+    if not revoked:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return ApiTokenResponse(bot_user_id=bot_user_id, api_token=None)
