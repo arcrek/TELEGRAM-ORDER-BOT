@@ -26,6 +26,7 @@
 
 /* Product Revenue Table */
 .stats-product-revenue {
+  margin-top: var(--space-5);
   margin-bottom: var(--space-5);
 }
 
