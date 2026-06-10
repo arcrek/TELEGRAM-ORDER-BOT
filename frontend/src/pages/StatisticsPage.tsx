@@ -320,7 +320,7 @@ export function StatisticsPage() {
           loading={loading}
         />
         <StatCard
-          label={t('statistics.startedUsers', 'Người dùng đã /start')}
+          label={t('statistics.startedUsers', 'Người dùng hoạt động')}
           value={fmt.number(data?.user_stats?.started ?? 0)}
           icon={<Users size={16} />}
           loading={loading}
