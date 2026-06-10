@@ -53,6 +53,7 @@ interface StatisticsData {
   revenue_delta: number | null
   orders_delta: number | null
   active_users?: { current: number; previous: number; pct_change: number | null }
+  user_stats?: { started: number; active: number }
 }
 
 const DAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -258,19 +259,27 @@ export function StatisticsPage() {
         />
       </div>
 
-      {/* Active Users */}
-      <StatCard
-        label={
-          data?.active_users && hasDelta
-            ? t('statistics.activeBuyers', 'Người mua trong kỳ')
-            : t('statistics.registeredUsers', 'Người dùng đã đăng ký')
-        }
-        value={fmt.number(data?.active_users?.current ?? 0)}
-        delta={data?.active_users?.pct_change ?? null}
-        deltaLabel={t('statistics.vsPreviousPeriod', 'So với kỳ trước')}
-        icon={<Users size={16} />}
-        loading={loading}
-      />
+      {/* Users Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <StatCard
+          label={
+            data?.active_users && hasDelta
+              ? t('statistics.activeBuyers', 'Người mua trong kỳ')
+              : t('statistics.registeredUsers', 'Người dùng đã đăng ký')
+          }
+          value={fmt.number(data?.active_users?.current ?? 0)}
+          delta={data?.active_users?.pct_change ?? null}
+          deltaLabel={t('statistics.vsPreviousPeriod', 'So với kỳ trước')}
+          icon={<Users size={16} />}
+          loading={loading}
+        />
+        <StatCard
+          label={t('statistics.startedUsers', 'Người dùng đã /start')}
+          value={fmt.number(data?.user_stats?.started ?? 0)}
+          icon={<Users size={16} />}
+          loading={loading}
+        />
+      </div>
 
       {/* Product Revenue Table */}
       <div className="stats-product-revenue chart-card">

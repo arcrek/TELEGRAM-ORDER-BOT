@@ -6,7 +6,7 @@ import logging
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
 from telegram import Bot
-from telegram.error import TelegramError
+from telegram.error import Forbidden, TelegramError
 from src.database.services.bot_user_service import BotUserService
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,9 @@ class NotificationService:
         except TelegramError as e:
             error_msg = str(e)
             logger.error(f"Failed to send notification to user {telegram_user_id}: {error_msg}")
+            if isinstance(e, Forbidden):
+                self.bot_user_service.update_user_active_status(telegram_user_id, False)
+                logger.info(f"Marked user {telegram_user_id} as inactive (bot blocked)")
             return {
                 "success": False,
                 "error": error_msg,

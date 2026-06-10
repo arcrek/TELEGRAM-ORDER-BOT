@@ -487,6 +487,22 @@ class StatisticsService:
             result.append({**item, "pct_change": pct_change})
         return result
 
+    def get_user_stats(self) -> Dict[str, int]:
+        """Count all users who pressed /start and how many are still active (not blocked)."""
+        started = (
+            self.session.query(func.count(BotUser.id))
+            .filter(BotUser.has_started.is_(True))
+            .scalar()
+            or 0
+        )
+        active = (
+            self.session.query(func.count(BotUser.id))
+            .filter(BotUser.has_started.is_(True), BotUser.is_active.is_(True))
+            .scalar()
+            or 0
+        )
+        return {"started": int(started), "active": int(active)}
+
     def get_active_users(
         self,
         start_date: Optional[datetime],
@@ -572,6 +588,7 @@ class StatisticsService:
             "funnel": self.get_funnel(start_date, end_date),
             "orders_heatmap": self.get_orders_heatmap(start_date, end_date),
             "active_users": self.get_active_users(start_date, end_date),
+            "user_stats": self.get_user_stats(),
         }
         if start_date and end_date:
             base["revenue_delta"] = self.get_revenue_delta(start_date, end_date)
