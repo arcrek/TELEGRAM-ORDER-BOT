@@ -6,6 +6,7 @@ import {
   BarElement, ArcElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js'
 import { Line, Bar, Doughnut } from 'react-chartjs-2'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
 import { StatCard } from '../shared/components/StatCard'
@@ -54,6 +55,32 @@ interface StatisticsData {
   orders_delta: number | null
   active_users?: { current: number; previous: number; pct_change: number | null }
   user_stats?: { started: number; active: number }
+}
+
+interface UpgradeOrderTodo {
+  id: string
+  status: string
+  total_amount: number
+  created_at: string
+}
+
+interface InventoryVariationTodo {
+  product_id: string
+  product_name: string
+  variation_id: string
+  variation_name: string
+  in_stock: number
+  aging: number
+  expiring_soon: number
+}
+
+interface TodoData {
+  upgrade_orders: UpgradeOrderTodo[]
+  upgrade_orders_count: number
+  aging_inventory: InventoryVariationTodo[]
+  aging_inventory_count: number
+  low_stock_inventory: InventoryVariationTodo[]
+  low_stock_inventory_count: number
 }
 
 const DAY_LABELS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -202,6 +229,25 @@ export function StatisticsPage() {
 
   const [iotdUrl, setIotdUrl] = useState<string | null>(null)
   const [iotdImgError, setIotdImgError] = useState(false)
+
+  const navigate = useNavigate()
+  const [todoData, setTodoData] = useState<TodoData | null>(null)
+  const [todoLoading, setTodoLoading] = useState(true)
+
+  const loadTodo = async () => {
+    setTodoLoading(true)
+    try {
+      const res = await apiClient.get<TodoData>('/api/statistics/todo')
+      setTodoData(res.data)
+    } catch {
+      // fail silently
+    } finally {
+      setTodoLoading(false)
+    }
+  }
+
+  useEffect(() => { loadTodo() }, [])
+
   useEffect(() => {
     apiClient.get<{ image_url: string | null }>('/api/iotd')
       .then(res => setIotdUrl(res.data.image_url))
@@ -220,7 +266,7 @@ export function StatisticsPage() {
               aria-label={t('common.refresh', 'Làm mới')}
               variant="ghost"
               size="sm"
-              onClick={loadData}
+              onClick={() => { loadData(); loadTodo() }}
             />
           </div>
         }
@@ -365,6 +411,111 @@ export function StatisticsPage() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Todo Section */}
+      <div className="stats-todo chart-card">
+        <div className="chart-card__header">
+          <h3 className="chart-card__title">Việc cần làm</h3>
+        </div>
+        <div className="stats-todo__body">
+
+          {/* Group 1: Pending upgrade orders */}
+          <div className="stats-todo__group">
+            <div className="stats-todo__group-header">
+              <span className="stats-todo__group-title">Đơn nâng cấp đang chờ</span>
+              {todoData && (
+                <span className={`stats-todo__badge${todoData.upgrade_orders_count > 0 ? ' stats-todo__badge--warn' : ''}`}>
+                  {todoData.upgrade_orders_count}
+                </span>
+              )}
+            </div>
+            {todoLoading ? (
+              <div className="stats-todo__skeleton" />
+            ) : !todoData?.upgrade_orders.length ? (
+              <p className="stats-todo__empty">Không có đơn nào</p>
+            ) : (
+              todoData.upgrade_orders.map(order => (
+                <button
+                  key={order.id}
+                  className="stats-todo__row"
+                  onClick={() => navigate(`/orders?q=${order.id}`)}
+                >
+                  <span className="stats-todo__row-id num">#{order.id.slice(0, 8)}</span>
+                  <Badge status={order.status as OrderStatus} size="sm">
+                    {t(`orders.status.${order.status}`, order.status)}
+                  </Badge>
+                  <span className="stats-todo__row-amount num">{fmt.currency(order.total_amount)}</span>
+                  <span className="stats-todo__row-time">{fmt.relative(order.created_at)}</span>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Group 2: Aging / expiring-soon inventory */}
+          <div className="stats-todo__group">
+            <div className="stats-todo__group-header">
+              <span className="stats-todo__group-title">Tồn kho đã cũ / sắp hết hạn</span>
+              {todoData && (
+                <span className={`stats-todo__badge${todoData.aging_inventory_count > 0 ? ' stats-todo__badge--warn' : ''}`}>
+                  {todoData.aging_inventory_count}
+                </span>
+              )}
+            </div>
+            {todoLoading ? (
+              <div className="stats-todo__skeleton" />
+            ) : !todoData?.aging_inventory.length ? (
+              <p className="stats-todo__empty">Không có phân loại nào</p>
+            ) : (
+              todoData.aging_inventory.map(v => (
+                <button
+                  key={`aging-${v.variation_id}`}
+                  className="stats-todo__row"
+                  onClick={() => navigate(`/pre-uploaded?product=${v.product_id}&variation=${v.variation_id}&aging=aging`)}
+                >
+                  <span className="stats-todo__row-name">{v.product_name}</span>
+                  <span className="stats-todo__row-variation">{v.variation_name}</span>
+                  <span className="stats-todo__row-tags">
+                    {v.aging > 0 && <span className="stats-todo__tag stats-todo__tag--aged">{v.aging} cũ</span>}
+                    {v.expiring_soon > 0 && <span className="stats-todo__tag stats-todo__tag--expiring">{v.expiring_soon} sắp hết</span>}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Group 3: Low stock inventory */}
+          <div className="stats-todo__group">
+            <div className="stats-todo__group-header">
+              <span className="stats-todo__group-title">Tồn kho sắp hết</span>
+              {todoData && (
+                <span className={`stats-todo__badge${todoData.low_stock_inventory_count > 0 ? ' stats-todo__badge--danger' : ''}`}>
+                  {todoData.low_stock_inventory_count}
+                </span>
+              )}
+            </div>
+            {todoLoading ? (
+              <div className="stats-todo__skeleton" />
+            ) : !todoData?.low_stock_inventory.length ? (
+              <p className="stats-todo__empty">Không có phân loại nào</p>
+            ) : (
+              todoData.low_stock_inventory.map(v => (
+                <button
+                  key={`lowstock-${v.variation_id}`}
+                  className="stats-todo__row"
+                  onClick={() => navigate(`/pre-uploaded?product=${v.product_id}&variation=${v.variation_id}`)}
+                >
+                  <span className="stats-todo__row-name">{v.product_name}</span>
+                  <span className="stats-todo__row-variation">{v.variation_name}</span>
+                  <span className={`stats-todo__stock-pill${v.in_stock === 0 ? ' stats-todo__stock-pill--out' : ' stats-todo__stock-pill--low'}`}>
+                    {v.in_stock === 0 ? 'Hết hàng' : `${v.in_stock} còn`}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+
         </div>
       </div>
 

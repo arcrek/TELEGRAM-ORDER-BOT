@@ -191,3 +191,13 @@ async def get_total_sold_all_products(
     service = StatisticsService(db)
     total = service.get_total_sold_all_products()
     return {"total_sold": total}
+
+
+@router.get("/todo")
+async def get_todo_items(
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Get actionable todo items for the admin dashboard."""
+    service = StatisticsService(db)
+    return service.get_todo_items()

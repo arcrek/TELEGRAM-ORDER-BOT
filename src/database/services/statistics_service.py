@@ -640,3 +640,62 @@ class StatisticsService:
             for user_id, first_name, last_name, username, total_spent, order_count in results
         ]
 
+    def get_todo_items(self) -> Dict[str, Any]:
+        from src.database.models.order import Order
+        from src.database.models.order_item import OrderItem
+        from src.database.models.product import Product
+        from src.database.models.enums import DeliveryType, OrderStatus
+        from src.database.services.pre_uploaded_service import PreUploadedService
+
+        rows = (
+            self.session.query(Order)
+            .join(OrderItem, OrderItem.order_id == Order.id)
+            .join(Product, Product.id == OrderItem.product_id)
+            .filter(
+                Product.delivery_type == DeliveryType.UPGRADE,
+                Order.status.in_([OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.PROCESSING])
+            )
+            .distinct(Order.id)
+            .order_by(Order.created_at.asc())
+            .all()
+        )
+        upgrade_orders = [
+            {
+                "id": o.id,
+                "status": o.status.value,
+                "total_amount": o.total_amount,
+                "created_at": o.created_at.isoformat() if o.created_at else None,
+            }
+            for o in rows
+        ]
+
+        LOW_STOCK_THRESHOLD = 5
+        inventory_stats = PreUploadedService(self.session).get_inventory_stats_by_product()
+
+        aging_items: list = []
+        low_stock_items: list = []
+        for product in inventory_stats:
+            for v in product["variants"]:
+                base = {
+                    "product_id": product["product_id"],
+                    "product_name": product["product_name"],
+                    "variation_id": v["variation_id"],
+                    "variation_name": v["variation_name"],
+                    "in_stock": v["in_stock"],
+                    "aging": v["aging"],
+                    "expiring_soon": v["expiring_soon"],
+                }
+                if v["aging"] > 0 or v["expiring_soon"] > 0:
+                    aging_items.append(base)
+                if v["in_stock"] <= LOW_STOCK_THRESHOLD:
+                    low_stock_items.append(base)
+
+        return {
+            "upgrade_orders": upgrade_orders,
+            "upgrade_orders_count": len(upgrade_orders),
+            "aging_inventory": aging_items,
+            "aging_inventory_count": len(aging_items),
+            "low_stock_inventory": low_stock_items,
+            "low_stock_inventory_count": len(low_stock_items),
+        }
+
