@@ -20,6 +20,8 @@ services:
       # SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
       # Dashboard JWT signing key (required — generate with: python3 -c "import secrets; print(secrets.token_hex(32))")
       DASHBOARD_SECRET_KEY: ${DASHBOARD_SECRET_KEY}
+      # Comma-separated list of frontend origins allowed to call the API
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       # PayOS Configuration (needed for webhook verification)
       PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
       PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
