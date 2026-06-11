@@ -18,6 +18,8 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       # Supplier functionality disabled
       # SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
+      # Dashboard JWT signing key (required — generate with: python3 -c "import secrets; print(secrets.token_hex(32))")
+      DASHBOARD_SECRET_KEY: ${DASHBOARD_SECRET_KEY}
       # PayOS Configuration (needed for webhook verification)
       PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
       PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
