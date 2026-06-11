@@ -91,7 +91,26 @@ class TestJWTToken:
         data = {"sub": "testuser"}
         expires_delta = timedelta(seconds=-1)  # Already expired
         token = create_access_token(data, expires_delta=expires_delta)
-        
+
         with pytest.raises(jwt.ExpiredSignatureError):
             jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+
+def test_create_access_token_requires_secret_key(monkeypatch):
+    """A missing DASHBOARD_SECRET_KEY must produce a clear error, not a jose traceback."""
+    import pytest
+    from src.dashboard import auth as dashboard_auth
+
+    monkeypatch.delenv("DASHBOARD_SECRET_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="DASHBOARD_SECRET_KEY"):
+        dashboard_auth.create_access_token({"sub": "admin"})
+
+
+def test_create_access_token_works_when_secret_set(monkeypatch):
+    """With the env var present, token creation succeeds."""
+    from src.dashboard import auth as dashboard_auth
+
+    monkeypatch.setenv("DASHBOARD_SECRET_KEY", "unit-test-secret")
+    token = dashboard_auth.create_access_token({"sub": "admin"})
+    assert isinstance(token, str) and token
 
