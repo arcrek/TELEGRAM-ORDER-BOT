@@ -18,6 +18,7 @@ from src.bot.messages.order_confirmation_formatter import OrderConfirmationForma
 from src.bot.states.state_manager import StateManager
 from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
+from src.bot.utils.user_locks import get_user_lock
 
 logger = logging.getLogger(__name__)
 
@@ -1416,12 +1417,14 @@ async def _create_qr_for_order(
 async def handle_pay_with_qr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Callback: pay_qr_{order_id} — user chose to pay via QR transfer.
-    Delegates to _create_qr_for_order.
+    Delegates to _create_qr_for_order. Serialized per user to prevent
+    double-tap creating duplicate payment links.
     """
     query = update.callback_query
     await query.answer()
     order_id = query.data.replace("pay_qr_", "")
-    await _create_qr_for_order(order_id, update, context, reply_to_query=query)
+    async with get_user_lock(query.from_user.id):
+        await _create_qr_for_order(order_id, update, context, reply_to_query=query)
 
 
 async def handle_pay_with_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1429,13 +1432,20 @@ async def handle_pay_with_balance(update: Update, context: ContextTypes.DEFAULT_
     Callback: pay_balance_{order_id} — user chose to pay using wallet balance.
     Calls BalanceService.pay_order_with_balance atomically, then triggers
     fulfillment via IPNOrderProcessor.process_balance_paid_order.
+    Serialized per user to prevent double-tap races.
     """
-    import asyncio as _asyncio
-
     query = update.callback_query
     await query.answer()
     user_id = query.from_user.id
     order_id = query.data.replace("pay_balance_", "")
+
+    async with get_user_lock(user_id):
+        await _pay_with_balance_locked(update, context, query, user_id, order_id)
+
+
+async def _pay_with_balance_locked(update, context, query, user_id, order_id) -> None:
+    """Body of handle_pay_with_balance, run under the per-user lock."""
+    import asyncio as _asyncio
 
     from src.bot.utils.language import t as _t
     from src.database.services.balance_service import BalanceService
