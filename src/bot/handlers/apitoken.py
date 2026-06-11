@@ -68,6 +68,39 @@ def _api_menu_text(update: Update, token: str | None) -> str:
 # /apitoken command
 # ---------------------------------------------------------------------------
 
+async def api_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /api — show the API token management menu."""
+    if not update.effective_user or not update.message:
+        return
+
+    user_id = update.effective_user.id
+
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        svc = BotUserService(session)
+        bot_user = svc.get_user_by_telegram_id(user_id)
+        if not bot_user:
+            await update.message.reply_text(
+                t("apitoken.user_not_found", update),
+                parse_mode=ParseMode.HTML,
+            )
+            return
+
+        token = bot_user.api_token
+        text = _api_menu_text(update, token)
+        keyboard = _api_menu_keyboard(update, has_token=bool(token))
+        await update.message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
+    except Exception as exc:
+        logger.error("Error showing API menu for user %s: %s", user_id, exc, exc_info=True)
+        await update.message.reply_text(
+            t("api_menu.error", update),
+            parse_mode=ParseMode.HTML,
+        )
+    finally:
+        session.close()
+
+
 async def apitoken_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle /apitoken — generate or regenerate an API token for the calling user."""
     if not update.effective_user or not update.message:

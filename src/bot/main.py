@@ -59,6 +59,7 @@ from src.bot.handlers.balance import (
 )
 from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
 from src.bot.handlers.apitoken import (
+    api_command,
     apitoken_command,
     handle_api_menu,
     handle_api_create,
@@ -108,6 +109,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("setadmin", setadmin_command))
     application.add_handler(CommandHandler("top", handle_top_buyers_button))
     application.add_handler(CommandHandler("doanhthu", doanhthu_command))
+    application.add_handler(CommandHandler("api", api_command))
     application.add_handler(CommandHandler("apitoken", apitoken_command))
 
     # Register admin notification commands

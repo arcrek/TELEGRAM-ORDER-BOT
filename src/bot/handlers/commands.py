@@ -467,11 +467,14 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     top_buyers_text = t("buttons.top_buyers", update)
 
     # Also check common variations (in case user switched language)
+    api_text = t("start_menu.api_button", update)
+
     products_variations = {products_text, "🛒 Products", "🛒 Sản phẩm", "Products", "Sản phẩm"}
     language_variations = {language_text, "🌐 Language", "🌐 Ngôn ngữ", "Language", "Ngôn ngữ"}
     order_history_variations = {order_history_text, "📋 Order History", "📋 Đơn hàng đã mua"}
     balance_variations = {balance_text, "💰 Balance", "💰 Số dư"}
     top_buyers_variations = {top_buyers_text, "🏆 Top buyers today", "🏆 Top mua hôm nay"}
+    api_variations = {api_text, "🔑 API"}
 
     if message_text in products_variations:
         await products_command(update, context)
@@ -492,6 +495,11 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
 
     if message_text in top_buyers_variations:
         await handle_top_buyers_button(update, context)
+        return
+
+    if message_text in api_variations:
+        from src.bot.handlers.apitoken import api_command
+        await api_command(update, context)
         return
 
 
