@@ -13,16 +13,18 @@ logger = logging.getLogger(__name__)
 class AutoCancelTask:
     """Background task for auto-cancelling unpaid orders."""
 
-    def __init__(self, bot_instance=None, interval_minutes: int = 1):
+    def __init__(self, bot_instance=None, interval_minutes: int = 1, main_loop=None):
         """
         Initialize auto-cancel task.
 
         Args:
             bot_instance: Telegram bot instance for sending notifications
             interval_minutes: How often to check (default: 1 minute for 1-min warning accuracy)
+            main_loop: Optional asyncio loop the bot runs on
         """
         self.bot = bot_instance
         self.interval_minutes = interval_minutes
+        self.main_loop = main_loop
         self.scheduler = BackgroundScheduler()
         # In-memory sets to prevent duplicate warnings within a process lifetime.
         self._warned_order_ids: set = set()
@@ -34,7 +36,9 @@ class AutoCancelTask:
         session = session_factory()
 
         try:
-            auto_cancel_service = AutoCancelService(session, bot_instance=self.bot)
+            auto_cancel_service = AutoCancelService(
+                session, bot_instance=self.bot, main_loop=self.main_loop
+            )
 
             # Send 1-minute warnings before expiry.
             warn_results = auto_cancel_service.process_expiring_soon(

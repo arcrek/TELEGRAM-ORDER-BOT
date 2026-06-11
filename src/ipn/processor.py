@@ -91,6 +91,23 @@ def run_async(coro):
         raise
 
 
+# Per-order fulfillment locks. The same order id may arrive on two webhook
+# threads (gateway retry or near-simultaneous callbacks); these serialize the
+# read-status -> deliver -> mark-delivered critical section so a duplicate IPN
+# cannot trigger a second delivery.
+_order_locks_guard = threading.Lock()
+_order_locks: dict[str, threading.Lock] = {}
+
+
+def _get_order_lock(order_id: str) -> threading.Lock:
+    with _order_locks_guard:
+        lock = _order_locks.get(order_id)
+        if lock is None:
+            lock = threading.Lock()
+            _order_locks[order_id] = lock
+        return lock
+
+
 # Global state manager instance
 state_manager = StateManager()
 
@@ -166,46 +183,58 @@ class IPNOrderProcessor:
             order_service = OrderService(session)
             delivery_service = DeliveryService(session)
 
-            # Get order
-            order = order_service.get_order_by_id(order_id)
-            if not order:
-                logger.error(f"Order {order_id} not found in database")
-                return False
+            # Serialize fulfillment for this order id across webhook threads.
+            with _get_order_lock(order_id):
+                # Get order (fresh read inside the lock)
+                order = order_service.get_order_by_id(order_id)
+                if not order:
+                    logger.error(f"Order {order_id} not found in database")
+                    return False
 
-            logger.info(f"Found order: user_id={order.user_id}, status={order.status}, total={order.total_amount}")
+                logger.info(
+                    f"Found order: user_id={order.user_id}, status={order.status}, "
+                    f"total={order.total_amount}"
+                )
 
-            # Check if order is already delivered to prevent duplicate deliveries
-            if order.status == OrderStatus.DELIVERED:
-                logger.warning(f"Order {order_id} is already DELIVERED. Skipping duplicate delivery.")
-                return True  # Return True because order was already processed successfully
+                # Already delivered (possibly by a concurrent IPN that won the lock)
+                if order.status == OrderStatus.DELIVERED:
+                    logger.warning(
+                        f"Order {order_id} already DELIVERED. Skipping duplicate delivery."
+                    )
+                    return True
 
-            # Validate amount: IPN amount must match order total
-            if amount != order.total_amount:
-                logger.error(f"Amount mismatch! IPN amount: {amount}, Order total: {order.total_amount}. Skipping delivery.")
-                return False
+                # Validate amount: IPN amount must match order total
+                if amount != order.total_amount:
+                    logger.error(
+                        f"Amount mismatch! IPN amount: {amount}, "
+                        f"Order total: {order.total_amount}. Skipping delivery."
+                    )
+                    return False
 
-            logger.info(f"Amount validated: IPN amount ({amount}) matches order total ({order.total_amount})")
+                logger.info(
+                    f"Amount validated: IPN amount ({amount}) matches order total "
+                    f"({order.total_amount})"
+                )
 
-            # Check if order is already paid (duplicate IPN)
-            if order.status == OrderStatus.PAID:
-                logger.warning(f"Order {order_id} is already PAID but not delivered. Will attempt delivery.")
+                if order.status == OrderStatus.PAID:
+                    logger.warning(
+                        f"Order {order_id} already PAID but not delivered. "
+                        f"Attempting delivery under lock."
+                    )
 
-            # Update order status to PAID
-            order_service.update_order_status(
-                order_id=order_id,
-                status=OrderStatus.PAID,
-                payment_transaction_id=transaction_id,
-            )
+                # Update order status to PAID
+                order_service.update_order_status(
+                    order_id=order_id,
+                    status=OrderStatus.PAID,
+                    payment_transaction_id=transaction_id,
+                )
 
-            # ORDER_PAID notification is sent after delivery (in _handle_pre_uploaded_delivery)
-            # so that it can include the actual delivery data.
+                # Process the order (determine delivery type and trigger delivery)
+                if not delivery_service.process_paid_order(order_id):
+                    logger.error(f"Failed to process order {order_id}")
+                    return False
 
-            # Process the order (determine delivery type and trigger delivery)
-            if not delivery_service.process_paid_order(order_id):
-                logger.error(f"Failed to process order {order_id}")
-                return False
-
-            return self._run_fulfillment(session, order)
+                return self._run_fulfillment(session, order)
 
         except Exception as e:
             logger.error(f"Error processing payment success: {str(e)}", exc_info=True)

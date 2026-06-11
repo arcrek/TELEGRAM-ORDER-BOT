@@ -24,6 +24,21 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 1 day (24 hours * 60 minutes)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 
+def _require_secret_key() -> str:
+    """Return the JWT secret, raising a clear error if it is not configured.
+
+    Read lazily (not at import) so tests and runtime can set the env var
+    before the first auth operation.
+    """
+    key = os.getenv("DASHBOARD_SECRET_KEY")
+    if not key:
+        raise RuntimeError(
+            "DASHBOARD_SECRET_KEY environment variable must be set "
+            "(JWT signing key). Refusing to sign or verify tokens without it."
+        )
+    return key
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verify a password against its hash.
@@ -117,7 +132,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, _require_secret_key(), algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -145,7 +160,7 @@ def get_current_admin(
     )
     
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _require_secret_key(), algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception

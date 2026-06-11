@@ -26,17 +26,32 @@ state_manager = StateManager()
 class AutoCancelService:
     """Service for automatically cancelling unpaid orders."""
     
-    def __init__(self, session: Session, bot_instance=None):
+    def __init__(self, session: Session, bot_instance=None, main_loop=None):
         """
         Initialize auto-cancel service.
-        
+
         Args:
             session: Database session
-            bot_instance: Optional Telegram bot instance for sending notifications
+            bot_instance: Optional Telegram bot instance for notifications
+            main_loop: Optional asyncio loop the bot runs on; coroutines are
+                scheduled onto it instead of a throwaway loop in this thread.
         """
         self.session = session
         self.bot = bot_instance
+        self.main_loop = main_loop
         self.order_service = OrderService(session)
+
+    def _run_coro(self, coro):
+        """Run a bot coroutine from this (non-async) scheduler thread.
+
+        Prefers scheduling onto the bot's main loop (where its httpx client
+        lives); falls back to asyncio.run only when no running loop is set.
+        """
+        loop = self.main_loop
+        if loop is not None and loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            return future.result(timeout=30)
+        return asyncio.run(coro)
     
     def find_expired_pending_orders(self, minutes: int = 10) -> List[Order]:
         """
@@ -121,7 +136,7 @@ class AutoCancelService:
                 user_state = state_manager.get_user_state(cancelled_order.user_id)
                 if user_state and user_state.payment_message_id:
                     try:
-                        asyncio.run(self.bot.delete_message(
+                        self._run_coro(self.bot.delete_message(
                             chat_id=cancelled_order.user_id,
                             message_id=user_state.payment_message_id
                         ))
@@ -141,7 +156,7 @@ class AutoCancelService:
                         f"Your order was automatically cancelled because payment was not completed within 10 minutes.\n"
                         f"You can place a new order anytime."
                     )
-                    asyncio.run(self.bot.send_message(
+                    self._run_coro(self.bot.send_message(
                         chat_id=cancelled_order.user_id,
                         text=notification_message
                     ))
@@ -281,7 +296,7 @@ class AutoCancelService:
                         f"Yêu cầu nạp tiền đã bị huỷ do không hoàn tất thanh toán trong 10 phút.\n"
                         f"Bạn có thể nạp tiền lại bất cứ lúc nào."
                     )
-                    asyncio.run(self.bot.send_message(
+                    self._run_coro(self.bot.send_message(
                         chat_id=topup.user_id,
                         text=notification_message,
                     ))
@@ -375,7 +390,7 @@ class AutoCancelService:
                 f"Bạn còn 1 phút để hoàn tất thanh toán. "
                 f"Đơn hàng sẽ tự động bị huỷ nếu không thanh toán."
             )
-            asyncio.run(self.bot.send_message(chat_id=order.user_id, text=message))
+            self._run_coro(self.bot.send_message(chat_id=order.user_id, text=message))
             logger.info(f"Sent expiry warning for order {order.id} to user {order.user_id}")
             return True
         except Exception as e:
@@ -394,7 +409,7 @@ class AutoCancelService:
                 f"Bạn còn 1 phút để hoàn tất thanh toán. "
                 f"Yêu cầu nạp tiền sẽ tự động bị huỷ nếu không thanh toán."
             )
-            asyncio.run(self.bot.send_message(chat_id=topup.user_id, text=message))
+            self._run_coro(self.bot.send_message(chat_id=topup.user_id, text=message))
             logger.info(f"Sent expiry warning for topup {topup.id} to user {topup.user_id}")
             return True
         except Exception as e:

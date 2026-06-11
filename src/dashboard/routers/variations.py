@@ -6,7 +6,7 @@ from typing import Optional, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, field_validator, model_validator
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, require_admin_role, get_db
 from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
 
@@ -187,7 +187,7 @@ async def get_variation(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_variation(
     variation_data: VariationCreate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -250,7 +250,7 @@ async def create_variation(
 async def update_variation(
     variation_id: str,
     variation_data: VariationUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -324,7 +324,7 @@ async def update_variation(
 @router.put("/bulk/stock")
 async def bulk_update_stock(
     bulk_data: BulkStockUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -371,7 +371,7 @@ async def bulk_update_stock(
 async def update_stock(
     variation_id: str,
     stock_data: StockUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -419,7 +419,7 @@ async def update_stock(
 @router.delete("/{variation_id}")
 async def delete_variation(
     variation_id: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -450,7 +450,7 @@ async def delete_variation(
 @router.put("/bulk/activate")
 async def bulk_activate_variations(
     bulk_data: BulkVariationOperation,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -487,7 +487,7 @@ async def bulk_activate_variations(
 @router.put("/bulk/deactivate")
 async def bulk_deactivate_variations(
     bulk_data: BulkVariationOperation,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -524,7 +524,7 @@ async def bulk_deactivate_variations(
 @router.post("/bulk/delete")
 async def bulk_delete_variations(
     bulk_data: BulkVariationOperation,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """

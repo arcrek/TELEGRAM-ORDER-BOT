@@ -6,7 +6,7 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, require_admin_role, get_db
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
@@ -304,7 +304,7 @@ async def get_pre_uploaded_statistics(
 @router.post("/pre-uploaded-products/delete-by-date")
 async def delete_pre_uploaded_by_date(
     request: DeleteByDateRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -345,7 +345,7 @@ async def delete_pre_uploaded_by_date(
 async def mark_product_as_used(
     product_id: str,
     order_id: Optional[str] = None,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -393,7 +393,7 @@ async def mark_product_as_used(
 @router.put("/pre-uploaded-products/{product_id}/mark-unused")
 async def mark_product_as_unused(
     product_id: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -438,7 +438,7 @@ async def mark_product_as_unused(
 @router.delete("/pre-uploaded-products/{product_id}")
 async def delete_pre_uploaded_product(
     product_id: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -466,7 +466,7 @@ async def delete_pre_uploaded_product(
 @router.post("/pre-uploaded-products/bulk-delete")
 async def bulk_delete_pre_uploaded_products(
     request: BulkDeleteRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """

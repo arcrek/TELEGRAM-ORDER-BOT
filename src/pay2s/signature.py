@@ -118,8 +118,8 @@ def verify_ipn_signature(ipn_data, secret_key):
             secret_key=secret_key
         )
         
-        # Verify signature
-        is_valid = received_signature == partner_signature
+        # Verify signature (timing-safe; received value is attacker-controlled)
+        is_valid = hmac.compare_digest(str(received_signature), str(partner_signature))
         
         debug_info = {
             'rawHash': f"accessKey={access_key}&amount={amount}&extraData={extra_data}&message={message}&orderId={order_id}&orderInfo={order_info}&orderType={order_type}&partnerCode={partner_code}&payType={pay_type}&requestId={request_id}&responseTime={response_time}&resultCode={result_code}&transId={trans_id}",

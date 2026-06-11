@@ -602,3 +602,79 @@ def test_bulk_delete_variations_partial_failure(client, auth_token, sample_produ
     assert data["success"] == 1
     assert data["failed"] == 1
     assert len(data["errors"]) == 1
+
+
+# --- Role-enforcement tests ---
+
+@pytest.fixture
+def test_viewer(test_db: Session):
+    """Create a viewer-role admin user."""
+    viewer = Admin(
+        id="viewer_1",
+        username="testviewer",
+        email="viewer@example.com",
+        password_hash=get_password_hash("testpass123"),
+        full_name="Test Viewer",
+        role=AdminRole.VIEWER,
+        is_active=True,
+    )
+    test_db.add(viewer)
+    test_db.commit()
+    return viewer
+
+
+@pytest.fixture
+def viewer_token(test_viewer: Admin):
+    """Create auth token for the viewer-role admin."""
+    return create_access_token(data={"sub": test_viewer.username})
+
+
+@pytest.fixture
+def admin_token(test_admin: Admin):
+    """Alias for auth_token — explicit admin-role token."""
+    return create_access_token(data={"sub": test_admin.username})
+
+
+@pytest.fixture
+def sample_product(test_db: Session):
+    """Create a single sample product."""
+    product = Product(
+        id="prod_role_test",
+        name="Role Test Product",
+        description="Used for role enforcement tests",
+        delivery_type=DeliveryType.PRE_UPLOADED,
+        is_active=True,
+    )
+    test_db.add(product)
+    test_db.commit()
+    return product
+
+
+def test_viewer_cannot_create_variation(client, viewer_token, sample_product):
+    """A viewer-role token must be forbidden from creating a variation."""
+    resp = client.post(
+        "/api/variations/",
+        headers={"Authorization": f"Bearer {viewer_token}"},
+        json={
+            "product_id": sample_product.id,
+            "name": "Should Fail",
+            "price": 1000,
+            "stock": 1,
+        },
+    )
+    assert resp.status_code == 403
+
+
+def test_admin_can_create_variation(client, admin_token, sample_product):
+    """An admin-role token is allowed (not 403)."""
+    resp = client.post(
+        "/api/variations/",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={
+            "product_id": sample_product.id,
+            "name": "Allowed Variation",
+            "price": 1000,
+            "stock": 1,
+        },
+    )
+    assert resp.status_code != 403
