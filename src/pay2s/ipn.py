@@ -115,12 +115,9 @@ def create_ipn_app(secret_key, process_transaction_callback=None):
             logger.info(f"Partner signature: {partner_signature[:20]}...")
             
             if not is_valid:
-                logger.error(f"Invalid signature!")
+                logger.error("Invalid IPN signature — rejecting request")
                 logger.error(f"Raw Hash used: {debug_info.get('rawHash')}")
-                # Still return success to avoid Pay2S retrying (log the issue for debugging)
-                logger.warning("Returning success despite invalid signature to prevent retries")
-                # Uncomment below to reject invalid signatures:
-                # return jsonify({"success": False, "message": "Invalid signature"}), 400
+                return jsonify({"success": False, "message": "Invalid signature"}), 400
             
             logger.info("Processing transaction...")
             
