@@ -55,7 +55,28 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware - configure with environment variable
-allowed_origins = os.getenv("CORS_ORIGINS", "*").split(",")
+def resolve_cors_origins(raw: str | None) -> list[str]:
+    """Parse CORS_ORIGINS into an explicit allow-list.
+
+    Wildcard is refused because the app sends credentials (cookies/Authorization),
+    and `*` + credentials is both insecure and rejected by browsers.
+    """
+    if raw is None or not raw.strip():
+        logging.getLogger(__name__).warning(
+            "CORS_ORIGINS not set; defaulting to localhost dev origins. "
+            "Set CORS_ORIGINS explicitly in production."
+        )
+        return ["http://localhost:5173", "http://localhost:3000"]
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    if "*" in origins:
+        raise ValueError(
+            "CORS_ORIGINS must list explicit origins; '*' is not allowed "
+            "because the API uses credentialed requests."
+        )
+    return origins
+
+
+allowed_origins = resolve_cors_origins(os.getenv("CORS_ORIGINS"))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
