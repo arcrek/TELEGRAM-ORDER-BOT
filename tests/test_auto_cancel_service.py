@@ -266,3 +266,41 @@ class TestAutoCancelService:
         paid_order = db_session.query(Order).filter_by(id="order_paid").first()
         assert paid_order.status == OrderStatus.PAID
 
+
+def test_run_coro_falls_back_without_main_loop():
+    """With no main loop set, the helper still runs the coroutine (test/back-compat path)."""
+    from src.database.services.auto_cancel_service import AutoCancelService
+
+    svc = AutoCancelService(session=None, bot_instance=None)
+    ran = {"value": False}
+
+    async def _coro():
+        ran["value"] = True
+
+    svc._run_coro(_coro())
+    assert ran["value"] is True
+
+
+def test_run_coro_uses_main_loop_when_running():
+    """When a running main loop is provided, the helper schedules onto it."""
+    import asyncio
+    import threading
+    from src.database.services.auto_cancel_service import AutoCancelService
+
+    loop = asyncio.new_event_loop()
+    t = threading.Thread(target=loop.run_forever, daemon=True)
+    t.start()
+    try:
+        svc = AutoCancelService(session=None, bot_instance=None, main_loop=loop)
+        seen = {"loop": None}
+
+        async def _coro():
+            seen["loop"] = asyncio.get_running_loop()
+
+        svc._run_coro(_coro())
+        assert seen["loop"] is loop
+    finally:
+        loop.call_soon_threadsafe(loop.stop)
+        t.join(timeout=2)
+        loop.close()
+

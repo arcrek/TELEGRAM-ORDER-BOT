@@ -260,10 +260,17 @@ def main():
     set_shared_bot_instance(bot)
     logger.info("Bot instance set for dashboard access")
 
-    # Start auto-cancel task
+    # Start auto-cancel task once the bot's event loop is running, so the task
+    # can schedule notification coroutines onto that loop (not a throwaway one).
     auto_cancel_task = AutoCancelTask(bot_instance=bot, interval_minutes=5)
-    auto_cancel_task.start()
-    logger.info("Auto-cancel task started")
+
+    async def _start_auto_cancel(_application) -> None:
+        import asyncio
+        auto_cancel_task.main_loop = asyncio.get_running_loop()
+        auto_cancel_task.start()
+        logger.info("Auto-cancel task started (bound to bot event loop)")
+
+    application.post_init = _start_auto_cancel
 
     try:
         # Start the bot
