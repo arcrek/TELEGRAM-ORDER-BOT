@@ -1,11 +1,12 @@
 """
 Pre-uploaded product management router.
 """
+
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from src.dashboard.auth import get_current_admin, require_admin_role, get_db
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
@@ -22,6 +23,7 @@ router = APIRouter()
 
 class PreUploadedProductResponse(BaseModel):
     """Pre-uploaded product response schema."""
+
     id: str
     product_id: str
     product_name: str
@@ -39,16 +41,35 @@ class PreUploadedProductResponse(BaseModel):
 
 class BulkDeleteRequest(BaseModel):
     """Request schema for bulk deleting pre-uploaded products."""
+
     ids: list[str]
 
 
 class DeleteByDateRequest(BaseModel):
     """Request schema for deleting unsold stock by upload date range."""
+
     product_id: Optional[str] = None
     variation_id: Optional[str] = None
     uploaded_from: Optional[str] = None
     uploaded_to: Optional[str] = None
     dry_run: bool = False
+
+
+class ExportRequest(BaseModel):
+    """Request schema for exporting (marking sold) available pre-uploaded stock."""
+
+    product_id: str
+    variation_id: str
+    amount: int = Field(gt=0, le=1000)
+
+
+class ExportResponse(BaseModel):
+    """Response schema for the export endpoint."""
+
+    requested: int
+    exported: int
+    short: bool  # True when exported < requested
+    data: List[str]  # raw product_data strings, oldest-first
 
 
 def _parse_date(raw: str, field: str) -> datetime:
@@ -195,13 +216,20 @@ async def list_pre_uploaded_products(
     aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]] = Query(None),
     data_search: Optional[str] = Query(None),
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """List pre-uploaded products with filters."""
     query = db.query(PreUploadedProduct)
     query = _apply_common_filters(
-        query, db, product_id, variation_id, is_used,
-        uploaded_from, uploaded_to, aging_status, data_search,
+        query,
+        db,
+        product_id,
+        variation_id,
+        is_used,
+        uploaded_from,
+        uploaded_to,
+        aging_status,
+        data_search,
     )
 
     total = query.count()
@@ -214,18 +242,20 @@ async def list_pre_uploaded_products(
         product = db.query(Product).filter_by(id=p.product_id).first()
         variation = db.query(ProductVariation).filter_by(id=p.variation_id).first()
 
-        result.append({
-            "id": p.id,
-            "product_id": p.product_id,
-            "product_name": product.name if product else "Unknown",
-            "variation_id": p.variation_id,
-            "variation_name": variation.name if variation else "Unknown",
-            "product_data": p.product_data,
-            "is_used": p.is_used,
-            "used_at": p.used_at.isoformat() if p.used_at else None,
-            "used_by_order_id": p.used_by_order_id,
-            "created_at": p.created_at.isoformat(),
-        })
+        result.append(
+            {
+                "id": p.id,
+                "product_id": p.product_id,
+                "product_name": product.name if product else "Unknown",
+                "variation_id": p.variation_id,
+                "variation_name": variation.name if variation else "Unknown",
+                "product_data": p.product_data,
+                "is_used": p.is_used,
+                "used_at": p.used_at.isoformat() if p.used_at else None,
+                "used_by_order_id": p.used_by_order_id,
+                "created_at": p.created_at.isoformat(),
+            }
+        )
 
     return {
         "items": result,
@@ -238,8 +268,7 @@ async def list_pre_uploaded_products(
 
 @router.get("/pre-uploaded-products/inventory-stats")
 async def get_inventory_stats(
-    current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    current_admin=Depends(get_current_admin), db: Session = Depends(get_db)
 ):
     """
     Get per-variant inventory statistics for all PRE_UPLOADED products.
@@ -261,13 +290,19 @@ async def get_pre_uploaded_statistics(
     uploaded_to: Optional[str] = Query(None),
     aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]] = Query(None),
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """Get pre-uploaded product statistics, scoped to active filters."""
     base = db.query(PreUploadedProduct)
     base = _apply_common_filters(
-        base, db, product_id, variation_id, is_used,
-        uploaded_from, uploaded_to, aging_status,
+        base,
+        db,
+        product_id,
+        variation_id,
+        is_used,
+        uploaded_from,
+        uploaded_to,
+        aging_status,
     )
 
     total = base.count()
@@ -279,9 +314,16 @@ async def get_pre_uploaded_statistics(
     by_product = {}
     for product in products:
         prod_query = _apply_common_filters(
-            db.query(PreUploadedProduct).filter(PreUploadedProduct.product_id == product.id),
-            db, None, variation_id, is_used,
-            uploaded_from, uploaded_to, aging_status,
+            db.query(PreUploadedProduct).filter(
+                PreUploadedProduct.product_id == product.id
+            ),
+            db,
+            None,
+            variation_id,
+            is_used,
+            uploaded_from,
+            uploaded_to,
+            aging_status,
         )
         count = prod_query.count()
         if count > 0:
@@ -290,7 +332,9 @@ async def get_pre_uploaded_statistics(
                 "product_name": product.name,
                 "total": count,
                 "used": prod_query.filter(PreUploadedProduct.is_used.is_(True)).count(),
-                "available": prod_query.filter(PreUploadedProduct.is_used.is_(False)).count(),
+                "available": prod_query.filter(
+                    PreUploadedProduct.is_used.is_(False)
+                ).count(),
             }
 
     return {
@@ -301,11 +345,45 @@ async def get_pre_uploaded_statistics(
     }
 
 
+@router.post("/pre-uploaded-products/export", response_model=ExportResponse)
+async def export_pre_uploaded_products(
+    request: ExportRequest,
+    current_admin=Depends(require_admin_role),
+    db: Session = Depends(get_db),
+):
+    """
+    Atomically mark up to `amount` available rows as sold and return their data.
+
+    Exported rows are distinguishable from order-fulfilled rows: is_used=True but
+    used_by_order_id=NULL.  Short stock (fewer available than requested) is returned
+    as a partial export with short=True — never a hard error.
+    Zero available → exported=0, short=True (not an HTTP error).
+    """
+    # Validate variation belongs to the requested product
+    variation = db.query(ProductVariation).filter_by(id=request.variation_id).first()
+    if not variation or variation.product_id != request.product_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Variation does not belong to the specified product",
+        )
+
+    rows = PreUploadedService(db).export_available_products(
+        request.product_id, request.variation_id, request.amount
+    )
+    data = [r.product_data for r in rows]
+    return ExportResponse(
+        requested=request.amount,
+        exported=len(rows),
+        short=len(rows) < request.amount,
+        data=data,
+    )
+
+
 @router.post("/pre-uploaded-products/delete-by-date")
 async def delete_pre_uploaded_by_date(
     request: DeleteByDateRequest,
     current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Preview or delete unsold pre-uploaded stock matching an upload date range.
@@ -346,7 +424,7 @@ async def mark_product_as_used(
     product_id: str,
     order_id: Optional[str] = None,
     current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Mark a pre-uploaded product as used (sold).
@@ -366,7 +444,7 @@ async def mark_product_as_used(
         if not product:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Pre-uploaded product {product_id} not found"
+                detail=f"Pre-uploaded product {product_id} not found",
             )
         # Manual override: mark as sold without linking to an order
         product.is_used = True
@@ -379,7 +457,7 @@ async def mark_product_as_used(
         if not product:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Pre-uploaded product {product_id} not found or already used"
+                detail=f"Pre-uploaded product {product_id} not found or already used",
             )
 
     return {
@@ -394,7 +472,7 @@ async def mark_product_as_used(
 async def mark_product_as_unused(
     product_id: str,
     current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Mark a pre-uploaded product as unused.
@@ -409,7 +487,7 @@ async def mark_product_as_unused(
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pre-uploaded product {product_id} not found"
+            detail=f"Pre-uploaded product {product_id} not found",
         )
 
     # Prevent making a sold item available again.
@@ -417,7 +495,7 @@ async def mark_product_as_unused(
     if product.used_by_order_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot mark product {product_id} as available because it was sold in order {product.used_by_order_id}"
+            detail=f"Cannot mark product {product_id} as available because it was sold in order {product.used_by_order_id}",
         )
 
     product.is_used = False
@@ -439,7 +517,7 @@ async def mark_product_as_unused(
 async def delete_pre_uploaded_product(
     product_id: str,
     current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Delete a pre-uploaded product permanently.
@@ -454,7 +532,7 @@ async def delete_pre_uploaded_product(
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pre-uploaded product {product_id} not found"
+            detail=f"Pre-uploaded product {product_id} not found",
         )
 
     db.delete(product)
@@ -467,7 +545,7 @@ async def delete_pre_uploaded_product(
 async def bulk_delete_pre_uploaded_products(
     request: BulkDeleteRequest,
     current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Bulk delete pre-uploaded products permanently.

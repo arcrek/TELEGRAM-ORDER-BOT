@@ -28,6 +28,19 @@ function extractProductData(raw: string): string {
   } catch { return raw }
 }
 
+function downloadTxt(lines: string[], filename: string): void {
+  const content = lines.join('\n')
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 interface PreUploadedProduct {
   id: string
   product_id: string
@@ -51,6 +64,13 @@ interface Statistics {
 interface VariationOption {
   id: string
   name: string
+}
+
+interface ExportResponse {
+  requested: number
+  exported: number
+  short: boolean
+  data: string[]
 }
 
 // ── DeleteByDateModal ─────────────────────────────────────────────────────────
@@ -220,6 +240,202 @@ function DeleteByDateModal({ open, onClose, onDeleted, productOptions }: DeleteB
   )
 }
 
+// ── ExportModal ───────────────────────────────────────────────────────────────
+
+interface ExportModalProps {
+  open: boolean
+  onClose: () => void
+  onExported: () => void
+  productOptions: { value: string; label: string }[]
+}
+
+function ExportModal({ open, onClose, onExported, productOptions }: ExportModalProps) {
+  const { t } = useTranslation()
+  const { toast } = useToast()
+
+  const [productId, setProductId] = useState<string | null>(null)
+  const [variationId, setVariationId] = useState<string | null>(null)
+  const [variations, setVariations] = useState<VariationOption[]>([])
+  const [amount, setAmount] = useState<number>(1)
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<ExportResponse | null>(null)
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setProductId(null)
+      setVariationId(null)
+      setVariations([])
+      setAmount(1)
+      setSubmitting(false)
+      setResult(null)
+    }
+  }, [open])
+
+  // Fetch variations when product changes
+  useEffect(() => {
+    if (!productId) { setVariations([]); setVariationId(null); return }
+    apiClient
+      .get<{ items: { product_id: string; product_name: string; variations: VariationOption[] }[] }>(
+        '/api/variations',
+        { params: { product_id: productId } },
+      )
+      .then(res => {
+        const flat: VariationOption[] = []
+        for (const group of res.data.items) flat.push(...group.variations)
+        setVariations(flat)
+        setVariationId(null)
+      })
+      .catch(() => setVariations([]))
+  }, [productId])
+
+  const handleExport = async () => {
+    if (!productId || !variationId || amount <= 0) return
+    setSubmitting(true)
+    try {
+      const res = await apiClient.post<ExportResponse>('/api/pre-uploaded-products/export', {
+        product_id: productId,
+        variation_id: variationId,
+        amount,
+      })
+      const data = res.data
+      setResult(data)
+      if (data.exported === 0) {
+        toast.info(t('preUploaded.exportNone', 'Không có hàng để xuất'))
+      } else if (data.short) {
+        toast.warning(
+          t('preUploaded.exportShort', `Chỉ xuất được ${data.exported}/${data.requested} mục`, {
+            exported: data.exported,
+            requested: data.requested,
+          }),
+        )
+      } else {
+        toast.success(
+          t('preUploaded.exportSuccess', `Đã xuất ${data.exported} mục`, { count: data.exported }),
+        )
+      }
+      onExported()
+    } catch (err) {
+      toast.error(formatApiError(err, t('preUploaded.exportError', 'Không thể xuất kho hàng')))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const variationOpts = variations.map(v => ({ value: v.id, label: v.name }))
+  const submitDisabled = !productId || !variationId || amount <= 0 || submitting
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('preUploaded.exportTitle', 'Xuất kho hàng')}
+      description={t('preUploaded.exportDesc', 'Đánh dấu hàng là đã bán và tải về file .txt')}
+      size="sm"
+      footer={
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Button variant="secondary" tone="subtle" size="sm" onClick={onClose}>
+            {t('common.cancel', 'Huỷ')}
+          </Button>
+          {result && result.data.length > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              iconLeft={<Download size={13} />}
+              onClick={() =>
+                downloadTxt(
+                  result.data.map(extractProductData),
+                  `export_${new Date().toISOString().slice(0, 10)}.txt`,
+                )
+              }
+            >
+              {t('preUploaded.exportDownload', 'Tải xuống .txt')}
+            </Button>
+          )}
+          {!result && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleExport}
+              disabled={submitDisabled}
+              loading={submitting}
+            >
+              {t('preUploaded.exportConfirm', 'Xuất')}
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {!result ? (
+          <>
+            <Select
+              options={productOptions}
+              value={productId}
+              onChange={v => { setProductId(v); setVariationId(null) }}
+              placeholder={t('preUploaded.allProducts', 'Tất cả sản phẩm')}
+              clearable
+              searchable
+              size="sm"
+            />
+            <Select
+              options={variationOpts}
+              value={variationId}
+              onChange={setVariationId}
+              placeholder={t('preUploaded.filterVariation', 'Tất cả phân loại')}
+              clearable
+              size="sm"
+              disabled={!productId}
+            />
+            <Input
+              type="number"
+              value={String(amount)}
+              onChange={e => {
+                const v = parseInt(e.target.value, 10)
+                if (!isNaN(v)) setAmount(v)
+              }}
+              placeholder={t('preUploaded.exportAmount', 'Số lượng')}
+              size="sm"
+            />
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div
+              style={{
+                fontSize: 13,
+                color: result.short ? 'var(--color-warning)' : 'var(--text-muted)',
+              }}
+            >
+              {t('preUploaded.exportResult', `Đã xuất ${result.exported}/${result.requested} mục`, {
+                exported: result.exported,
+                requested: result.requested,
+              })}
+            </div>
+            {result.data.length > 0 && (
+              <pre
+                style={{
+                  maxHeight: 240,
+                  overflowY: 'auto',
+                  background: 'var(--surface-subtle, #111)',
+                  borderRadius: 6,
+                  padding: '8px 10px',
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  margin: 0,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {result.data.map(extractProductData).join('\n')}
+              </pre>
+            )}
+          </div>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 // ── InventoryPage ─────────────────────────────────────────────────────────────
 
 export function InventoryPage() {
@@ -264,6 +480,7 @@ export function InventoryPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [filterVariations, setFilterVariations] = useState<VariationOption[]>([])
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [exportModalOpen, setExportModalOpen] = useState(false)
 
   // Fetch variation options when product filter changes
   useEffect(() => {
@@ -379,16 +596,10 @@ export function InventoryPage() {
 
   const handleDownloadSelected = () => {
     const selected = products.filter(p => selectedKeys.has(p.id))
-    const content = selected.map(p => extractProductData(p.product_data)).join('\n')
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `inventory_${new Date().toISOString().slice(0, 10)}.txt`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    downloadTxt(
+      selected.map(p => extractProductData(p.product_data)),
+      `inventory_${new Date().toISOString().slice(0, 10)}.txt`,
+    )
   }
 
   // ── Filter options ────────────────────────────────────────────────────
@@ -511,6 +722,14 @@ export function InventoryPage() {
         title={t('nav.preUploaded', 'Kho hàng')}
         actions={
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <Button
+              variant="primary"
+              size="sm"
+              iconLeft={<Download size={13} />}
+              onClick={() => setExportModalOpen(true)}
+            >
+              {t('preUploaded.export', 'Xuất kho')}
+            </Button>
             <Button
               variant="destructive"
               tone="subtle"
@@ -668,6 +887,13 @@ export function InventoryPage() {
         open={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
         onDeleted={fetchData}
+        productOptions={productOptions}
+      />
+
+      <ExportModal
+        open={exportModalOpen}
+        onClose={() => setExportModalOpen(false)}
+        onExported={fetchData}
         productOptions={productOptions}
       />
     </div>

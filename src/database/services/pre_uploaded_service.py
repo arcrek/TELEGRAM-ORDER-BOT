@@ -1,10 +1,11 @@
 """
 Pre-uploaded product service layer.
 """
+
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from sqlalchemy import text, or_, func
+from sqlalchemy import text, or_
 from sqlalchemy.orm import Session
 from dateutil.relativedelta import relativedelta
 from src.database.models.pre_uploaded_product import PreUploadedProduct
@@ -20,7 +21,7 @@ class PreUploadedService:
     def __init__(self, session: Session):
         """
         Initialize pre-uploaded service.
-        
+
         Args:
             session: Database session
         """
@@ -149,6 +150,7 @@ class PreUploadedService:
         created before the reservation feature was deployed.
         """
         from sqlalchemy import case as sa_case
+
         return (
             self.session.query(PreUploadedProduct)
             .filter(
@@ -175,11 +177,11 @@ class PreUploadedService:
     ) -> Optional[PreUploadedProduct]:
         """
         Mark a pre-uploaded product as used.
-        
+
         Args:
             product_id: Pre-uploaded product ID
             order_id: Order ID that used this product
-            
+
         Returns:
             Updated PreUploadedProduct instance or None if not found
         """
@@ -190,7 +192,7 @@ class PreUploadedService:
         )
         if not product:
             return None
-        
+
         product.is_used = True
         product.used_by_order_id = order_id
         product.used_at = datetime.now(timezone.utc)
@@ -204,23 +206,26 @@ class PreUploadedService:
     def get_product_data(self, product: PreUploadedProduct) -> Dict[str, Any]:
         """
         Parse product data from JSON string or plain text.
-        
+
         Args:
             product: PreUploadedProduct instance
-            
+
         Returns:
             Parsed product data as dictionary
         """
         import logging
+
         logger = logging.getLogger(__name__)
-        
+
         if not product.product_data:
             logger.warning(f"Product {product.id} has no product_data (None or empty)")
             return {}
-        
+
         raw_data = product.product_data
-        logger.info(f"Product {product.id} raw product_data: {raw_data[:200] if len(raw_data) > 200 else raw_data}")
-        
+        logger.info(
+            f"Product {product.id} raw product_data: {raw_data[:200] if len(raw_data) > 200 else raw_data}"
+        )
+
         # Try to parse as JSON first
         try:
             parsed = json.loads(raw_data)
@@ -238,10 +243,10 @@ class PreUploadedService:
     def deliver_order(self, order_id: str) -> Optional[Dict[str, Any]]:
         """
         Deliver pre-uploaded products for an order.
-        
+
         Args:
             order_id: Order ID
-            
+
         Returns:
             Dictionary with delivery data or None if delivery failed
             Format: {
@@ -253,51 +258,97 @@ class PreUploadedService:
         order = self.session.query(Order).filter_by(id=order_id).first()
         if not order:
             return None
-        
+
         delivered_products = []
         failed_items = []
-        
+
         for item in order.items:
             if not item.variation_id:
                 # Variation was deleted, cannot deliver
-                failed_items.append({
-                    "variation_id": None,
-                    "reason": "Variation was deleted, cannot deliver pre-uploaded products"
-                })
+                failed_items.append(
+                    {
+                        "variation_id": None,
+                        "reason": "Variation was deleted, cannot deliver pre-uploaded products",
+                    }
+                )
                 continue
-            
+
             # Calculate total items to deliver (quantity + bonus)
             total_items = item.quantity + (item.bonus_quantity or 0)
 
             # Get products reserved for this order (or unreserved fallback for
             # orders created before the reservation feature was deployed)
-            products = self._get_products_for_delivery(item.variation_id, order_id, total_items)
-            
+            products = self._get_products_for_delivery(
+                item.variation_id, order_id, total_items
+            )
+
             if len(products) < total_items:
-                failed_items.append({
-                    "variation_id": item.variation_id,
-                    "reason": f"Insufficient pre-uploaded products. Available: {len(products)}, Required: {total_items} (quantity: {item.quantity} + bonus: {item.bonus_quantity or 0})"
-                })
+                failed_items.append(
+                    {
+                        "variation_id": item.variation_id,
+                        "reason": f"Insufficient pre-uploaded products. Available: {len(products)}, Required: {total_items} (quantity: {item.quantity} + bonus: {item.bonus_quantity or 0})",
+                    }
+                )
                 continue
-            
+
             # Mark products as used and collect data
             for product in products:
                 marked = self.mark_product_as_used(product.id, order_id)
                 if marked:
                     product_data = self.get_product_data(marked)
-                    delivered_products.append({
-                        "id": marked.id,
-                        "variation_id": item.variation_id,
-                        "data": product_data
-                    })
-        
+                    delivered_products.append(
+                        {
+                            "id": marked.id,
+                            "variation_id": item.variation_id,
+                            "data": product_data,
+                        }
+                    )
+
         success = len(failed_items) == 0
 
         return {
             "success": success,
             "products": delivered_products,
-            "failed_items": failed_items
+            "failed_items": failed_items,
         }
+
+    def export_available_products(
+        self, product_id: str, variation_id: str, amount: int
+    ) -> list[PreUploadedProduct]:
+        """
+        Atomically claim up to `amount` available rows and mark them sold (admin export).
+
+        Uses ORM with_for_update(skip_locked=True): on Postgres this acquires a real
+        row lock so concurrent exports never claim the same rows; on SQLite (used in
+        tests) the clause is silently dropped and a plain SELECT runs instead.
+
+        Exported rows get is_used=True and used_at=now(); used_by_order_id is left NULL
+        to distinguish admin-exported stock from order-fulfilled stock.
+
+        Returns the rows actually marked (may be fewer than `amount` if stock is short).
+        """
+        products = (
+            self.session.query(PreUploadedProduct)
+            .filter(
+                PreUploadedProduct.product_id == product_id,
+                PreUploadedProduct.variation_id == variation_id,
+                PreUploadedProduct.is_used.is_(False),
+                PreUploadedProduct.reserved_by_order_id.is_(None),
+            )
+            .order_by(PreUploadedProduct.created_at)
+            .with_for_update(skip_locked=True)
+            .limit(amount)
+            .all()
+        )
+
+        now = datetime.now(timezone.utc)
+        for p in products:
+            p.is_used = True
+            p.used_at = now
+            # used_by_order_id intentionally left NULL — admin export, not an order
+
+        self.session.commit()
+        return products
 
     def get_inventory_stats_by_product(self) -> List[Dict[str, Any]]:
         """
@@ -364,7 +415,9 @@ class PreUploadedService:
                     cutoff_aging = now - delta
                     # cutoff_expiring: records created on or before this date will
                     # expire within the next EXPIRING_SOON_DAYS days
-                    cutoff_expiring = now + relativedelta(days=EXPIRING_SOON_DAYS) - delta
+                    cutoff_expiring = (
+                        now + relativedelta(days=EXPIRING_SOON_DAYS) - delta
+                    )
 
                     # Naive comparison: strip timezone awareness for SQLite compatibility
                     cutoff_aging_naive = cutoff_aging.replace(tzinfo=None)
@@ -393,21 +446,24 @@ class PreUploadedService:
                         .count()
                     )
 
-                variant_stats.append({
-                    "variation_id": variant.id,
-                    "variation_name": variant.name,
-                    "in_stock": in_stock,
-                    "aging": aging,
-                    "expiring_soon": expiring_soon,
-                    "threshold_value": tv,
-                    "threshold_unit": tu,
-                })
+                variant_stats.append(
+                    {
+                        "variation_id": variant.id,
+                        "variation_name": variant.name,
+                        "in_stock": in_stock,
+                        "aging": aging,
+                        "expiring_soon": expiring_soon,
+                        "threshold_value": tv,
+                        "threshold_unit": tu,
+                    }
+                )
 
-            result.append({
-                "product_id": product.id,
-                "product_name": product.name,
-                "variants": variant_stats,
-            })
+            result.append(
+                {
+                    "product_id": product.id,
+                    "product_name": product.name,
+                    "variants": variant_stats,
+                }
+            )
 
         return result
-
