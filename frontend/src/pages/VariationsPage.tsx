@@ -876,7 +876,7 @@ export function VariationsPage() {
             <Select
               options={[
                 { value: 'percentage', label: '%' },
-                { value: 'fixed', label: 'VND' },
+                { value: 'fixed_price', label: 'VND' },
               ]}
               value={discountForm.discount_type}
               onChange={v => v && setDiscountForm(f => ({ ...f, discount_type: v }))}
