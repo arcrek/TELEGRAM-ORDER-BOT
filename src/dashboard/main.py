@@ -28,6 +28,7 @@ from src.dashboard.routers import (
     discount_tiers,
     bot_ui_settings,
     balances,
+    manuals,
 )
 from src.dashboard.routers import api_v1
 
@@ -108,6 +109,7 @@ app.include_router(
 app.include_router(payos_webhook.router, prefix="/api/payos", tags=["payos"])
 app.include_router(iotd.router, prefix="/api/iotd", tags=["iotd"])
 app.include_router(balances.router, prefix="/api/balances", tags=["balances"])
+app.include_router(manuals.router, prefix="/api/manuals", tags=["manuals"])
 app.include_router(api_v1.router, prefix="/api/v1", tags=["public-api"])
 
 

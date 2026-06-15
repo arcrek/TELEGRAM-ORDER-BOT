@@ -1,12 +1,13 @@
 """
 Product detail formatter for Telegram messages.
 """
+
 from typing import List, Optional, Dict
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 from src.database.models import Product, ProductVariation
 from src.database.models.enums import DeliveryType
-from src.bot.utils.language import t, get_user_language
+from src.bot.utils.language import t
 
 
 class ProductDetailFormatter:
@@ -22,7 +23,7 @@ class ProductDetailFormatter:
     def _truncate_button_text(text: str, max_len: int = 55) -> str:
         if len(text) <= max_len:
             return text
-        return f"{text[:max_len - 1]}..."
+        return f"{text[: max_len - 1]}..."
 
     def _variation_button_text(
         self,
@@ -36,7 +37,11 @@ class ProductDetailFormatter:
             if variation.stock > 0:
                 stock_str = str(variation.stock)
             else:
-                stock_str = t('products.detail.out_of_stock', update) if update else "out of stock"
+                stock_str = (
+                    t("products.detail.out_of_stock", update)
+                    if update
+                    else "out of stock"
+                )
             text = f"{variation.name} • {price_str} • {stock_str}"
         return self._truncate_button_text(text, self._BUTTON_TEXT_MAX_LEN)
 
@@ -66,21 +71,35 @@ class ProductDetailFormatter:
         lines = []
 
         # Get translations
-        title = t('products.detail.title', update) if update else "PRODUCT LIST"
+        title = t("products.detail.title", update) if update else "PRODUCT LIST"
         select_prompt = (
             variation_choose_text.strip()
             if variation_choose_text and variation_choose_text.strip()
-            else (t('products.detail.select_prompt', update) if update else "Choose variation below")
+            else (
+                t("products.detail.select_prompt", update)
+                if update
+                else "Choose variation below"
+            )
         )
-        in_stock_template = t('products.detail.stock_available', update) if update else "(in stock: {stock})"
-        out_of_stock = t('products.detail.out_of_stock', update) if update else "(out of stock)"
+        in_stock_template = (
+            t("products.detail.stock_available", update)
+            if update
+            else "(in stock: {stock})"
+        )
+        out_of_stock = (
+            t("products.detail.out_of_stock", update) if update else "(out of stock)"
+        )
 
         # Header
         lines.append(title)
 
         # Sold count
         if sold_count > 0:
-            sold_template = t('products.detail.sold_count', update) if update else '🔥 Đã bán: {count}'
+            sold_template = (
+                t("products.detail.sold_count", update)
+                if update
+                else "🔥 Đã bán: {count}"
+            )
             lines.append(sold_template.format(count=f"{sold_count:,}"))
 
         # Product description (if set)
@@ -116,7 +135,7 @@ class ProductDetailFormatter:
         self,
         variation_ids: List[str],
         session,
-        language: str = 'vi',
+        language: str = "vi",
     ) -> Dict[str, str]:
         """
         Get bonus display texts for multiple variations.
@@ -138,10 +157,14 @@ class ProductDetailFormatter:
         for variation_id, tiers in all_tiers.items():
             if tiers:
                 first_tier = tiers[0]
-                if language == 'en':
-                    result[variation_id] = f"(Buy {first_tier.min_quantity} get {first_tier.bonus_quantity} free)"
+                if language == "en":
+                    result[variation_id] = (
+                        f"(Buy {first_tier.min_quantity} get {first_tier.bonus_quantity} free)"
+                    )
                 else:
-                    result[variation_id] = f"(Mua {first_tier.min_quantity} tặng {first_tier.bonus_quantity})"
+                    result[variation_id] = (
+                        f"(Mua {first_tier.min_quantity} tặng {first_tier.bonus_quantity})"
+                    )
 
         return result
 
@@ -157,14 +180,22 @@ class ProductDetailFormatter:
         """
         lines = []
         for variation in variations:
-            lines.append(f"- {variation.name}: {variation.price:,} VND - Stock: {variation.stock}")
+            lines.append(
+                f"- {variation.name}: {variation.price:,} VND - Stock: {variation.stock}"
+            )
         return "\n".join(lines)
 
-    def _variation_style(self, variation: ProductVariation, delivery_type: Optional[str]) -> Optional[str]:
+    def _variation_style(
+        self, variation: ProductVariation, delivery_type: Optional[str]
+    ) -> Optional[str]:
         if delivery_type == DeliveryType.UPGRADE:
             return KeyboardButtonStyle.PRIMARY
         if delivery_type == DeliveryType.PRE_UPLOADED:
-            return KeyboardButtonStyle.SUCCESS if variation.stock > 0 else KeyboardButtonStyle.DANGER
+            return (
+                KeyboardButtonStyle.SUCCESS
+                if variation.stock > 0
+                else KeyboardButtonStyle.DANGER
+            )
         return None
 
     def create_variation_keyboard(
@@ -203,8 +234,10 @@ class ProductDetailFormatter:
         if row:
             keyboard.append(row)
 
-        refresh_text = t('products.detail.refresh', update) if update else "Refresh"
-        back_text = t('products.detail.back_to_list', update) if update else "Back to list"
+        refresh_text = t("products.detail.refresh", update) if update else "Refresh"
+        back_text = (
+            t("products.detail.back_to_list", update) if update else "Back to list"
+        )
         action_row = [
             InlineKeyboardButton(refresh_text, callback_data="refresh_product"),
             InlineKeyboardButton(back_text, callback_data="back_to_list"),
@@ -251,14 +284,19 @@ class ProductDetailFormatter:
             if row:
                 keyboard.append(row)
 
-        refresh_text = t('products.detail.refresh', update) if update else "Refresh"
-        back_text = t('products.detail.back_to_list', update) if update else "Back to list"
+        refresh_text = t("products.detail.refresh", update) if update else "Refresh"
+        back_text = (
+            t("products.detail.back_to_list", update) if update else "Back to list"
+        )
         action_row = [
             InlineKeyboardButton(refresh_text, callback_data="refresh_product"),
             InlineKeyboardButton(back_text, callback_data="back_to_list"),
         ]
+        manual_text = t("products.detail.manual", update) if update else "📖 User Guide"
+        manual_row = [
+            InlineKeyboardButton(manual_text, callback_data=f"manual_list_{product_id}")
+        ]
+        keyboard.append(manual_row)
         keyboard.append(action_row)
 
         return InlineKeyboardMarkup(keyboard)
-
-
