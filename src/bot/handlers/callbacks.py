@@ -174,8 +174,12 @@ async def handle_show_products_list(update: Update, context: ContextTypes.DEFAUL
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
         products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        pre_uploaded_service = PreUploadedService(session)
+        pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
+            [p.id for p in products]
+        )
         message = formatter.format_product_list(product_choose_text=product_choose_text)
-        keyboard = formatter.create_product_keyboard(products, update)
+        keyboard = formatter.create_product_keyboard(products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids)
 
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
@@ -210,8 +214,12 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
         products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        pre_uploaded_service = PreUploadedService(session)
+        pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
+            [p.id for p in products]
+        )
         message = formatter.format_product_list(product_choose_text=product_choose_text)
-        keyboard = formatter.create_product_keyboard(products, update)
+        keyboard = formatter.create_product_keyboard(products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids)
 
         await query.edit_message_text(message, reply_markup=keyboard)
     finally:
