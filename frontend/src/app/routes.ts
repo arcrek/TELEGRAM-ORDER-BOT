@@ -14,6 +14,7 @@ export const ROUTES: RouteDefinition[] = [
   // Catalog
   { path: '/products', key: 'products', labelKey: 'nav.products', group: 'catalog', iconName: 'Package' },
   { path: '/variations', key: 'variations', labelKey: 'nav.variations', group: 'catalog', iconName: 'Layers' },
+  { path: '/manuals', key: 'manuals', labelKey: 'nav.manuals', group: 'catalog', iconName: 'BookOpen' },
   // Operations
   { path: '/orders', key: 'orders', labelKey: 'nav.orders', group: 'operations', iconName: 'ShoppingCart' },
   { path: '/notifications', key: 'notifications', labelKey: 'nav.notifications', group: 'operations', iconName: 'Bell' },

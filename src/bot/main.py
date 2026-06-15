@@ -58,6 +58,7 @@ from src.bot.handlers.balance import (
     handle_topup_cancel,
 )
 from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
+from src.bot.handlers.manual import handle_manual_list, handle_manual_view
 from src.bot.handlers.apitoken import (
     api_command,
     apitoken_command,
@@ -123,6 +124,12 @@ def create_bot_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(handle_product_selection, pattern="^product_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_manual_list, pattern="^manual_list_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_manual_view, pattern="^manual_view_")
     )
     application.add_handler(
         CallbackQueryHandler(handle_variation_selection, pattern="^variation_")
