@@ -41,6 +41,8 @@ from src.database.services.notification_settings_service import NotificationSett
 from src.database.services.order_service import OrderService
 from src.database.services.user_preference_service import UserPreferenceService
 from src.i18n.bot_translations import get_translation
+from src.database.services.app_settings_service import AppSettingsService
+from src.utils.datetime_format import resolve_tz, format_local
 
 logger = logging.getLogger(__name__)
 
@@ -475,7 +477,8 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
         admin_handle = user.username or user.first_name or str(user.id)
-        completed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        _app_tz = resolve_tz(AppSettingsService(session).get_settings().timezone)
+        completed_at = format_local(datetime.now(timezone.utc), _app_tz)
         footer = get_translation(
             "upgrade.done_footer",
             "vi",

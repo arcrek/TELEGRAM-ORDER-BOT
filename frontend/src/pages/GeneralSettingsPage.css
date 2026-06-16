@@ -1,0 +1,70 @@
+.general-settings-page {
+  max-width: 800px;
+}
+
+.general-settings-page__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.general-settings-page__dirty-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--warning-500);
+  margin-left: var(--space-1);
+}
+
+.general-settings-page__error {
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-50);
+  border: 1px solid var(--danger-500);
+  border-radius: var(--radius-md);
+  color: var(--danger-500);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-4);
+}
+
+.general-settings-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.general-settings-page__skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.general-settings-page__skel-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.general-settings-page__info-box {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.general-settings-page__shortcut-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+}

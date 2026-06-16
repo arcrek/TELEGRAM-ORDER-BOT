@@ -27,6 +27,7 @@ from src.dashboard.routers import (
     bonus_tiers,
     discount_tiers,
     bot_ui_settings,
+    app_settings,
     balances,
     manuals,
 )
@@ -105,6 +106,9 @@ app.include_router(
 )
 app.include_router(
     bot_ui_settings.router, prefix="/api/bot-ui-settings", tags=["bot-ui-settings"]
+)
+app.include_router(
+    app_settings.router, prefix="/api/app-settings", tags=["app-settings"]
 )
 app.include_router(payos_webhook.router, prefix="/api/payos", tags=["payos"])
 app.include_router(iotd.router, prefix="/api/iotd", tags=["iotd"])

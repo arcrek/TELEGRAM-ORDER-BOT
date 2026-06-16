@@ -9,6 +9,7 @@ from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
 from src.database.services.product_service import ProductService
 from src.database.services.supplier_service import SupplierService
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 
@@ -81,7 +82,7 @@ async def create_assignment(
         "product_id": assignment.product_id,
         "supplier_id": assignment.supplier_id,
         "is_primary": assignment.is_primary,
-        "created_at": assignment.created_at.isoformat(),
+        "created_at": to_utc_iso(assignment.created_at),
     }
 
 
@@ -119,7 +120,7 @@ async def update_assignment(
         "product_id": assignment.product_id,
         "supplier_id": assignment.supplier_id,
         "is_primary": assignment.is_primary,
-        "created_at": assignment.created_at.isoformat(),
+        "created_at": to_utc_iso(assignment.created_at),
     }
 
 

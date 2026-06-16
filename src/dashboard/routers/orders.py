@@ -11,6 +11,7 @@ from src.database.services.order_service import OrderService
 from src.database.models.enums import OrderStatus
 import csv
 import io
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 
@@ -122,8 +123,8 @@ async def list_orders(
                 "status": order.status.value,
                 "total_amount": order.total_amount,
                 "payment_transaction_id": order.payment_transaction_id,
-                "created_at": order.created_at.isoformat(),
-                "updated_at": order.updated_at.isoformat(),
+                "created_at": to_utc_iso(order.created_at),
+                "updated_at": to_utc_iso(order.updated_at),
             }
             for order in orders
         ],
@@ -229,8 +230,8 @@ async def export_orders(
                 order.status.value,
                 order.total_amount,
                 order.payment_transaction_id or "",
-                order.created_at.isoformat(),
-                order.updated_at.isoformat(),
+                to_utc_iso(order.created_at),
+                to_utc_iso(order.updated_at),
             ]
         )
 
@@ -310,6 +311,6 @@ async def update_order_status(
         "status": order.status.value,
         "total_amount": order.total_amount,
         "payment_transaction_id": order.payment_transaction_id,
-        "created_at": order.created_at.isoformat(),
-        "updated_at": order.updated_at.isoformat(),
+        "created_at": to_utc_iso(order.created_at),
+        "updated_at": to_utc_iso(order.updated_at),
     }

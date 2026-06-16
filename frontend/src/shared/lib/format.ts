@@ -6,6 +6,28 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+/**
+ * Ensure a date string has a timezone designator so it is parsed as UTC.
+ *
+ * The API emits ISO 8601 strings with +00:00 (after the serialization fix),
+ * but this function is also a safety net for any legacy naive strings
+ * (e.g. "2026-06-16T10:30:00" with no zone designator). Those are assumed
+ * to be UTC and get a "Z" appended so that `new Date()` parses them correctly
+ * instead of interpreting them as browser-local time.
+ */
+export function parseUtc(value: Date | string | number): Date {
+  if (typeof value === 'string') {
+    // If the string has no zone designator (no Z, no +hh:mm, no -hh:mm)
+    const hasZone = /[Zz]$/.test(value) || /[+-]\d{2}:\d{2}$/.test(value)
+    // Only append 'Z' to datetime strings; date-only strings (e.g. "2026-06-16")
+    // are already parsed as UTC by `new Date()`, and "2026-06-16Z" would be invalid.
+    if (!hasZone && value.includes('T')) {
+      return new Date(value + 'Z')
+    }
+  }
+  return new Date(value as string | number | Date)
+}
+
 export function formatCurrency(value: number, locale: string, currency = 'VND'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
@@ -30,14 +52,14 @@ export function formatDate(
   locale: string,
   options: Intl.DateTimeFormatOptions = { dateStyle: 'medium' },
 ): string {
-  return new Intl.DateTimeFormat(locale, options).format(new Date(value))
+  return new Intl.DateTimeFormat(locale, options).format(parseUtc(value))
 }
 
 export function formatDateTime(value: Date | string | number, locale: string): string {
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value))
+  }).format(parseUtc(value))
 }
 
 const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
@@ -51,7 +73,7 @@ const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
 ]
 
 export function formatRelative(value: Date | string | number, locale: string): string {
-  const target = new Date(value).getTime()
+  const target = parseUtc(value).getTime()
   const diffSeconds = Math.round((target - Date.now()) / 1000)
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
   for (const [unit, secondsInUnit] of RELATIVE_UNITS) {

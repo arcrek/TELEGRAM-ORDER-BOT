@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.supplier_service import SupplierService
 from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 
@@ -55,7 +56,7 @@ async def list_suppliers(
                 "telegram_user_id": s.telegram_user_id,
                 "name": s.name,
                 "is_active": s.is_active,
-                "created_at": s.created_at.isoformat(),
+                "created_at": to_utc_iso(s.created_at),
             }
             for s in suppliers
         ]
@@ -91,7 +92,7 @@ async def get_supplier(
         "telegram_user_id": supplier.telegram_user_id,
         "name": supplier.name,
         "is_active": supplier.is_active,
-        "created_at": supplier.created_at.isoformat(),
+        "created_at": to_utc_iso(supplier.created_at),
     }
 
 
@@ -126,7 +127,7 @@ async def update_supplier_status(
         "telegram_user_id": supplier.telegram_user_id,
         "name": supplier.name,
         "is_active": supplier.is_active,
-        "created_at": supplier.created_at.isoformat(),
+        "created_at": to_utc_iso(supplier.created_at),
     }
 
 

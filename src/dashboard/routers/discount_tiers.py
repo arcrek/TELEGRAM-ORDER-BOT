@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.discount_tier_service import DiscountTierService
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 
@@ -33,8 +34,8 @@ def _tier_dict(tier) -> dict:
         "discount_type": tier.discount_type,
         "discount_value": tier.discount_value,
         "is_active": tier.is_active,
-        "created_at": tier.created_at.isoformat() if tier.created_at else None,
-        "updated_at": tier.updated_at.isoformat() if tier.updated_at else None,
+        "created_at": to_utc_iso(tier.created_at),
+        "updated_at": to_utc_iso(tier.updated_at),
     }
 
 

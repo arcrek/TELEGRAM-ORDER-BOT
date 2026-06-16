@@ -28,6 +28,7 @@ from src.database.services.discount_tier_service import DiscountTierService
 from src.database.services.order_service import OrderService
 from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService
+from src.utils.datetime_format import to_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -501,7 +502,7 @@ async def list_orders(
             id=o.id,
             status=o.status.value if hasattr(o.status, "value") else str(o.status),
             total_amount=o.total_amount,
-            created_at=o.created_at.isoformat(),
+            created_at=to_utc_iso(o.created_at) or "",
         )
         for o in orders
     ]

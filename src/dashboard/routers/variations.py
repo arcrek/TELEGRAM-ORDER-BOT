@@ -9,6 +9,7 @@ from pydantic import BaseModel, field_validator, model_validator
 from src.dashboard.auth import get_current_admin, require_admin_role, get_db
 from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
+from src.utils.datetime_format import to_utc_iso
 
 
 router = APIRouter()
@@ -178,8 +179,8 @@ async def get_variation(
         "stock": calculated_stock,
         "is_active": variation.is_active,
         "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
-        "created_at": variation.created_at.isoformat(),
-        "updated_at": variation.updated_at.isoformat(),
+        "created_at": to_utc_iso(variation.created_at),
+        "updated_at": to_utc_iso(variation.updated_at),
     }
 
 
@@ -241,8 +242,8 @@ async def create_variation(
         "stock": calculated_stock,
         "is_active": variation.is_active,
         "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
-        "created_at": variation.created_at.isoformat(),
-        "updated_at": variation.updated_at.isoformat(),
+        "created_at": to_utc_iso(variation.created_at),
+        "updated_at": to_utc_iso(variation.updated_at),
     }
 
 
@@ -316,8 +317,8 @@ async def update_variation(
         "stock": calculated_stock,
         "is_active": variation.is_active,
         "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
-        "created_at": variation.created_at.isoformat(),
-        "updated_at": variation.updated_at.isoformat(),
+        "created_at": to_utc_iso(variation.created_at),
+        "updated_at": to_utc_iso(variation.updated_at),
     }
 
 
@@ -411,8 +412,8 @@ async def update_stock(
         "stock": calculated_stock,
         "is_active": variation.is_active,
         "benefit_mode": getattr(variation, 'benefit_mode', 'bonus'),
-        "created_at": variation.created_at.isoformat(),
-        "updated_at": variation.updated_at.isoformat(),
+        "created_at": to_utc_iso(variation.created_at),
+        "updated_at": to_utc_iso(variation.updated_at),
     }
 
 

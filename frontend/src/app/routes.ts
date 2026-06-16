@@ -27,6 +27,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/suppliers', key: 'suppliers', labelKey: 'nav.suppliers', group: 'operations', iconName: 'Users' },
   // Settings
   { path: '/bot-ui-settings', key: 'botUiSettings', labelKey: 'nav.botUiSettings', group: 'settings', iconName: 'Settings' },
+  { path: '/general-settings', key: 'generalSettings', labelKey: 'nav.generalSettings', group: 'settings', iconName: 'Star' },
 ]
 
 export const ROUTE_GROUPS: { key: NonNullable<RouteDefinition['group']>; labelKey: string }[] = [

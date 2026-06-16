@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.bonus_tier_service import BonusTierService
+from src.utils.datetime_format import to_utc_iso
 
 
 router = APIRouter()
@@ -68,8 +69,8 @@ async def list_bonus_tiers(
             "min_quantity": tier.min_quantity,
             "bonus_quantity": tier.bonus_quantity,
             "is_active": tier.is_active,
-            "created_at": tier.created_at.isoformat() if tier.created_at else None,
-            "updated_at": tier.updated_at.isoformat() if tier.updated_at else None,
+            "created_at": to_utc_iso(tier.created_at),
+            "updated_at": to_utc_iso(tier.updated_at),
         })
     
     return {"items": result}
@@ -110,8 +111,8 @@ async def create_bonus_tier(
         "min_quantity": tier.min_quantity,
         "bonus_quantity": tier.bonus_quantity,
         "is_active": tier.is_active,
-        "created_at": tier.created_at.isoformat() if tier.created_at else None,
-        "updated_at": tier.updated_at.isoformat() if tier.updated_at else None,
+        "created_at": to_utc_iso(tier.created_at),
+        "updated_at": to_utc_iso(tier.updated_at),
     }
 
 
@@ -142,8 +143,8 @@ async def get_bonus_tier(
         "min_quantity": tier.min_quantity,
         "bonus_quantity": tier.bonus_quantity,
         "is_active": tier.is_active,
-        "created_at": tier.created_at.isoformat() if tier.created_at else None,
-        "updated_at": tier.updated_at.isoformat() if tier.updated_at else None,
+        "created_at": to_utc_iso(tier.created_at),
+        "updated_at": to_utc_iso(tier.updated_at),
     }
 
 
@@ -188,8 +189,8 @@ async def update_bonus_tier(
         "min_quantity": tier.min_quantity,
         "bonus_quantity": tier.bonus_quantity,
         "is_active": tier.is_active,
-        "created_at": tier.created_at.isoformat() if tier.created_at else None,
-        "updated_at": tier.updated_at.isoformat() if tier.updated_at else None,
+        "created_at": to_utc_iso(tier.created_at),
+        "updated_at": to_utc_iso(tier.updated_at),
     }
 
 

@@ -21,6 +21,8 @@ from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.language import get_user_language, t
 from src.bot.utils.keyboard import get_persistent_keyboard
+from src.database.services.app_settings_service import AppSettingsService
+from src.utils.datetime_format import resolve_tz, now_local
 
 
 # Global state manager instance
@@ -747,31 +749,36 @@ async def doanhthu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text("⛔ Chỉ admin mới dùng được lệnh này.")
         return
 
-    # Parse optional date argument; default to today (UTC+7)
+    # Parse optional date argument; default to today in app timezone
     args = context.args or []
-    tz_offset = 7 * 3600  # Vietnam UTC+7
-    now_vn = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=tz_offset)
-
-    if args:
-        raw = args[0].strip()
-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
-            await update.message.reply_text("❌ Định dạng ngày không hợp lệ. Dùng: /doanhthu YYYY-MM-DD")
-            return
-        try:
-            target = datetime.strptime(raw, "%Y-%m-%d")
-        except ValueError:
-            await update.message.reply_text("❌ Ngày không hợp lệ.")
-            return
-    else:
-        target = now_vn.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Build UTC range covering the full Vietnam calendar day
-    day_start_utc = target - timedelta(seconds=tz_offset)
-    day_end_utc = day_start_utc + timedelta(days=1)
-
     session_factory = get_session_factory()
     session = session_factory()
     try:
+        app_tz = resolve_tz(AppSettingsService(session).get_settings().timezone)
+        now_app = now_local(app_tz)
+
+        if args:
+            raw = args[0].strip()
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+                await update.message.reply_text("❌ Định dạng ngày không hợp lệ. Dùng: /doanhthu YYYY-MM-DD")
+                return
+            try:
+                parsed = datetime.strptime(raw, "%Y-%m-%d")
+                # Interpret input as a local calendar day in app timezone
+                target = datetime(
+                    parsed.year, parsed.month, parsed.day, tzinfo=app_tz
+                )
+            except ValueError:
+                await update.message.reply_text("❌ Ngày không hợp lệ.")
+                return
+        else:
+            target = now_app.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Build UTC range covering the full calendar day in app timezone
+        # Statistics service expects naive-UTC datetimes
+        day_start_utc = target.astimezone(timezone.utc).replace(tzinfo=None)
+        day_end_utc = (target + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+
         service = StatisticsService(session)
         revenue = service.get_total_revenue(start_date=day_start_utc, end_date=day_end_utc)
         order_count = service.get_total_orders_count(start_date=day_start_utc, end_date=day_end_utc)

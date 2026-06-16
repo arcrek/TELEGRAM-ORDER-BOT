@@ -19,6 +19,7 @@ from src.dashboard.auth import (
     get_db,
     ACCESS_TOKEN_EXPIRE_MINUTES,
 )
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -116,7 +117,7 @@ async def get_current_user_info(current_admin: Admin = Depends(get_current_admin
         full_name=current_admin.full_name,
         role=current_admin.role,
         is_active=current_admin.is_active,
-        created_at=current_admin.created_at.isoformat(),
+        created_at=to_utc_iso(current_admin.created_at) or "",
     )
 
 
@@ -168,6 +169,6 @@ async def register(
         full_name=admin.full_name,
         role=admin.role,
         is_active=admin.is_active,
-        created_at=admin.created_at.isoformat(),
+        created_at=to_utc_iso(admin.created_at) or "",
     )
 
