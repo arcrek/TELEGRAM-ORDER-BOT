@@ -12,6 +12,9 @@
     "delivered": "Đã giao",
     "cancelled": "Đã hủy",
     "filterByStatus": "Lọc theo Trạng thái",
-    "allStatuses": "Tất cả Trạng thái"
+    "allStatuses": "Tất cả Trạng thái",
+    "deliverySearchPlaceholder": "Tìm theo nội dung đã giao...",
+    "deliveryDateFrom": "Giao từ ngày",
+    "deliveryDateTo": "Giao đến ngày"
   }
 }

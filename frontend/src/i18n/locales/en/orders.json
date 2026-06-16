@@ -12,6 +12,9 @@
     "delivered": "Delivered",
     "cancelled": "Cancelled",
     "filterByStatus": "Filter by Status",
-    "allStatuses": "All Statuses"
+    "allStatuses": "All Statuses",
+    "deliverySearchPlaceholder": "Search by delivered content...",
+    "deliveryDateFrom": "Delivered from",
+    "deliveryDateTo": "Delivered until"
   }
 }

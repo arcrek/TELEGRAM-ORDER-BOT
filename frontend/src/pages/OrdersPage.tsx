@@ -81,6 +81,9 @@ export function OrdersPage() {
   const urlPage = Math.max(1, Number(searchParams.get('page') ?? '1'))
   const urlSortId = searchParams.get('sort') ?? 'created_at'
   const urlSortDir = (searchParams.get('dir') ?? 'desc') as 'asc' | 'desc'
+  const urlDeliverySearch = searchParams.get('dq') ?? ''
+  const urlDeliveryFrom = searchParams.get('dfrom') ?? ''
+  const urlDeliveryTo = searchParams.get('dto') ?? ''
 
   const setParam = useCallback(
     (updates: Record<string, string | null>) => {
@@ -99,6 +102,9 @@ export function OrdersPage() {
   // ── Local input state (debounced into URL) ─────────────────────────
   const [searchInput, setSearchInput] = useState(urlSearch)
   useEffect(() => { setSearchInput(urlSearch) }, [urlSearch])
+
+  const [deliverySearchInput, setDeliverySearchInput] = useState(urlDeliverySearch)
+  useEffect(() => { setDeliverySearchInput(urlDeliverySearch) }, [urlDeliverySearch])
 
   // ── Data state ─────────────────────────────────────────────────────
   const [orders, setOrders] = useState<Order[]>([])
@@ -141,6 +147,9 @@ export function OrdersPage() {
       }
       if (urlSearch) params.search = urlSearch
       if (urlStatus) params.status = urlStatus
+      if (urlDeliverySearch) params.delivery_search = urlDeliverySearch
+      if (urlDeliveryFrom) params.delivery_start_date = urlDeliveryFrom
+      if (urlDeliveryTo) params.delivery_end_date = urlDeliveryTo
 
       const res = await apiClient.get<OrdersResponse>('/api/orders', { params })
       setOrders(res.data.items)
@@ -150,7 +159,7 @@ export function OrdersPage() {
     } finally {
       setLoading(false)
     }
-  }, [urlPage, perPage, urlSortId, urlSortDir, urlSearch, urlStatus, t])
+  }, [urlPage, perPage, urlSortId, urlSortDir, urlSearch, urlStatus, urlDeliverySearch, urlDeliveryFrom, urlDeliveryTo, t])
 
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
@@ -215,6 +224,9 @@ export function OrdersPage() {
       const params: Record<string, string> = {}
       if (urlSearch) params.search = urlSearch
       if (urlStatus) params.status = urlStatus
+      if (urlDeliverySearch) params.delivery_search = urlDeliverySearch
+      if (urlDeliveryFrom) params.delivery_start_date = urlDeliveryFrom
+      if (urlDeliveryTo) params.delivery_end_date = urlDeliveryTo
 
       const res = await apiClient.get('/api/orders/export', {
         params,
@@ -382,6 +394,38 @@ export function OrdersPage() {
           clearable
           size="sm"
           className="orders-page__status-select"
+        />
+        <Input
+          leftIcon={<Truck size={14} />}
+          placeholder={t('orders.deliverySearchPlaceholder', 'Tìm theo nội dung đã giao...')}
+          value={deliverySearchInput}
+          clearable
+          size="sm"
+          onChange={e => setDeliverySearchInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') setParam({ dq: deliverySearchInput, page: null })
+          }}
+          onBlur={() => {
+            if (deliverySearchInput !== urlDeliverySearch)
+              setParam({ dq: deliverySearchInput, page: null })
+          }}
+          className="orders-page__search"
+        />
+        <Input
+          type="date"
+          placeholder={t('orders.deliveryDateFrom', 'Giao từ ngày')}
+          value={urlDeliveryFrom}
+          size="sm"
+          onChange={e => setParam({ dfrom: e.target.value || null, page: null })}
+          className="orders-page__date-input"
+        />
+        <Input
+          type="date"
+          placeholder={t('orders.deliveryDateTo', 'Giao đến ngày')}
+          value={urlDeliveryTo}
+          size="sm"
+          onChange={e => setParam({ dto: e.target.value || null, page: null })}
+          className="orders-page__date-input"
         />
       </div>
 

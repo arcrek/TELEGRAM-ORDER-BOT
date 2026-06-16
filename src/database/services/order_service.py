@@ -382,6 +382,9 @@ class OrderService:
         sort_order: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        delivery_search: Optional[str] = None,
+        delivery_start_date: Optional[str] = None,
+        delivery_end_date: Optional[str] = None,
     ) -> List[Order]:
         """
         List orders with pagination, filters, and search.
@@ -397,11 +400,16 @@ class OrderService:
             sort_order: Sort order (asc, desc)
             start_date: Filter orders from this date (ISO format)
             end_date: Filter orders until this date (ISO format)
+            delivery_search: Search term for delivered content (product_data fuzzy match)
+            delivery_start_date: Filter orders delivered from this date (ISO format)
+            delivery_end_date: Filter orders delivered until this date (ISO format)
 
         Returns:
             List of Order instances
         """
         from datetime import datetime
+        from sqlalchemy import exists, and_
+        from src.database.models.pre_uploaded_product import PreUploadedProduct
 
         query = self.session.query(Order)
 
@@ -436,6 +444,39 @@ class OrderService:
             except ValueError:
                 pass  # Invalid date format, ignore
 
+        # Apply delivery filters via correlated EXISTS subquery
+        delivery_start_dt = None
+        delivery_end_dt = None
+        if delivery_start_date:
+            try:
+                delivery_start_dt = datetime.fromisoformat(
+                    delivery_start_date.replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass  # Invalid date format, ignore
+        if delivery_end_date:
+            try:
+                delivery_end_dt = datetime.fromisoformat(
+                    delivery_end_date.replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass  # Invalid date format, ignore
+
+        if delivery_search or delivery_start_dt or delivery_end_dt:
+            conds = [
+                PreUploadedProduct.used_by_order_id == Order.id,
+                PreUploadedProduct.is_used.is_(True),
+            ]
+            if delivery_search:
+                conds.append(
+                    PreUploadedProduct.product_data.ilike(f"%{delivery_search}%")
+                )
+            if delivery_start_dt:
+                conds.append(PreUploadedProduct.used_at >= delivery_start_dt)
+            if delivery_end_dt:
+                conds.append(PreUploadedProduct.used_at <= delivery_end_dt)
+            query = query.filter(exists().where(and_(*conds)))
+
         # Apply sorting
         if sort_by == "created_at":
             if sort_order == "desc":
@@ -468,6 +509,9 @@ class OrderService:
         search: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
+        delivery_search: Optional[str] = None,
+        delivery_start_date: Optional[str] = None,
+        delivery_end_date: Optional[str] = None,
     ) -> int:
         """
         Get total count of orders matching filters.
@@ -479,12 +523,16 @@ class OrderService:
             search: Search term
             start_date: Filter orders from this date
             end_date: Filter orders until this date
+            delivery_search: Search term for delivered content (product_data fuzzy match)
+            delivery_start_date: Filter orders delivered from this date (ISO format)
+            delivery_end_date: Filter orders delivered until this date (ISO format)
 
         Returns:
             Total count
         """
-        from sqlalchemy import func
+        from sqlalchemy import func, exists, and_
         from datetime import datetime
+        from src.database.models.pre_uploaded_product import PreUploadedProduct
 
         query = self.session.query(func.count(Order.id))
 
@@ -514,6 +562,39 @@ class OrderService:
                 query = query.filter(Order.created_at <= end_dt)
             except ValueError:
                 pass
+
+        # Apply delivery filters via correlated EXISTS subquery (identical to list_orders)
+        delivery_start_dt = None
+        delivery_end_dt = None
+        if delivery_start_date:
+            try:
+                delivery_start_dt = datetime.fromisoformat(
+                    delivery_start_date.replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass  # Invalid date format, ignore
+        if delivery_end_date:
+            try:
+                delivery_end_dt = datetime.fromisoformat(
+                    delivery_end_date.replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass  # Invalid date format, ignore
+
+        if delivery_search or delivery_start_dt or delivery_end_dt:
+            conds = [
+                PreUploadedProduct.used_by_order_id == Order.id,
+                PreUploadedProduct.is_used.is_(True),
+            ]
+            if delivery_search:
+                conds.append(
+                    PreUploadedProduct.product_data.ilike(f"%{delivery_search}%")
+                )
+            if delivery_start_dt:
+                conds.append(PreUploadedProduct.used_at >= delivery_start_dt)
+            if delivery_end_dt:
+                conds.append(PreUploadedProduct.used_at <= delivery_end_dt)
+            query = query.filter(exists().where(and_(*conds)))
 
         return query.scalar() or 0
 
