@@ -22,6 +22,8 @@ import './OrdersPage.css'
 interface Order {
   id: string
   user_id: number
+  buyer_username: string | null
+  buyer_name: string | null
   status: OrderStatus
   total_amount: number
   payment_transaction_id: string | null
@@ -40,6 +42,7 @@ interface OrderItem {
 }
 
 interface OrderDetail extends Order {
+  discount_amount: number
   items: OrderItem[]
   supplier_orders: Array<{
     id: string
@@ -268,11 +271,21 @@ export function OrdersPage() {
     },
     {
       id: 'user_id',
-      header: t('orders.colUser', 'User'),
-      mono: true,
-      width: 80,
-      align: 'right',
-      accessor: 'user_id',
+      header: t('orders.colUser', 'Người mua'),
+      width: 160,
+      cell: row => (
+        <div className="orders-page__buyer">
+          {(row.buyer_name || row.buyer_username) ? (
+            <span className="orders-page__buyer-name">
+              {row.buyer_name ?? `@${row.buyer_username}`}
+            </span>
+          ) : null}
+          {row.buyer_username && row.buyer_name ? (
+            <span className="orders-page__buyer-username">@{row.buyer_username}</span>
+          ) : null}
+          <span className="orders-page__buyer-id">#{row.user_id}</span>
+        </div>
+      ),
     },
     {
       id: 'status',
@@ -520,8 +533,20 @@ export function OrdersPage() {
               <dl className="orders-page__detail-grid">
                 <dt>{t('orders.colId', 'Mã đơn')}</dt>
                 <dd className="num">{orderDetail.id}</dd>
-                <dt>{t('orders.colUser', 'User')}</dt>
+                <dt>{t('orders.colUser', 'User ID')}</dt>
                 <dd className="num">{orderDetail.user_id}</dd>
+                {orderDetail.buyer_name && (
+                  <>
+                    <dt>{t('orders.buyerName', 'Tên')}</dt>
+                    <dd>{orderDetail.buyer_name}</dd>
+                  </>
+                )}
+                {orderDetail.buyer_username && (
+                  <>
+                    <dt>{t('orders.buyerUsername', 'Username')}</dt>
+                    <dd>@{orderDetail.buyer_username}</dd>
+                  </>
+                )}
                 <dt>{t('orders.colStatus', 'Trạng thái')}</dt>
                 <dd>
                   <Badge status={orderDetail.status} size="sm">

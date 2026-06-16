@@ -115,11 +115,15 @@ async def list_orders(
         delivery_end_date=delivery_end_date,
     )
 
+    buyer_map = service.get_buyer_info_map([o.user_id for o in orders])
+
     return {
         "items": [
             {
                 "id": order.id,
                 "user_id": order.user_id,
+                "buyer_username": buyer_map.get(order.user_id, {}).get("username"),
+                "buyer_name": buyer_map.get(order.user_id, {}).get("name"),
                 "status": order.status.value,
                 "total_amount": order.total_amount,
                 "payment_transaction_id": order.payment_transaction_id,

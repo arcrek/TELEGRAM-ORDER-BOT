@@ -9,6 +9,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 from src.database.models import Order, OrderItem
 from src.database.models.enums import OrderStatus
+from src.database.models.bot_user import BotUser
 from src.database.services.variation_service import VariationService
 
 
@@ -598,6 +599,24 @@ class OrderService:
 
         return query.scalar() or 0
 
+    def get_buyer_info_map(self, telegram_user_ids: List[int]) -> Dict[int, Dict]:
+        """Return {telegram_user_id: {username, name}} for a batch of IDs."""
+        if not telegram_user_ids:
+            return {}
+        rows = (
+            self.session.query(BotUser)
+            .filter(BotUser.telegram_user_id.in_(telegram_user_ids))
+            .all()
+        )
+        result = {}
+        for u in rows:
+            parts = [p for p in (u.first_name, u.last_name) if p]
+            result[u.telegram_user_id] = {
+                "username": u.username,
+                "name": " ".join(parts) if parts else None,
+            }
+        return result
+
     def get_order_with_details(self, order_id: str) -> Optional[Dict]:
         """
         Get order with all related details (items, products, variations).
@@ -714,9 +733,14 @@ class OrderService:
                 }
             )
 
+        buyer_map = self.get_buyer_info_map([order.user_id])
+        buyer = buyer_map.get(order.user_id, {})
+
         return {
             "id": order.id,
             "user_id": order.user_id,
+            "buyer_username": buyer.get("username"),
+            "buyer_name": buyer.get("name"),
             "status": order.status.value,
             "total_amount": order.total_amount,
             "discount_amount": order.discount_amount or 0,
