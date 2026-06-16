@@ -95,6 +95,79 @@ class BalanceService:
         self.session.commit()
         return True, "ok"
 
+    def refund_order(
+        self, order_id: str, refund_amount: int, telegram_admin_id: int
+    ) -> tuple[bool, str]:
+        """
+        Atomically mark order REFUNDED and credit buyer's balance.
+
+        The guard UPDATE ensures this is idempotent — a second call on a
+        REFUNDED order returns (False, 'ineligible').
+
+        Args:
+            order_id: Order.id (string).
+            refund_amount: Amount to credit (VND). Must be > 0.
+            telegram_admin_id: Telegram user ID of the admin issuing the refund.
+
+        Returns:
+            (success, reason) where reason is one of:
+            'ok' | 'not_found' | 'ineligible' | 'user_not_found'
+        """
+        # 1. Fetch the order so we can get user_id and validate existence.
+        order = self.session.execute(
+            select(Order).where(Order.id == order_id)
+        ).scalar_one_or_none()
+        if order is None:
+            return False, "not_found"
+
+        # 2. Atomic guard: only PAID / PROCESSING / DELIVERED are eligible.
+        eligible = (OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.DELIVERED)
+        r1 = self.session.execute(
+            update(Order)
+            .where(Order.id == order_id, Order.status.in_(eligible))
+            .values(
+                status=OrderStatus.REFUNDED,
+                refunded_at=func.now(),
+            )
+        )
+        if r1.rowcount == 0:
+            return False, "ineligible"
+
+        # 3. Look up BotUser by telegram_user_id.
+        bot_user = self.session.execute(
+            select(BotUser).where(BotUser.telegram_user_id == order.user_id)
+        ).scalar_one_or_none()
+        if bot_user is None:
+            self.session.rollback()
+            return False, "user_not_found"
+
+        # 4. Credit balance (atomic addition cannot fail).
+        self.session.execute(
+            update(BotUser)
+            .where(BotUser.id == bot_user.id)
+            .values(balance=BotUser.balance + refund_amount)
+        )
+
+        # 5. Read back the new balance for the audit row.
+        new_balance: int = self.session.execute(
+            select(BotUser.balance).where(BotUser.id == bot_user.id)
+        ).scalar_one()
+
+        # 6. Append audit record.
+        self.session.add(
+            BalanceTransaction(
+                bot_user_id=bot_user.id,
+                amount=refund_amount,
+                balance_after=new_balance,
+                kind=BalanceTxKind.REFUND,
+                reference_id=order_id,
+                admin_id=None,
+                reason=f"Refund via /rf by tg:{telegram_admin_id}",
+            )
+        )
+        self.session.commit()
+        return True, "ok"
+
     def credit_topup(self, topup_id: str, transaction_id: str) -> tuple[bool, str]:
         """
         Atomically transition topup PENDING -> PAID and credit balance.

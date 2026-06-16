@@ -66,6 +66,11 @@ from src.bot.handlers.apitoken import (
     handle_api_create,
     handle_api_revoke,
 )
+from src.bot.handlers.refund import (
+    refund_command,
+    handle_refund_credit,
+    handle_refund_cancel,
+)
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -112,6 +117,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("doanhthu", doanhthu_command))
     application.add_handler(CommandHandler("api", api_command))
     application.add_handler(CommandHandler("apitoken", apitoken_command))
+    application.add_handler(CommandHandler("rf", refund_command))
 
     # Register admin notification commands
     application.add_handler(CommandHandler("notify_all", notify_all))
@@ -223,6 +229,14 @@ def create_bot_application() -> Application:
         CallbackQueryHandler(handle_pay_with_qr, pattern="^pay_qr_")
     )
 
+    # Prorated refund callbacks (/rf command)
+    application.add_handler(
+        CallbackQueryHandler(handle_refund_credit, pattern="^rf_credit_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_refund_cancel, pattern="^rf_cancel_")
+    )
+
     # Register message handlers
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_products_button)
@@ -275,6 +289,7 @@ def main():
 
     async def _start_auto_cancel(_application) -> None:
         import asyncio
+
         auto_cancel_task.main_loop = asyncio.get_running_loop()
         auto_cancel_task.start()
         logger.info("Auto-cancel task started (bound to bot event loop)")
