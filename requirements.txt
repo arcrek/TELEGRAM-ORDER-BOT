@@ -26,6 +26,9 @@ openpyxl>=3.1.5
 apscheduler>=3.11.2
 slowapi>=0.1.9
 python-dateutil>=2.9.0
+# Complete IANA timezone database for zoneinfo (incl. aliases like Asia/Saigon);
+# OS tz data is incomplete on slim images, so depend on this explicitly.
+tzdata>=2024.1
 
 # WSGI server for IPN service
 gunicorn>=25.3.0

@@ -162,3 +162,9 @@ class TestValidateTimezone:
         assert validate_timezone("Not/A/Timezone") is False
         assert validate_timezone("") is False
         assert validate_timezone("Europe/FakeCity") is False
+
+    def test_aliases_are_accepted(self):
+        # Aliases are absent from available_timezones() but resolvable by
+        # ZoneInfo; the browser may offer them (e.g. Intl.supportedValuesOf).
+        assert validate_timezone("Asia/Saigon") is True
+        assert validate_timezone("US/Pacific") is True

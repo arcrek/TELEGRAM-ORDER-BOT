@@ -8,7 +8,7 @@ All datetime values stored in the DB are naive UTC.
 
 import logging
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo, available_timezones
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -74,5 +74,19 @@ def format_local(dt: datetime, tz: ZoneInfo, fmt: str = "%Y-%m-%d %H:%M %Z") -> 
 
 
 def validate_timezone(name: str) -> bool:
-    """Return True if name is a valid IANA timezone, False otherwise."""
-    return name in available_timezones()
+    """Return True if name is a valid IANA timezone, False otherwise.
+
+    Validates by attempting to construct a ZoneInfo, which accepts timezone
+    *aliases* (e.g. 'Asia/Saigon' → 'Asia/Ho_Chi_Minh') in addition to
+    canonical names. A plain membership check against available_timezones()
+    would reject valid aliases and is also sensitive to whether the host's
+    tz database lists them. Requires the `tzdata` package for a complete,
+    portable database (see requirements.txt).
+    """
+    if not name:
+        return False
+    try:
+        ZoneInfo(name)
+        return True
+    except Exception:
+        return False
