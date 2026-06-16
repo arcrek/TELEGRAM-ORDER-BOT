@@ -25,6 +25,10 @@
   width: 200px;
 }
 
+.orders-page__date-input {
+  width: 170px;
+}
+
 /* ── Error banner ─────────────────────────────────────────────────── */
 .orders-page__error {
   display: flex;

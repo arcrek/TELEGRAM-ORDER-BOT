@@ -1,6 +1,7 @@
 """
 Orders router.
 """
+
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
@@ -16,6 +17,7 @@ router = APIRouter()
 
 class OrderStatusUpdate(BaseModel):
     """Order status update schema."""
+
     status: str
 
 
@@ -28,16 +30,29 @@ async def list_orders(
     user_id: Optional[int] = Query(None, description="Filter by user ID"),
     product_id: Optional[str] = Query(None, description="Filter by product ID"),
     search: Optional[str] = Query(None, description="Search by order ID"),
-    sort_by: Optional[str] = Query("created_at", description="Sort field: created_at, total_amount, status"),
+    sort_by: Optional[str] = Query(
+        "created_at", description="Sort field: created_at, total_amount, status"
+    ),
     sort_order: Optional[str] = Query("desc", description="Sort order: asc, desc"),
-    start_date: Optional[str] = Query(None, description="Filter from date (ISO format)"),
+    start_date: Optional[str] = Query(
+        None, description="Filter from date (ISO format)"
+    ),
     end_date: Optional[str] = Query(None, description="Filter until date (ISO format)"),
+    delivery_search: Optional[str] = Query(
+        None, description="Search by delivered content (fuzzy match on product_data)"
+    ),
+    delivery_start_date: Optional[str] = Query(
+        None, description="Filter by delivery date from (ISO format, uses used_at)"
+    ),
+    delivery_end_date: Optional[str] = Query(
+        None, description="Filter by delivery date until (ISO format, uses used_at)"
+    ),
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     List orders with pagination, filters, and search.
-    
+
     Args:
         page: Page number (1-indexed)
         per_page: Items per page
@@ -49,12 +64,15 @@ async def list_orders(
         sort_order: Sort order (asc/desc)
         start_date: Filter from date
         end_date: Filter until date
-    
+        delivery_search: Fuzzy search in delivered content (product_data)
+        delivery_start_date: Filter by delivery date from (used_at)
+        delivery_end_date: Filter by delivery date until (used_at)
+
     Returns:
         Paginated list of orders
     """
     service = OrderService(db)
-    
+
     # Parse status enum if provided
     status_enum = None
     if status:
@@ -63,9 +81,9 @@ async def list_orders(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status: {status}"
+                detail=f"Invalid status: {status}",
             )
-    
+
     # Get orders with filters
     orders = service.list_orders(
         page=page,
@@ -78,8 +96,11 @@ async def list_orders(
         sort_order=sort_order,
         start_date=start_date,
         end_date=end_date,
+        delivery_search=delivery_search,
+        delivery_start_date=delivery_start_date,
+        delivery_end_date=delivery_end_date,
     )
-    
+
     # Get total count with same filters
     total = service.get_total_count(
         status=status_enum,
@@ -88,8 +109,11 @@ async def list_orders(
         search=search,
         start_date=start_date,
         end_date=end_date,
+        delivery_search=delivery_search,
+        delivery_start_date=delivery_start_date,
+        delivery_end_date=delivery_end_date,
     )
-    
+
     return {
         "items": [
             {
@@ -116,14 +140,25 @@ async def export_orders(
     user_id: Optional[int] = Query(None, description="Filter by user ID"),
     product_id: Optional[str] = Query(None, description="Filter by product ID"),
     search: Optional[str] = Query(None, description="Search by order ID"),
-    start_date: Optional[str] = Query(None, description="Filter from date (ISO format)"),
+    start_date: Optional[str] = Query(
+        None, description="Filter from date (ISO format)"
+    ),
     end_date: Optional[str] = Query(None, description="Filter until date (ISO format)"),
+    delivery_search: Optional[str] = Query(
+        None, description="Search by delivered content (fuzzy match on product_data)"
+    ),
+    delivery_start_date: Optional[str] = Query(
+        None, description="Filter by delivery date from (ISO format, uses used_at)"
+    ),
+    delivery_end_date: Optional[str] = Query(
+        None, description="Filter by delivery date until (ISO format, uses used_at)"
+    ),
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Export orders to CSV.
-    
+
     Args:
         status: Filter by order status
         user_id: Filter by user ID
@@ -131,12 +166,15 @@ async def export_orders(
         search: Search term
         start_date: Filter from date
         end_date: Filter until date
-    
+        delivery_search: Fuzzy search in delivered content (product_data)
+        delivery_start_date: Filter by delivery date from (used_at)
+        delivery_end_date: Filter by delivery date until (used_at)
+
     Returns:
         CSV file with orders
     """
     service = OrderService(db)
-    
+
     # Parse status enum if provided
     status_enum = None
     if status:
@@ -145,9 +183,9 @@ async def export_orders(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid status: {status}"
+                detail=f"Invalid status: {status}",
             )
-    
+
     # Get all orders matching filters (no pagination for export)
     orders = service.list_orders(
         page=1,
@@ -160,42 +198,47 @@ async def export_orders(
         sort_order="desc",
         start_date=start_date,
         end_date=end_date,
+        delivery_search=delivery_search,
+        delivery_start_date=delivery_start_date,
+        delivery_end_date=delivery_end_date,
     )
-    
+
     # Create CSV in memory
     output = io.StringIO()
     writer = csv.writer(output)
-    
+
     # Write header
-    writer.writerow([
-        "Order ID",
-        "User ID",
-        "Status",
-        "Total Amount (VND)",
-        "Payment Transaction ID",
-        "Created At",
-        "Updated At",
-    ])
-    
+    writer.writerow(
+        [
+            "Order ID",
+            "User ID",
+            "Status",
+            "Total Amount (VND)",
+            "Payment Transaction ID",
+            "Created At",
+            "Updated At",
+        ]
+    )
+
     # Write data
     for order in orders:
-        writer.writerow([
-            order.id,
-            order.user_id,
-            order.status.value,
-            order.total_amount,
-            order.payment_transaction_id or "",
-            order.created_at.isoformat(),
-            order.updated_at.isoformat(),
-        ])
-    
+        writer.writerow(
+            [
+                order.id,
+                order.user_id,
+                order.status.value,
+                order.total_amount,
+                order.payment_transaction_id or "",
+                order.created_at.isoformat(),
+                order.updated_at.isoformat(),
+            ]
+        )
+
     # Return CSV as response
     return Response(
         content=output.getvalue(),
         media_type="text/csv",
-        headers={
-            "Content-Disposition": "attachment; filename=orders_export.csv"
-        }
+        headers={"Content-Disposition": "attachment; filename=orders_export.csv"},
     )
 
 
@@ -203,27 +246,26 @@ async def export_orders(
 async def get_order(
     order_id: str,
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Get order details by ID.
-    
+
     Args:
         order_id: Order ID
-    
+
     Returns:
         Order details with items and supplier orders
     """
     service = OrderService(db)
-    
+
     order_details = service.get_order_with_details(order_id)
-    
+
     if not order_details:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Order {order_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
         )
-    
+
     return order_details
 
 
@@ -232,37 +274,36 @@ async def update_order_status(
     order_id: str,
     status_data: OrderStatusUpdate,
     current_admin=Depends(get_current_admin),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Update order status.
-    
+
     Args:
         order_id: Order ID
         status_data: Status update data
-    
+
     Returns:
         Updated order
     """
     service = OrderService(db)
-    
+
     # Parse status enum
     try:
         new_status = OrderStatus(status_data.status.lower())
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid status: {status_data.status}"
+            detail=f"Invalid status: {status_data.status}",
         )
-    
+
     order = service.update_order_status(order_id, new_status)
-    
+
     if not order:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Order {order_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
         )
-    
+
     return {
         "id": order.id,
         "user_id": order.user_id,
