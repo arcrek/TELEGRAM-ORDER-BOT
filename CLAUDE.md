@@ -74,8 +74,9 @@ Frontend      ──┘ (calls Dashboard API over HTTP)
 
 - **`src/bot/`** — Customer-facing Telegram bot. All handlers are async. Uses a single-message update pattern (edit message in place rather than sending new ones). State per user managed in `src/bot/states/state_manager.py`.
 - **`src/bot_supplier/`** — Supplier Telegram bot; receives order notifications when customers place supplier-product orders. Currently disabled in the dashboard API (the `suppliers` and `product_supplier_assignments` routers are commented out in `src/dashboard/main.py`).
-- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `payos_webhook`, `iotd`, `balances`. (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
-- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`, `topup_order`, `balance_transaction`). All business logic goes through `src/database/services/`, never raw queries in handlers. `BotUser.balance` is a `BigInteger` column; balance mutations go through `BalanceService` (atomic conditional UPDATEs, never read-then-write).
+- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `app_settings`, `payos_webhook`, `iotd`, `balances`. (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
+- **`src/utils/datetime_format.py`** — Shared datetime utilities: `to_utc_iso` (API serialization, naive→UTC+00:00), `resolve_tz`/`now_local`/`format_local` (bot timezone display using stdlib `zoneinfo`). No new dependencies.
+- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`, `topup_order`, `balance_transaction`, `app_settings`). All business logic goes through `src/database/services/`, never raw queries in handlers. `BotUser.balance` is a `BigInteger` column; balance mutations go through `BalanceService` (atomic conditional UPDATEs, never read-then-write).
 - **`src/ipn/processor.py`** — Payment-agnostic IPN processor shared by both Pay2S and PayOS. Dispatches by order ID prefix: `"TU"`-prefixed IDs route to topup balance credit; all other IDs route to product-order fulfillment. Exposes `process_balance_paid_order(order_id)` for the bot UI to trigger fulfillment after `BalanceService.pay_order_with_balance` succeeds.
 - **`src/pay2s/`** — Pay2S payment integration (primary). `payment.py` creates payment links; `ipn.py` is the Flask IPN server; `signature.py` handles HMAC verification.
 - **`src/payos/`** — PayOS integration (secondary/alternative payment gateway); webhook handled by the `payos_webhook` dashboard router.
@@ -121,7 +122,13 @@ PAY2S_SECRET_KEY=
 PAY2S_ENDPOINT=https://sandbox-payment.pay2s.vn/v1/gateway/api/create
 IPN_URL=https://your-domain.com/ipn   # Must be publicly reachable
 DASHBOARD_SECRET_KEY=                  # JWT signing key
+APP_TIMEZONE=Asia/Ho_Chi_Minh          # IANA timezone for bot-displayed times (default: Asia/Ho_Chi_Minh)
+                                        # Overrides initial DB seed; editable at runtime via /api/app-settings
 ```
+
+> **DB timezone note:** The Postgres server/session must run in UTC so `func.now()` server defaults are UTC-consistent. Verify with `SHOW timezone;` → should return `UTC`. (Docker Compose default is correct.)
+>
+> **Dashboard vs bot timezone:** The dashboard renders times in the **browser's local timezone** (the API serializes to `+00:00`). The bot renders in the **app timezone** configured in `APP_TIMEZONE` / `/api/app-settings`.
 
 ## Coding Conventions
 

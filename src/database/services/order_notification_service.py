@@ -12,6 +12,8 @@ from src.database.models import Order
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
+from src.database.services.app_settings_service import AppSettingsService
+from src.utils.datetime_format import resolve_tz, format_local
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +197,8 @@ class OrderNotificationService:
         from src.database.models.bot_user import BotUser
 
         event_label = "NEW_ORDER_CREATED" if event == "created" else "ORDER_PAID"
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        _app_tz = resolve_tz(AppSettingsService(self.session).get_settings().timezone)
+        ts = format_local(datetime.now(timezone.utc), _app_tz)
         items = getattr(order, "items", None) or []
 
         # Look up user info
@@ -361,7 +364,8 @@ class OrderNotificationService:
 
         Mirrors the visual style of _format_message for orders.
         """
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        _app_tz = resolve_tz(AppSettingsService(self.session).get_settings().timezone)
+        ts = format_local(datetime.now(timezone.utc), _app_tz)
         username = (bot_user.username or "") if bot_user else ""
         name_parts = []
         if bot_user:

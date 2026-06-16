@@ -22,6 +22,7 @@ from src.database.models.discount_tier import DiscountTier
 from src.database.models.topup_order import TopupOrder
 from src.database.models.balance_transaction import BalanceTransaction
 from src.database.models.manual import Manual, ManualProductAssignment
+from src.database.models.app_settings import AppSettings
 from src.database.models.enums import (
     DeliveryType,
     OrderStatus,
@@ -54,6 +55,7 @@ __all__ = [
     "BalanceTransaction",
     "Manual",
     "ManualProductAssignment",
+    "AppSettings",
     "DeliveryType",
     "OrderStatus",
     "SupplierOrderStatus",

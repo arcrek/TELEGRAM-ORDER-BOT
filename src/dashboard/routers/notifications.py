@@ -18,6 +18,7 @@ from src.database.services.notification_settings_service import (
 from src.database.services.order_notification_service import OrderNotificationService
 from src.ipn import get_global_customer_bot
 from src.bot.utils.bot_instance import get_shared_bot_instance
+from src.utils.datetime_format import to_utc_iso
 
 # Load environment variables
 load_dotenv()
@@ -219,7 +220,7 @@ async def list_bot_users(
             "first_name": user.first_name,
             "last_name": user.last_name,
             "has_started": user.has_started,
-            "started_at": user.started_at.isoformat() if user.started_at else None,
+            "started_at": to_utc_iso(user.started_at),
             "is_active": user.is_active,
         }
         for user in users

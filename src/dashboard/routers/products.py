@@ -10,6 +10,7 @@ from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.product_service import ProductService
 from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
 from src.database.models.enums import DeliveryType
+from src.utils.datetime_format import to_utc_iso
 
 
 router = APIRouter()
@@ -99,8 +100,8 @@ async def list_products(
                 "delivery_type": p.delivery_type.value,
                 "upgrade_request_text": p.upgrade_request_text,
                 "is_active": p.is_active,
-                "created_at": p.created_at.isoformat(),
-                "updated_at": p.updated_at.isoformat(),
+                "created_at": to_utc_iso(p.created_at),
+                "updated_at": to_utc_iso(p.updated_at),
             }
             for p in products
         ],
@@ -173,8 +174,8 @@ async def get_product(
         "delivery_type": product.delivery_type.value,
         "upgrade_request_text": product.upgrade_request_text,
         "is_active": product.is_active,
-        "created_at": product.created_at.isoformat(),
-        "updated_at": product.updated_at.isoformat(),
+        "created_at": to_utc_iso(product.created_at),
+        "updated_at": to_utc_iso(product.updated_at),
     }
 
 
@@ -222,8 +223,8 @@ async def create_product(
         "delivery_type": product.delivery_type.value,
         "upgrade_request_text": product.upgrade_request_text,
         "is_active": product.is_active,
-        "created_at": product.created_at.isoformat(),
-        "updated_at": product.updated_at.isoformat(),
+        "created_at": to_utc_iso(product.created_at),
+        "updated_at": to_utc_iso(product.updated_at),
     }
 
 
@@ -273,8 +274,8 @@ async def update_product(
         "delivery_type": product.delivery_type.value,
         "upgrade_request_text": product.upgrade_request_text,
         "is_active": product.is_active,
-        "created_at": product.created_at.isoformat(),
-        "updated_at": product.updated_at.isoformat(),
+        "created_at": to_utc_iso(product.created_at),
+        "updated_at": to_utc_iso(product.updated_at),
     }
 
 

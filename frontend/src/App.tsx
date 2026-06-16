@@ -19,6 +19,7 @@ import { SuppliersPage } from './pages/SuppliersPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { IotdPage } from './pages/IotdPage'
 import { BotUiSettingsPage } from './pages/BotUiSettingsPage'
+import { GeneralSettingsPage } from './pages/GeneralSettingsPage'
 import { InventoryUpdatePage } from './pages/InventoryUpdatePage'
 import { BalancesPage } from './pages/BalancesPage'
 import { ManualsPage } from './pages/ManualsPage'
@@ -77,6 +78,7 @@ export function AppRoutes() {
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />
+          <Route path="general-settings" element={<GeneralSettingsPage />} />
           <Route path="iotd" element={<IotdPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

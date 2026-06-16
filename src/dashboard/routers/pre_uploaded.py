@@ -16,6 +16,7 @@ from src.database.services.pre_uploaded_service import (
     EXPIRING_SOON_DAYS,
 )
 from dateutil.relativedelta import relativedelta
+from src.utils.datetime_format import to_utc_iso
 
 
 router = APIRouter()
@@ -251,9 +252,9 @@ async def list_pre_uploaded_products(
                 "variation_name": variation.name if variation else "Unknown",
                 "product_data": p.product_data,
                 "is_used": p.is_used,
-                "used_at": p.used_at.isoformat() if p.used_at else None,
+                "used_at": to_utc_iso(p.used_at),
                 "used_by_order_id": p.used_by_order_id,
-                "created_at": p.created_at.isoformat(),
+                "created_at": to_utc_iso(p.created_at),
             }
         )
 
@@ -463,7 +464,7 @@ async def mark_product_as_used(
     return {
         "id": product.id,
         "is_used": product.is_used,
-        "used_at": product.used_at.isoformat() if product.used_at else None,
+        "used_at": to_utc_iso(product.used_at),
         "used_by_order_id": product.used_by_order_id,
     }
 
