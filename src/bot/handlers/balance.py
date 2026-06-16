@@ -235,6 +235,7 @@ async def _create_topup_qr(
             if qr_payload:
                 try:
                     qr_image = make_qr_png_bytes(str(qr_payload))
+                    logger.info(f"QR image generated: {qr_image.getbuffer().nbytes} bytes for topup {topup_id}")
                     sent = await context.bot.send_photo(
                         chat_id=user_id,
                         photo=qr_image,

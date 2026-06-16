@@ -1113,6 +1113,7 @@ async def _create_qr_for_order(
             if qr_payload:
                 try:
                     qr_image = make_qr_png_bytes(str(qr_payload))
+                    logger.info(f"QR image generated: {qr_image.getbuffer().nbytes} bytes for order {order.id}")
                     sent_message = await context.bot.send_photo(
                         chat_id=user_id,
                         photo=qr_image,
