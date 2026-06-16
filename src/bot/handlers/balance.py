@@ -240,6 +240,8 @@ async def _create_topup_qr(
                         photo=qr_image,
                         caption=caption,
                         reply_markup=cancel_keyboard,
+                        write_timeout=30,
+                        read_timeout=30,
                     )
                     ids_to_track.append(sent.message_id)
                 except Exception as exc:

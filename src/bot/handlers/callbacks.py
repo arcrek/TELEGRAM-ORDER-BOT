@@ -1118,6 +1118,8 @@ async def _create_qr_for_order(
                         photo=qr_image,
                         caption=caption,
                         reply_markup=cancel_keyboard,
+                        write_timeout=30,
+                        read_timeout=30,
                     )
                     message_ids = [text_message_id, sent_message.message_id]
                     state_manager.update_user_state(
