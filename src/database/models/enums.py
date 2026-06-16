@@ -1,6 +1,7 @@
 """
 Database model enums.
 """
+
 from enum import Enum
 
 
@@ -20,6 +21,7 @@ class OrderStatus(str, Enum):
     PROCESSING = "processing"
     DELIVERED = "delivered"
     CANCELLED = "cancelled"
+    REFUNDED = "refunded"
 
 
 class SupplierOrderStatus(str, Enum):
@@ -47,4 +49,4 @@ class BalanceTxKind(str, Enum):
     ADMIN_ADD = "admin_add"
     ADMIN_SUBTRACT = "admin_subtract"
     ADMIN_SET = "admin_set"
-
+    REFUND = "refund"
