@@ -49,6 +49,13 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // FormData bodies must be sent as multipart. The instance default
+  // 'Content-Type: application/json' would otherwise make axios serialize the
+  // FormData to JSON (dropping File parts). Clear it so the browser sets
+  // 'multipart/form-data' with the correct boundary.
+  if (config.data instanceof FormData && config.headers) {
+    config.headers.setContentType(false)
+  }
   return config
 })
 
