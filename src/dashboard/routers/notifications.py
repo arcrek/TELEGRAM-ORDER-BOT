@@ -4,7 +4,7 @@ Notifications router for sending custom notifications to bot users.
 import os
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from telegram import Bot
@@ -64,12 +64,6 @@ def get_bot_instance() -> Optional[Bot]:
     return None
 
 
-class NotificationRequest(BaseModel):
-    """Notification request schema."""
-    message: str
-    user_ids: Optional[List[int]] = None  # If provided, send to specific users only
-
-
 class NotificationResponse(BaseModel):
     """Notification response schema."""
     success: bool
@@ -103,88 +97,110 @@ class OrderNotificationSettingsUpdate(BaseModel):
     topup_chat_ids: List[str]
 
 
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # Telegram send_photo cap
+VALID_AUDIENCES = {"all", "active", "specific"}
+
+
+def _parse_user_ids(raw: Optional[str]) -> List[int]:
+    """Parse a comma-separated telegram id string into a deduped int list."""
+    if not raw:
+        return []
+    seen, ids = set(), []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            value = int(part)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid user id: {part!r}",
+            )
+        if value not in seen:
+            seen.add(value)
+            ids.append(value)
+    return ids
+
+
 @router.post("/send", response_model=NotificationResponse)
 async def send_notification(
-    request: NotificationRequest,
+    message: str = Form(""),
+    audience: str = Form("all"),
+    user_ids: Optional[str] = Form(None),
+    image: Optional[UploadFile] = File(None),
     current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
-    Send notification to users.
-    Admin role required.
-    
-    Args:
-        request: Notification request with message and optional user IDs
-        current_admin: Current authenticated admin (must be admin role)
-        db: Database session
-    
-    Returns:
-        Notification response with delivery statistics
+    Send a broadcast notification (optionally with one image) to bot users.
+    Admin role required. Multipart form-data.
     """
-    # Get bot instance (tries multiple sources)
+    # --- Validate before touching the bot ---
+    if audience not in VALID_AUDIENCES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"audience must be one of {sorted(VALID_AUDIENCES)}",
+        )
+
+    has_text = bool(message and message.strip())
+    image_bytes: Optional[bytes] = None
+    if image is not None:
+        if not (image.content_type or "").startswith("image/"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Attachment must be an image.",
+            )
+        image_bytes = await image.read()
+        if len(image_bytes) > MAX_IMAGE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Image exceeds the 10 MB limit.",
+            )
+
+    if not has_text and image_bytes is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Provide a message, an image, or both.",
+        )
+
+    parsed_ids: List[int] = []
+    if audience == "specific":
+        parsed_ids = _parse_user_ids(user_ids)
+        if not parsed_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="audience 'specific' requires at least one user id.",
+            )
+
     bot = get_bot_instance()
     if not bot:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Bot instance not available. Please ensure TELEGRAM_BOT_TOKEN is set in environment variables."
+            detail="Bot instance not available. Please ensure TELEGRAM_BOT_TOKEN is set.",
         )
-    
+
     notification_service = NotificationService(db, bot=bot)
-    
-    if request.user_ids:
-        # Send to specific users
+
+    if audience == "active":
+        results = await notification_service.send_notification_to_active_users_async(
+            message, image_bytes=image_bytes
+        )
+    elif audience == "specific":
         results = await notification_service.send_notification_to_multiple_users_async(
-            telegram_user_ids=request.user_ids,
-            message=request.message
+            telegram_user_ids=parsed_ids, message=message, image_bytes=image_bytes
         )
-    else:
-        # Send to all started users
-        results = await notification_service.send_notification_to_all_started_async(request.message)
-    
+    else:  # all
+        results = await notification_service.send_notification_to_all_started_async(
+            message, image_bytes=image_bytes
+        )
+
     return NotificationResponse(
         success=results["failed"] == 0,
         total=results["total"],
         successful=results["success"],
         failed=results["failed"],
-        details=results.get("details")
-    )
-
-
-@router.post("/send/active", response_model=NotificationResponse)
-async def send_notification_to_active(
-    request: NotificationRequest,
-    current_admin=Depends(require_admin_role),
-    db: Session = Depends(get_db)
-):
-    """
-    Send notification to active users only.
-    Admin role required.
-    
-    Args:
-        request: Notification request with message
-        current_admin: Current authenticated admin (must be admin role)
-        db: Database session
-    
-    Returns:
-        Notification response with delivery statistics
-    """
-    # Get bot instance (tries multiple sources)
-    bot = get_bot_instance()
-    if not bot:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Bot instance not available. Please ensure TELEGRAM_BOT_TOKEN is set in environment variables."
-        )
-    
-    notification_service = NotificationService(db, bot=bot)
-    results = await notification_service.send_notification_to_active_users_async(request.message)
-    
-    return NotificationResponse(
-        success=results["failed"] == 0,
-        total=results["total"],
-        successful=results["success"],
-        failed=results["failed"],
-        details=results.get("details")
+        details=results.get("details"),
     )
 
 
