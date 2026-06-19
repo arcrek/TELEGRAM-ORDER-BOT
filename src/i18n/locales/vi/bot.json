@@ -48,6 +48,7 @@
       "none_selected": "Vui lòng chọn ít nhất một phân loại.",
       "cancelled": "Đã huỷ xuất dữ liệu.",
       "done": "✅ Đã xuất {count} tệp.",
+      "none_exported": "⚠️ Không thể xuất tệp nào. Vui lòng thử lại sau.",
       "file_totals": "Tổng đơn: {orders} | Tổng sản phẩm: {items}",
       "file_order": "--- Đơn {order_id} ---",
       "file_date": "Ngày:",

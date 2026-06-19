@@ -220,4 +220,7 @@ async def handle_export_generate(update: Update, context: ContextTypes.DEFAULT_T
         session.close()
 
     state_manager.clear_user_state(user_id)
-    await query.edit_message_text(t("commands.export.done", update, count=sent))
+    if sent == 0:
+        await query.edit_message_text(t("commands.export.none_exported", update))
+    else:
+        await query.edit_message_text(t("commands.export.done", update, count=sent))

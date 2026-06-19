@@ -89,3 +89,33 @@ async def test_cancel_clears_state():
     update = _callback_update(data="export_cancel")
     await export.handle_export_cancel(update, MagicMock())
     assert state_manager.get_user_state(100) is None
+
+
+@pytest.mark.asyncio
+async def test_generate_zero_sent_shows_none_exported_message():
+    """When every get_variant_export returns None, sent==0 should show none_exported, not done."""
+    st = UserState()
+    st.export_product_id = "p1"
+    st.export_selected_variation_ids = {"v1"}
+    state_manager.set_user_state(100, st)
+
+    update = _callback_update(data="export_go")
+    ctx = MagicMock()
+    ctx.bot.send_document = AsyncMock()
+
+    mock_settings = MagicMock()
+    mock_settings.timezone = "Asia/Ho_Chi_Minh"
+
+    with patch.object(export, "get_session_factory") as gsf, \
+         patch.object(export.ExportService, "get_variant_export", return_value=None), \
+         patch.object(export.AppSettingsService, "get_settings", return_value=mock_settings):
+        gsf.return_value.return_value = MagicMock()
+        await export.handle_export_generate(update, ctx)
+
+    # State should be cleared
+    assert state_manager.get_user_state(100) is None
+
+    # Should show none_exported (Vietnamese), not done
+    text = update.callback_query.edit_message_text.call_args.args[0]
+    assert "Không thể xuất" in text
+    assert "Đã xuất" not in text

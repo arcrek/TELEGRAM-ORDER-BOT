@@ -48,6 +48,7 @@
       "none_selected": "Please select at least one variant first.",
       "cancelled": "Export cancelled.",
       "done": "✅ Exported {count} file(s).",
+      "none_exported": "⚠️ No files could be exported. Please try again later.",
       "file_totals": "Total orders: {orders} | Total items: {items}",
       "file_order": "--- Order {order_id} ---",
       "file_date": "Date:",
