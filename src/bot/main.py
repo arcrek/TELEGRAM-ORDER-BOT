@@ -71,6 +71,15 @@ from src.bot.handlers.refund import (
     handle_refund_credit,
     handle_refund_cancel,
 )
+from src.bot.handlers.export import (
+    export_command,
+    handle_export_start,
+    handle_export_product,
+    handle_export_variant_toggle,
+    handle_export_back,
+    handle_export_cancel,
+    handle_export_generate,
+)
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -118,6 +127,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("api", api_command))
     application.add_handler(CommandHandler("apitoken", apitoken_command))
     application.add_handler(CommandHandler("rf", refund_command))
+    application.add_handler(CommandHandler("export", export_command))
 
     # Register admin notification commands
     application.add_handler(CommandHandler("notify_all", notify_all))
@@ -197,6 +207,26 @@ def create_bot_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(handle_api_revoke, pattern="^api_revoke$")
+    )
+
+    # /export flow callbacks
+    application.add_handler(
+        CallbackQueryHandler(handle_export_start, pattern="^start_export$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_export_product, pattern="^export_prod_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_export_variant_toggle, pattern="^export_var_")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_export_generate, pattern="^export_go$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_export_back, pattern="^export_back$")
+    )
+    application.add_handler(
+        CallbackQueryHandler(handle_export_cancel, pattern="^export_cancel$")
     )
 
     # Balance / topup callback handlers
