@@ -37,6 +37,14 @@ def test_slugify_filename():
     assert slugify_filename("???", "fb") == "fb"
 
 
+def test_slugify_filename_transliterates_vietnamese():
+    # Vietnamese diacritics must transliterate to ASCII, not be mangled into
+    # stray underscores (regression: "Cá Nhân 7 Ngày" -> "C_Nh_n_7_Ng_y").
+    assert slugify_filename("Capcut Pro Cá Nhân 7 Ngày", "fb") == "Capcut_Pro_Ca_Nhan_7_Ngay"
+    assert slugify_filename("Đặc Biệt", "fb") == "Dac_Biet"        # đ/Đ stroke + marks
+    assert slugify_filename("Gói Ưu Đãi", "fb") == "Goi_Uu_Dai"
+
+
 def test_build_variant_file_filename():
     fn, _ = build_variant_file(_sample(), LABELS, TZ)
     assert fn == "export_Netflix_1_Month.txt"
