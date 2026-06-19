@@ -2,14 +2,23 @@
 Pure text builders for the /export feature — no DB, no Telegram, easily tested.
 """
 import re
+import unicodedata
 
 from src.database.services.export_service import ExportVariantData
 from src.utils.datetime_format import format_local
 
 
 def slugify_filename(text: str, fallback: str) -> str:
-    """ASCII-safe filename fragment; falls back when the result is empty."""
-    slug = re.sub(r"[^A-Za-z0-9]+", "_", text or "").strip("_")
+    """ASCII-safe filename fragment; falls back when the result is empty.
+
+    Transliterates accented characters to ASCII (e.g. Vietnamese
+    "Cá Nhân 7 Ngày" -> "Ca_Nhan_7_Ngay") so names aren't mangled into stray
+    underscores. đ/Đ don't decompose under NFKD, so map them explicitly first.
+    """
+    text = (text or "").replace("đ", "d").replace("Đ", "D")
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", text).strip("_")
     return slug or fallback
 
 
