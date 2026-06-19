@@ -8,6 +8,12 @@
     "selectUser": "Chọn Người dùng",
     "send": "Gửi",
     "success": "Đã gửi thông báo thành công",
-    "error": "Gửi thông báo thất bại"
+    "error": "Gửi thông báo thất bại",
+    "attachImage": "Đính kèm ảnh (tùy chọn)",
+    "removeImage": "Xóa ảnh",
+    "imageAlt": "Ảnh đính kèm",
+    "imageTooLarge": "Ảnh vượt quá giới hạn 10MB",
+    "imageNotImage": "Tệp đính kèm phải là ảnh",
+    "noUsersSelected": "Chọn ít nhất một người dùng"
   }
 }

@@ -8,6 +8,12 @@
     "selectUser": "Select User",
     "send": "Send",
     "success": "Notification sent successfully",
-    "error": "Failed to send notification"
+    "error": "Failed to send notification",
+    "attachImage": "Attach image (optional)",
+    "removeImage": "Remove image",
+    "imageAlt": "Attached image",
+    "imageTooLarge": "Image exceeds the 10MB limit",
+    "imageNotImage": "Attachment must be an image",
+    "noUsersSelected": "Select at least one user"
   }
 }
