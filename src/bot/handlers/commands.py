@@ -74,7 +74,7 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 def _start_inline_keyboard(update: Update) -> InlineKeyboardMarkup:
-    """Build the 4-button start menu inline keyboard."""
+    """Build the start menu inline keyboard."""
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(t("buttons.products", update), callback_data="start_products"),
@@ -83,6 +83,9 @@ def _start_inline_keyboard(update: Update) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(t("buttons.order_history", update), callback_data="start_history"),
             InlineKeyboardButton(t("start_menu.api_button", update), callback_data="start_api"),
+        ],
+        [
+            InlineKeyboardButton(t("buttons.export", update), callback_data="start_export"),
         ],
     ])
 
@@ -502,6 +505,13 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     if message_text in api_variations:
         from src.bot.handlers.apitoken import api_command
         await api_command(update, context)
+        return
+
+    export_text = t("buttons.export", update)
+    export_variations = {export_text, "📤 Export", "📤 Xuất dữ liệu"}
+    if message_text in export_variations:
+        from src.bot.handlers.export import export_command
+        await export_command(update, context)
         return
 
 

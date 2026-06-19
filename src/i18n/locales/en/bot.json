@@ -38,6 +38,24 @@
       "select": "Please select your language:",
       "changed": "✅ Language changed to {lang_name}",
       "error": "❌ Error changing language. Please try again."
+    },
+    "export": {
+      "choose_product": "📤 Select a product to export your purchased data:",
+      "choose_variants": "📦 {product}\nSelect one or more variants, then tap Export:",
+      "export_button": "📤 Export selected",
+      "empty": "You have no delivered purchases to export yet.",
+      "expired": "This export session has expired. Please run /export again.",
+      "none_selected": "Please select at least one variant first.",
+      "cancelled": "Export cancelled.",
+      "done": "✅ Exported {count} file(s).",
+      "none_exported": "⚠️ No files could be exported. Please try again later.",
+      "file_totals": "Total orders: {orders} | Total items: {items}",
+      "file_order": "--- Order {order_id} ---",
+      "file_date": "Date:",
+      "file_price": "Price:",
+      "file_qty": "Qty:",
+      "file_delivered": "Delivered:",
+      "file_vnd": "VND"
     }
   },
   "products": {
@@ -218,7 +236,8 @@
     "language": "🌐 Language",
     "order_history": "📋 Order History",
     "balance": "💰 Balance",
-    "top_buyers": "🏆 Top buyers today"
+    "top_buyers": "🏆 Top buyers today",
+    "export": "📤 Export"
   },
   "top_buyers": {
     "title": "🏆 TOP 5 BUYERS TODAY",

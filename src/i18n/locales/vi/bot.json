@@ -38,6 +38,24 @@
       "select": "Vui lòng chọn ngôn ngữ:",
       "changed": "✅ Đã đổi ngôn ngữ sang {lang_name}",
       "error": "❌ Lỗi khi đổi ngôn ngữ. Vui lòng thử lại."
+    },
+    "export": {
+      "choose_product": "📤 Chọn sản phẩm để xuất dữ liệu đã mua:",
+      "choose_variants": "📦 {product}\nChọn một hoặc nhiều phân loại, rồi bấm Xuất:",
+      "export_button": "📤 Xuất mục đã chọn",
+      "empty": "Bạn chưa có đơn hàng đã giao nào để xuất.",
+      "expired": "Phiên xuất dữ liệu đã hết hạn. Vui lòng dùng lại /export.",
+      "none_selected": "Vui lòng chọn ít nhất một phân loại.",
+      "cancelled": "Đã huỷ xuất dữ liệu.",
+      "done": "✅ Đã xuất {count} tệp.",
+      "none_exported": "⚠️ Không thể xuất tệp nào. Vui lòng thử lại sau.",
+      "file_totals": "Tổng đơn: {orders} | Tổng sản phẩm: {items}",
+      "file_order": "--- Đơn {order_id} ---",
+      "file_date": "Ngày:",
+      "file_price": "Giá:",
+      "file_qty": "SL:",
+      "file_delivered": "Dữ liệu đã giao:",
+      "file_vnd": "VND"
     }
   },
   "products": {
@@ -218,7 +236,8 @@
     "language": "🌐 Ngôn ngữ",
     "order_history": "📋 Đơn hàng đã mua",
     "balance": "💰 Số dư",
-    "top_buyers": "🏆 Top mua hôm nay"
+    "top_buyers": "🏆 Top mua hôm nay",
+    "export": "📤 Xuất dữ liệu"
   },
   "top_buyers": {
     "title": "🏆 TOP 5 KHÁCH MUA NHIỀU NHẤT HÔM NAY",
