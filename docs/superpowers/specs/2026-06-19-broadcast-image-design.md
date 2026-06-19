@@ -119,12 +119,12 @@ async path).
 - On successful send: clear `message`, the selected image/preview, and
   `selectedUserIds` (as today). Revoke the preview object-URL on clear/unmount.
 
-### 4. i18n — `src/i18n/locales/*/bot.json` and frontend locale files
+### 4. i18n — `frontend/src/i18n/locales/{vi,en}/notifications.json`
 
-Add VI (default) + EN keys for: attach image, remove image, preview alt text,
-"file too large", "not an image". (Frontend strings live in the frontend i18n
-resources; follow the existing `notifications.*` key namespace already used on
-the page.)
+The broadcast UI is the dashboard frontend, so all new strings go in the
+frontend i18n resources (not the bot's `src/i18n/locales/*/bot.json`). Add VI
+(default) + EN keys under the existing `notifications.*` namespace for: attach
+image, remove image, preview alt text, "file too large", "not an image".
 
 ## Data flow
 
