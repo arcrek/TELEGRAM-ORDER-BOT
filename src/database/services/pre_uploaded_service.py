@@ -82,6 +82,7 @@ class PreUploadedService:
             )
             .filter(
                 ProductVariation.product_id.in_(product_ids),
+                ProductVariation.is_active.is_(True),
                 PreUploadedProduct.is_used.is_(False),
                 PreUploadedProduct.reserved_by_order_id.is_(None),
             )
