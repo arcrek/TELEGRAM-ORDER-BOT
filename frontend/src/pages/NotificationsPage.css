@@ -202,3 +202,34 @@
   display: flex;
   align-items: center;
 }
+
+/* ── Image attachment ─────────────────────────────────────────────── */
+.notifications-page__image-field {
+  margin-top: 12px;
+}
+.notifications-page__image-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px dashed #2a2a26;
+  border-radius: 8px;
+  color: #6EA8FF;
+  cursor: pointer;
+  font-size: 13px;
+}
+.notifications-page__image-upload input {
+  display: none;
+}
+.notifications-page__image-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.notifications-page__image-preview img {
+  max-width: 160px;
+  max-height: 160px;
+  border-radius: 8px;
+  border: 1px solid #2a2a26;
+  object-fit: cover;
+}

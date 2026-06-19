@@ -13,6 +13,8 @@ import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
 import './NotificationsPage.css'
 
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
 interface BotUser {
   id: string
   telegram_user_id: number
@@ -62,6 +64,8 @@ export function NotificationsPage() {
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [sending, setSending] = useState(false)
   const [sendResult, setSendResult] = useState<NotificationResult | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   // ── Order notification settings state ─────────────────────────────
   const [orderSettings, setOrderSettings] = useState<OrderNotificationSettings | null>(null)
@@ -78,6 +82,10 @@ export function NotificationsPage() {
   useEffect(() => {
     if (audienceMode === 'specific') fetchUsers()
   }, [audienceMode])
+
+  useEffect(() => {
+    return () => { if (imagePreview) URL.revokeObjectURL(imagePreview) }
+  }, [imagePreview])
 
   const fetchUsers = async () => {
     setLoadingUsers(true)
@@ -107,30 +115,32 @@ export function NotificationsPage() {
   }
 
   const handleSend = async () => {
-    if (!message.trim()) {
-      toast.warning(t('notifications.emptyMessage', 'Nhập nội dung tin nhắn'))
+    if (!message.trim() && !imageFile) {
+      toast.warning(t('notifications.emptyMessage', 'Nhập nội dung tin nhắn hoặc đính kèm ảnh'))
+      return
+    }
+    if (audienceMode === 'specific' && selectedUserIds.size === 0) {
+      toast.warning(t('notifications.noUsersSelected', 'Chọn ít nhất một người dùng'))
       return
     }
     setSending(true)
     setSendResult(null)
     try {
-      const payload: Record<string, unknown> = { message }
-      let url = '/api/notifications/send'
-
-      if (audienceMode === 'active') {
-        url = '/api/notifications/send/active'
-      } else if (audienceMode === 'specific' && selectedUserIds.size > 0) {
-        payload.user_ids = Array.from(selectedUserIds)
+      const form = new FormData()
+      form.append('message', message)
+      form.append('audience', audienceMode)
+      if (audienceMode === 'specific') {
+        form.append('user_ids', Array.from(selectedUserIds).join(','))
       }
+      if (imageFile) form.append('image', imageFile)
 
-      const res = await apiClient.post<NotificationResult>(url, payload)
+      const res = await apiClient.post<NotificationResult>('/api/notifications/send', form)
       setSendResult(res.data)
       if (res.data.success) {
         setMessage('')
         setSelectedUserIds(new Set())
-        toast.success(
-          t('notifications.sent', `Đã gửi: ${res.data.successful}/${res.data.total}`),
-        )
+        clearImage()
+        toast.success(t('notifications.sent', `Đã gửi: ${res.data.successful}/${res.data.total}`))
       }
     } catch (err) {
       toast.error(formatApiError(err, t('notifications.sendError', 'Không thể gửi thông báo')))
@@ -167,6 +177,27 @@ export function NotificationsPage() {
       next.has(userId) ? next.delete(userId) : next.add(userId)
       return next
     })
+  }
+
+  const handlePickImage = (file: File | null) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.warning(t('notifications.imageNotImage', 'Tệp đính kèm phải là ảnh'))
+      return
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.warning(t('notifications.imageTooLarge', 'Ảnh vượt quá giới hạn 10MB'))
+      return
+    }
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  const clearImage = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview)
+    setImageFile(null)
+    setImagePreview(null)
   }
 
   const userName = (u: BotUser) =>
@@ -215,6 +246,27 @@ export function NotificationsPage() {
                   </FormField>
                   <div className="notifications-page__char-count">
                     {message.length} {t('notifications.chars', 'ký tự')}
+                  </div>
+
+                  {/* Image attachment */}
+                  <div className="notifications-page__image-field">
+                    {imagePreview ? (
+                      <div className="notifications-page__image-preview">
+                        <img src={imagePreview} alt={t('notifications.imageAlt', 'Ảnh đính kèm')} />
+                        <Button variant="secondary" tone="ghost" size="sm" onClick={clearImage}>
+                          {t('notifications.removeImage', 'Xóa ảnh')}
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="notifications-page__image-upload">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={e => handlePickImage(e.target.files?.[0] ?? null)}
+                        />
+                        <span>{t('notifications.attachImage', 'Đính kèm ảnh (tùy chọn)')}</span>
+                      </label>
+                    )}
                   </div>
 
                   {/* Audience selector */}
