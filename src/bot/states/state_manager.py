@@ -28,6 +28,12 @@ class UserState:
     topup_payment_message_ids: list = field(default_factory=list)  # QR/photo messages for topup
     balance_message_id: Optional[int] = None  # Main balance view message ID
 
+    # /export flow state
+    export_products: list = field(default_factory=list)  # [{"id","name"}] shown
+    export_product_id: Optional[str] = None              # product chosen in step 1
+    export_variations: list = field(default_factory=list)  # [{"id","name"}] of that product
+    export_selected_variation_ids: set = field(default_factory=set)  # toggled variants
+
 
 class StateManager:
     """Manages user session states (in-memory storage)."""
