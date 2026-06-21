@@ -1,15 +1,22 @@
 import { Outlet } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Sidebar } from './Sidebar'
+import { Sidebar, type NavBadgeCounts } from './Sidebar'
 import { Topbar } from './Topbar'
 import { MobileDrawer } from './MobileDrawer'
 import { CommandPalette } from './CommandPalette'
 import { useDisclosure } from '../../shared/hooks/useDisclosure'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
+import { apiClient } from '../../shared/lib/api'
 import './AppShell.css'
 
 function readCollapsed(): boolean {
   try { return localStorage.getItem('sidebar-collapsed') === 'true' } catch { return false }
+}
+
+interface TodoCounts {
+  upgrade_orders_count: number
+  aging_inventory_count: number
+  low_stock_inventory_count: number
 }
 
 export function AppShell() {
@@ -17,13 +24,32 @@ export function AppShell() {
   const isMobile = useMediaQuery('(max-width: 900px)')
   const drawer = useDisclosure()
   const cmdPalette = useDisclosure()
+  const [badgeCounts, setBadgeCounts] = useState<NavBadgeCounts>({})
 
   useEffect(() => {
     try { localStorage.setItem('sidebar-collapsed', String(collapsed)) } catch { /* noop */ }
   }, [collapsed])
 
-  // Close drawer on route change (mobile)
   useEffect(() => { drawer.close() }, [])
+
+  // Fetch todo counts for sidebar badges
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await apiClient.get<TodoCounts>('/api/statistics/todo')
+        if (cancelled) return
+        const d = res.data
+        setBadgeCounts({
+          orders: d.upgrade_orders_count,
+          preUploaded: (d.aging_inventory_count > 0 || d.low_stock_inventory_count > 0) ? 'warn' : undefined,
+        })
+      } catch { /* fail silently */ }
+    }
+    load()
+    const interval = setInterval(load, 60_000)  // refresh every minute
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
 
   // ⌘K / Ctrl+K
   useEffect(() => {
@@ -43,13 +69,13 @@ export function AppShell() {
       data-collapsed={isMobile ? 'false' : String(collapsed)}
       data-mobile={String(isMobile)}
     >
-      {/* Skip to main content link */}
       <a href="#main-content" className="skip-link">Bỏ qua điều hướng</a>
 
       {!isMobile && (
         <Sidebar
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed(v => !v)}
+          badgeCounts={badgeCounts}
           className="app-shell__sidebar"
         />
       )}

@@ -15,13 +15,24 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Upload, Database, Gift, Settings, Users, Boxes, Wallet, BookOpen,
 }
 
+export interface NavBadgeCounts {
+  orders?: number        // unpaid order count
+  preUploaded?: 'warn'   // aging/low-stock flag
+}
+
 interface SidebarProps {
   collapsed: boolean
   onToggleCollapse: () => void
+  badgeCounts?: NavBadgeCounts
   className?: string
 }
 
-export function Sidebar({ collapsed, onToggleCollapse, className = '' }: SidebarProps) {
+const ROUTE_KEY_TO_BADGE: Record<string, keyof NavBadgeCounts> = {
+  orders: 'orders',
+  preUploaded: 'preUploaded',
+}
+
+export function Sidebar({ collapsed, onToggleCollapse, badgeCounts = {}, className = '' }: SidebarProps) {
   const { t } = useTranslation()
   const location = useLocation()
 
@@ -50,6 +61,16 @@ export function Sidebar({ collapsed, onToggleCollapse, className = '' }: Sidebar
                 const Icon = ICON_MAP[route.iconName]
                 const isActive = location.pathname.startsWith(route.path)
                 const label = t(route.labelKey, route.key)
+                const badgeKey = ROUTE_KEY_TO_BADGE[route.key]
+                const badgeValue = badgeKey ? badgeCounts[badgeKey] : undefined
+
+                const badge = badgeValue != null ? (
+                  badgeValue === 'warn'
+                    ? <span className="sidebar__badge sidebar__badge--warn" aria-label="Cần chú ý">!</span>
+                    : badgeValue > 0
+                      ? <span className="sidebar__badge" aria-label={`${badgeValue} chờ xử lý`}>{badgeValue > 99 ? '99+' : badgeValue}</span>
+                      : null
+                ) : null
 
                 const navItem = (
                   <NavLink
@@ -63,6 +84,7 @@ export function Sidebar({ collapsed, onToggleCollapse, className = '' }: Sidebar
                   >
                     {Icon && <Icon size={16} className="sidebar__item-icon" />}
                     {!collapsed && <span className="sidebar__item-label">{label}</span>}
+                    {badge}
                   </NavLink>
                 )
 

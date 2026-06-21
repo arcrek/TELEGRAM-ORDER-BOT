@@ -169,3 +169,44 @@
   .sidebar__item,
   .sidebar__collapse-btn { transition: none; }
 }
+
+/* ── Nav badges ────────────────────────────────────── */
+.sidebar__badge {
+  margin-left: auto;
+  padding: 0 5px;
+  min-width: 18px;
+  height: 16px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--danger-50);
+  color: var(--danger-500);
+  line-height: 1;
+}
+
+.sidebar__badge--warn {
+  background: var(--warning-50);
+  color: var(--warning-600);
+}
+
+/* In collapsed mode badges become a dot */
+.sidebar--collapsed .sidebar__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  min-width: unset;
+  padding: 0;
+  font-size: 0;
+  border-radius: 50%;
+}
+
+.sidebar__item {
+  position: relative; /* needed for collapsed dot positioning */
+}
