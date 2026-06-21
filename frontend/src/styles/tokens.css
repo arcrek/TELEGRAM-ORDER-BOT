@@ -118,16 +118,23 @@
   --easing-standard: cubic-bezier(0.2, 0, 0.2, 1);
   --easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
 
+  /* ── Amber — reserved for VND / financial values ─────────── */
+  --amber-500: #D4920A;
+  --amber-400: #EDA420;
+  --amber-50:  rgba(212, 146, 10, 0.10);
+  --amber-100: rgba(212, 146, 10, 0.20);
+
 }
 
 [data-theme='dark'] {
-  --bg-page: #050609;
-  --bg-surface: #0b0e14;
-  --bg-raised: #101319;
-  --bg-sunken: #07090d;
+  /* ── Surfaces — warm undertone replaces cold blue-black ── */
+  --bg-page:    #0C0A08;
+  --bg-surface: #141210;
+  --bg-raised:  #1D1A16;
+  --bg-sunken:  #0A0806;
 
-  --border-subtle: #1a2030;
-  --border-strong: #2a3142;
+  --border-subtle: #1E1A15;
+  --border-strong: #2A241C;
 
   --text-primary: #e5e7eb;
   --text-secondary: #9ca3af;
@@ -168,4 +175,10 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.6);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.6);
+
+  /* ── Amber — same in dark mode ──────────────────────────── */
+  --amber-500: #D4920A;
+  --amber-400: #EDA420;
+  --amber-50:  rgba(212, 146, 10, 0.10);
+  --amber-100: rgba(212, 146, 10, 0.20);
 }
