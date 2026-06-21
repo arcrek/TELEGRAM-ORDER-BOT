@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { RefreshCw, DollarSign, ShoppingCart, Package, TrendingUp, Image as ImageIcon, ChevronUp, ChevronDown, Users } from 'lucide-react'
+import { RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement,
@@ -9,7 +9,6 @@ import { Line, Bar, Doughnut } from 'react-chartjs-2'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
-import { StatCard } from '../shared/components/StatCard'
 import { ChartCard } from '../shared/components/ChartCard'
 import { Badge } from '../shared/components/Badge'
 import type { OrderStatus } from '../shared/components/Badge'
@@ -203,11 +202,6 @@ export function StatisticsPage() {
     return Math.max(...data.orders_heatmap.map(c => c.count), 1)
   }, [data])
 
-  const sparkline = useMemo(
-    () => data?.revenue_over_time_daily.slice(-7).map(r => r.revenue) ?? [],
-    [data],
-  )
-
   const hasDelta = useMemo(
     () => (data?.revenue_by_product?.length ?? 0) > 0 && 'pct_change' in (data?.revenue_by_product[0] ?? {}),
     [data?.revenue_by_product],
@@ -272,59 +266,70 @@ export function StatisticsPage() {
         }
       />
 
-      {/* KPI Row */}
-      <div className="stats-page__kpi-row">
-        <StatCard
-          label={t('statistics.totalRevenue', 'Tổng doanh thu')}
-          value={fmt.currency(data?.total_revenue ?? 0)}
-          delta={data?.revenue_delta}
-          deltaLabel={t('statistics.vsPreviousPeriod', 'So với kỳ trước')}
-          icon={<DollarSign size={16} />}
-          sparkline={sparkline}
-          loading={loading}
-        />
-        <StatCard
-          label={t('statistics.totalOrders', 'Tổng đơn hàng')}
-          value={fmt.number(data?.total_orders ?? 0)}
-          delta={data?.orders_delta}
-          deltaLabel={t('statistics.vsPreviousPeriod', 'So với kỳ trước')}
-          icon={<ShoppingCart size={16} />}
-          loading={loading}
-        />
-        <StatCard
-          label={t('statistics.totalSold', 'Sản phẩm đã bán')}
-          value={fmt.number(data?.total_sold_all_products ?? 0)}
-          icon={<Package size={16} />}
-          loading={loading}
-        />
-        <StatCard
-          label={t('statistics.todayRevenue', 'Doanh thu hôm nay')}
-          value={fmt.currency(data?.total_revenue_today ?? 0)}
-          icon={<TrendingUp size={16} />}
-          loading={loading}
-        />
-      </div>
+      {/* Vitals strip */}
+      <div className="stats-vitals">
+        {/* Revenue */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.totalRevenue', 'Tổng doanh thu')}</span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value">{fmt.currency(data?.total_revenue ?? 0)}</span>
+          )}
+          {!loading && data?.revenue_delta != null && (
+            <span className={`stats-vitals__delta stats-vitals__delta--${data.revenue_delta > 0 ? 'pos' : data.revenue_delta < 0 ? 'neg' : 'flat'}`}>
+              {data.revenue_delta > 0 ? '▲' : data.revenue_delta < 0 ? '▼' : '—'} {Math.abs(data.revenue_delta).toFixed(1)}%
+            </span>
+          )}
+        </div>
 
-      {/* Users Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-        <StatCard
-          label={
-            data?.active_users && hasDelta
-              ? t('statistics.activeBuyers', 'Người mua trong kỳ')
-              : t('statistics.registeredUsers', 'Người dùng đã đăng ký')
-          }
-          value={fmt.number(data?.active_users?.current ?? 0)}
-          delta={data?.active_users?.pct_change ?? null}
-          deltaLabel={t('statistics.vsPreviousPeriod', 'So với kỳ trước')}
-          icon={<Users size={16} />}
-          loading={loading}
-        />
-        <StatCard
-          label={t('statistics.startedUsers', 'Người dùng hoạt động')}
-          value={fmt.number(data?.user_stats?.started ?? 0)}
-          icon={<Users size={16} />}
-          loading={loading}
-        />
+        {/* Today revenue */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.todayRevenue', 'Hôm nay')}</span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value">{fmt.currency(data?.total_revenue_today ?? 0)}</span>
+          )}
+        </div>
+
+        {/* Orders */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.totalOrders', 'Đơn hàng')}</span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value stats-vitals__value--neutral">{fmt.number(data?.total_orders ?? 0)}</span>
+          )}
+          {!loading && data?.orders_delta != null && (
+            <span className={`stats-vitals__delta stats-vitals__delta--${data.orders_delta > 0 ? 'pos' : data.orders_delta < 0 ? 'neg' : 'flat'}`}>
+              {data.orders_delta > 0 ? '▲' : data.orders_delta < 0 ? '▼' : '—'} {Math.abs(data.orders_delta).toFixed(1)}%
+            </span>
+          )}
+        </div>
+
+        {/* Sold */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.totalSold', 'Đã bán')}</span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value stats-vitals__value--neutral">{fmt.number(data?.total_sold_all_products ?? 0)}</span>
+          )}
+        </div>
+
+        {/* Active buyers */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.activeBuyers', 'Người mua')}</span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value stats-vitals__value--neutral">{fmt.number(data?.active_users?.current ?? 0)}</span>
+          )}
+          {!loading && data?.active_users?.pct_change != null && (
+            <span className={`stats-vitals__delta stats-vitals__delta--${data.active_users.pct_change > 0 ? 'pos' : data.active_users.pct_change < 0 ? 'neg' : 'flat'}`}>
+              {data.active_users.pct_change > 0 ? '▲' : data.active_users.pct_change < 0 ? '▼' : '—'} {Math.abs(data.active_users.pct_change).toFixed(1)}%
+            </span>
+          )}
+        </div>
+
+        {/* Registered / started users */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.startedUsers', 'Đã dùng')}</span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value stats-vitals__value--neutral">{fmt.number(data?.user_stats?.started ?? 0)}</span>
+          )}
+        </div>
       </div>
 
       {/* Product Revenue Table */}

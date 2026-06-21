@@ -8,20 +8,92 @@
   gap: var(--space-2);
 }
 
-/* KPI row */
-.stats-page__kpi-row {
+/* ── Vitals strip ──────────────────────────────────────── */
+.stats-vitals {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-4);
+  grid-template-columns: repeat(6, 1fr);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   margin-bottom: var(--space-5);
+  overflow: hidden;
 }
 
-@media (max-width: 1024px) {
-  .stats-page__kpi-row { grid-template-columns: repeat(2, 1fr); }
+.stats-vitals__item {
+  padding: var(--space-4) var(--space-4);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .stats-page__kpi-row { grid-template-columns: 1fr; }
+.stats-vitals__item:last-child {
+  border-right: none;
+}
+
+.stats-vitals__label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stats-vitals__value {
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--amber-400);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Non-financial vitals (counts, users) keep primary text colour */
+.stats-vitals__value--neutral {
+  color: var(--text-primary);
+}
+
+.stats-vitals__delta {
+  font-size: 10px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.stats-vitals__delta--pos  { color: var(--success-500); }
+.stats-vitals__delta--neg  { color: var(--danger-500); }
+.stats-vitals__delta--flat { color: var(--text-disabled); }
+
+.stats-vitals__skeleton {
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: var(--border-subtle);
+  animation: pulse 1.5s ease-in-out infinite;
+  width: 80%;
+}
+
+@media (max-width: 1100px) {
+  .stats-vitals { grid-template-columns: repeat(3, 1fr); }
+  .stats-vitals__item:nth-child(3) { border-right: none; }
+  .stats-vitals__item:nth-child(4) { border-top: 1px solid var(--border-subtle); }
+  .stats-vitals__item:nth-child(5) { border-top: 1px solid var(--border-subtle); }
+  .stats-vitals__item:nth-child(6) { border-top: 1px solid var(--border-subtle); border-right: none; }
+}
+
+@media (max-width: 680px) {
+  .stats-vitals { grid-template-columns: repeat(2, 1fr); }
+  .stats-vitals__item { border-right: 1px solid var(--border-subtle); }
+  .stats-vitals__item:nth-child(even) { border-right: none; }
+  .stats-vitals__item:nth-child(n+3) { border-top: 1px solid var(--border-subtle); }
+  .stats-vitals__item:nth-child(3) { border-right: 1px solid var(--border-subtle); }
 }
 
 /* Product Revenue Table */
@@ -289,12 +361,6 @@
   gap: var(--space-2);
   color: var(--text-disabled);
   font-size: var(--text-xs, 11px);
-}
-
-/* Active users standalone card */
-.stats-page > .stat-card {
-  margin-bottom: var(--space-5);
-  max-width: 280px;
 }
 
 /* Revenue by product: delta column */
