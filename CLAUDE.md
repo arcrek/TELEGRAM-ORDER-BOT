@@ -65,7 +65,7 @@ The system has five independent processes that communicate through the database:
 ```
 Customer Bot  ──┐
 Supplier Bot  ──┤
-IPN Server    ──┼──> PostgreSQL/SQLite (via SQLAlchemy service layer)
+IPN Server    ──┼──> PostgreSQL (via SQLAlchemy service layer)
 Dashboard API ──┤
 Frontend      ──┘ (calls Dashboard API over HTTP)
 ```
@@ -74,14 +74,14 @@ Frontend      ──┘ (calls Dashboard API over HTTP)
 
 - **`src/bot/`** — Customer-facing Telegram bot. All handlers are async. Uses a single-message update pattern (edit message in place rather than sending new ones). State per user managed in `src/bot/states/state_manager.py`.
 - **`src/bot_supplier/`** — Supplier Telegram bot; receives order notifications when customers place supplier-product orders. Currently disabled in the dashboard API (the `suppliers` and `product_supplier_assignments` routers are commented out in `src/dashboard/main.py`).
-- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `app_settings`, `payos_webhook`, `iotd`, `balances`. (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
+- **`src/dashboard/routers/`** — FastAPI routers: `auth`, `products`, `orders`, `statistics`, `product_upload`, `pre_uploaded`, `variations`, `bonus_tiers`, `discount_tiers`, `notifications`, `bot_ui_settings`, `app_settings`, `payos_webhook`, `iotd`, `balances`, `manuals` (`/api/manuals` — user guides per product), `api_v1` (`/api/v1` — public bearer-token API for ordering pre-uploaded products, balance-only payment, rate-limited). (`suppliers` and `product_supplier_assignments` exist on disk but are not mounted.) JWT auth via `src/dashboard/auth.py`.
 - **`src/utils/datetime_format.py`** — Shared datetime utilities: `to_utc_iso` (API serialization, naive→UTC+00:00), `resolve_tz`/`now_local`/`format_local` (bot timezone display using stdlib `zoneinfo`). No new dependencies.
-- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`, `topup_order`, `balance_transaction`, `app_settings`). All business logic goes through `src/database/services/`, never raw queries in handlers. `BotUser.balance` is a `BigInteger` column; balance mutations go through `BalanceService` (atomic conditional UPDATEs, never read-then-write).
+- **`src/database/models/`** — SQLAlchemy 2.0 declarative models (`order`, `order_item`, `product`, `product_variation`, `pre_uploaded_product`, `bot_user`, `bot_admin`, `admin`, `supplier`, `supplier_order`, `product_supplier_assignment`, `notification_settings`, `bot_ui_settings`, `iotd_settings`, `bonus_tier`, `discount_tier`, `user_preference`, `topup_order`, `balance_transaction`, `app_settings`, `manual`, `manual_product_assignment`). All business logic goes through `src/database/services/`, never raw queries in handlers. `BotUser.balance` is a `BigInteger` column; balance mutations go through `BalanceService` (atomic conditional UPDATEs, never read-then-write).
 - **`src/ipn/processor.py`** — Payment-agnostic IPN processor shared by both Pay2S and PayOS. Dispatches by order ID prefix: `"TU"`-prefixed IDs route to topup balance credit; all other IDs route to product-order fulfillment. Exposes `process_balance_paid_order(order_id)` for the bot UI to trigger fulfillment after `BalanceService.pay_order_with_balance` succeeds.
 - **`src/pay2s/`** — Pay2S payment integration (primary). `payment.py` creates payment links; `ipn.py` is the Flask IPN server; `signature.py` handles HMAC verification.
 - **`src/payos/`** — PayOS integration (secondary/alternative payment gateway); webhook handled by the `payos_webhook` dashboard router.
 - **`src/i18n/locales/`** — Translation JSON files (`vi/bot.json`, `en/bot.json`). Vietnamese is default.
-- **`frontend/src/pages/`** — React 18 + TypeScript dashboard pages: `Statistics`, `Products`, `Orders`, `ProductUpload`, `Inventory` (mounted at `/pre-uploaded`, includes per-variant aging warnings and date/variation/upload filters), `InventoryUpdate`, `Variations`, `BonusSummary`, `Suppliers`, `Notifications`, `BotUiSettings`, `Iotd`, `Balances` (user balance management with add/subtract/set adjustments, transaction history, and topup-order history). Dark SaaS theme (background `#0F0F0D`, card `#181816`, accent `#6EA8FF`). No gradients or glassmorphism.
+- **`frontend/src/pages/`** — React 18 + TypeScript dashboard pages: `Statistics`, `Products`, `Orders`, `ProductUpload`, `Inventory` (mounted at `/pre-uploaded`, includes per-variant aging warnings and date/variation/upload filters), `InventoryUpdate`, `Variations`, `BonusSummary`, `Suppliers`, `Notifications`, `BotUiSettings`, `Iotd`, `Balances` (user balance management with add/subtract/set adjustments, transaction history, and topup-order history), `GeneralSettings`, `Manuals`, `Api`. Dark SaaS theme (background `#0F0F0D`, card `#181816`, accent `#6EA8FF`). No gradients or glassmorphism.
 
 ### Delivery Flow
 
@@ -104,7 +104,7 @@ Frontend      ──┘ (calls Dashboard API over HTTP)
 
 ### Database
 
-- SQLite by default (`data/database.db`), PostgreSQL in production (Docker Compose ships a `postgres` service)
+- PostgreSQL only — `connection.py` raises `RuntimeError` if no DB config is found. SQLite is only used in tests via explicit `create_engine_instance(url)`. Docker Compose ships a `postgres` service.
 - All model changes require an Alembic migration — never modify tables directly
 - 19+ models including: `Order`, `OrderItem`, `Product`, `ProductVariation`, `PreUploadedProduct`, `BotUser`, `Admin`, `Supplier`, `NotificationSettings`, `BonusTier`, `DiscountTier`, `IotdSettings`, `BotUiSettings`, `TopupOrder`, `BalanceTransaction`
 
@@ -115,7 +115,13 @@ Requires a `.env` file in project root. Key variables:
 ```bash
 TELEGRAM_BOT_TOKEN=          # Customer bot
 SUPPLIER_TELEGRAM_BOT_TOKEN= # Supplier bot
-DATABASE_URL=sqlite:///data/database.db
+DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/mtkbot
+# OR individual vars (used when DATABASE_URL is unset):
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mtkbot
+DB_USER=postgres
+DB_PASSWORD=
 PAY2S_PARTNER_CODE=
 PAY2S_ACCESS_KEY=
 PAY2S_SECRET_KEY=
