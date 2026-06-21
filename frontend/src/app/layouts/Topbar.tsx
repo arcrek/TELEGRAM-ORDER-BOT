@@ -1,10 +1,12 @@
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Search, Menu, Sun, Moon, Globe, ChevronDown, LogOut, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { IconButton } from '../../shared/components/IconButton'
 import { DropdownMenu, type DropdownMenuItem } from '../../shared/components/DropdownMenu'
 import { useTheme } from '../../contexts/ThemeContext'
 import { useAuth } from '../../contexts/AuthContext'
+import { apiClient } from '../../shared/lib/api'
 import { ROUTES } from '../routes'
 import './Topbar.css'
 
@@ -20,9 +22,28 @@ export function Topbar({ onMenuClick, isMobile, onSearchClick, className = '' }:
   const { resolvedTheme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const location = useLocation()
+  const [botOnline, setBotOnline] = useState<boolean | null>(null)
 
   const currentRoute = ROUTES.find(r => location.pathname.startsWith(r.path))
   const pageTitle = currentRoute ? t(currentRoute.labelKey, currentRoute.key) : ''
+
+  // Derive bot status from whether there are recent orders
+  useEffect(() => {
+    let cancelled = false
+    const check = async () => {
+      try {
+        const res = await apiClient.get<{ total_orders_today: number }>('/api/statistics/overview', {
+          params: { range: '1d' },
+        })
+        if (!cancelled) setBotOnline(res.data.total_orders_today > 0)
+      } catch {
+        if (!cancelled) setBotOnline(false)
+      }
+    }
+    check()
+    const interval = setInterval(check, 120_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
 
   const langItems: DropdownMenuItem[] = [
     {
@@ -70,6 +91,17 @@ export function Topbar({ onMenuClick, isMobile, onSearchClick, className = '' }:
         )}
         <h1 className="topbar__page-title">{pageTitle}</h1>
       </div>
+
+      {/* Bot status pill — only show once status is known */}
+      {botOnline !== null && (
+        <div
+          className={`topbar__bot-status topbar__bot-status--${botOnline ? 'online' : 'offline'}`}
+          title={botOnline ? 'Bot đang hoạt động' : 'Bot không có đơn hàng hôm nay'}
+        >
+          <span className="topbar__bot-dot" />
+          <span>{botOnline ? 'Bot online' : 'Bot offline'}</span>
+        </div>
+      )}
 
       {/* Right: search, lang, theme, user */}
       <div className="topbar__right">
