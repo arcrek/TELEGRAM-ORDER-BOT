@@ -123,7 +123,7 @@
 }
 
 .stats-product-revenue__td--revenue {
-  color: var(--brand-400, #93BBFF);
+  color: var(--amber-400);
   font-weight: 500;
 }
 
@@ -220,7 +220,7 @@
 .stats-heatmap__cell {
   flex: 1;
   height: 16px;
-  background: var(--brand-500);
+  background: var(--amber-400);
   border-radius: 2px;
   cursor: default;
   min-width: 6px;
@@ -252,7 +252,7 @@
 }
 
 .stats-activity__amount {
-  color: var(--text-primary);
+  color: var(--amber-400);
   margin-left: auto;
   font-variant-numeric: tabular-nums;
   font-family: var(--font-mono);
@@ -421,7 +421,7 @@
 
 .stats-todo__row-amount {
   font-family: var(--font-mono);
-  color: #93BBFF;
+  color: var(--amber-400);
   margin-left: auto;
   font-variant-numeric: tabular-nums;
   font-size: 11px;
