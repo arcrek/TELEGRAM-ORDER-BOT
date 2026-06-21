@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { RefreshCw, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { RefreshCw, Image as ImageIcon } from 'lucide-react'
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, PointElement, LineElement,
   BarElement, ArcElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js'
-import { Line, Bar, Doughnut } from 'react-chartjs-2'
+import { Line, Bar } from 'react-chartjs-2'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
@@ -94,7 +94,6 @@ export function StatisticsPage() {
   const [range, setRange] = useState<DateRange>({ from: null, to: null })
   const [rangePreset, setRangePreset] = useState<RangePreset>('30d')
   const [revTab, setRevTab] = useState('daily')
-  const [productSort, setProductSort] = useState<{ key: keyof RevenueByProduct; dir: 'asc' | 'desc' }>({ key: 'revenue', dir: 'desc' })
 
   const theme = useMemo(() => getChartTheme(), [resolvedTheme])
   const baseOpts = useMemo(() => getBaseChartOptions(theme), [theme])
@@ -147,25 +146,6 @@ export function StatisticsPage() {
     }
   }, [data, revTab, theme])
 
-  // Status donut
-  const donutData = useMemo(() => {
-    if (!data) return null
-    const statusColors: Record<string, string> = {
-      pending: theme.viz[2], paid: theme.viz[0],
-      processing: theme.viz[5], delivered: theme.viz[1], cancelled: theme.viz[3],
-    }
-    const entries = Object.entries(data.orders_by_status)
-    return {
-      labels: entries.map(([s]) => t(`orders.status.${s}`, s)),
-      datasets: [{
-        data: entries.map(([, v]) => v),
-        backgroundColor: entries.map(([s]) => statusColors[s] ?? theme.viz[4]),
-        borderWidth: 0,
-        hoverOffset: 4,
-      }],
-    }
-  }, [data, theme])
-
   // Top products bar
   const topData = useMemo(() => {
     if (!data) return null
@@ -201,25 +181,6 @@ export function StatisticsPage() {
     if (!data?.orders_heatmap) return 1
     return Math.max(...data.orders_heatmap.map(c => c.count), 1)
   }, [data])
-
-  const hasDelta = useMemo(
-    () => (data?.revenue_by_product?.length ?? 0) > 0 && 'pct_change' in (data?.revenue_by_product[0] ?? {}),
-    [data?.revenue_by_product],
-  )
-
-  const sortedProducts = useMemo(() => {
-    if (!data?.revenue_by_product) return []
-    return [...data.revenue_by_product].sort((a, b) => {
-      const va = a[productSort.key] as number | string
-      const vb = b[productSort.key] as number | string
-      if (typeof va === 'string') return productSort.dir === 'asc' ? va.localeCompare(vb as string) : (vb as string).localeCompare(va)
-      return productSort.dir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number)
-    })
-  }, [data?.revenue_by_product, productSort])
-
-  const toggleProductSort = useCallback((key: keyof RevenueByProduct) => {
-    setProductSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' })
-  }, [])
 
   const [iotdUrl, setIotdUrl] = useState<string | null>(null)
   const [iotdImgError, setIotdImgError] = useState(false)
@@ -332,200 +293,10 @@ export function StatisticsPage() {
         </div>
       </div>
 
-      {/* Product Revenue Table */}
-      <div className="stats-product-revenue chart-card">
-        <div className="chart-card__header">
-          <h3 className="chart-card__title">{t('statistics.revenueByProduct', 'Doanh thu theo sản phẩm')}</h3>
-        </div>
-        <div className="stats-product-revenue__table-wrap">
-          <table className="stats-product-revenue__table">
-            <thead>
-              <tr>
-                <th className="stats-product-revenue__th stats-product-revenue__th--num">#</th>
-                <th
-                  className={`stats-product-revenue__th stats-product-revenue__th--sortable${productSort.key === 'product_name' ? ' active' : ''}`}
-                  onClick={() => toggleProductSort('product_name')}
-                >
-                  {t('statistics.productName', 'Sản phẩm')}
-                  <span className="stats-product-revenue__sort-icon">
-                    {productSort.key === 'product_name' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
-                  </span>
-                </th>
-                <th
-                  className={`stats-product-revenue__th stats-product-revenue__th--right stats-product-revenue__th--sortable${productSort.key === 'total_sold' ? ' active' : ''}`}
-                  onClick={() => toggleProductSort('total_sold')}
-                >
-                  {t('statistics.unitsSold', 'Đã bán')}
-                  <span className="stats-product-revenue__sort-icon">
-                    {productSort.key === 'total_sold' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
-                  </span>
-                </th>
-                <th
-                  className={`stats-product-revenue__th stats-product-revenue__th--right stats-product-revenue__th--sortable${productSort.key === 'revenue' ? ' active' : ''}`}
-                  onClick={() => toggleProductSort('revenue')}
-                >
-                  {t('statistics.revenue', 'Doanh thu')}
-                  <span className="stats-product-revenue__sort-icon">
-                    {productSort.key === 'revenue' ? (productSort.dir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />) : <ChevronDown size={12} className="muted" />}
-                  </span>
-                </th>
-                {hasDelta && (
-                  <th className="stats-product-revenue__th stats-product-revenue__th--right stats-product-revenue__th--delta">
-                    {t('statistics.pctChange', '% Thay đổi')}
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <tr key={i} className="stats-product-revenue__row stats-product-revenue__row--skeleton">
-                    <td className="stats-product-revenue__td stats-product-revenue__td--num"><span className="skeleton-line" /></td>
-                    <td className="stats-product-revenue__td"><span className="skeleton-line" /></td>
-                    <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>
-                    <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>
-                    {hasDelta && <td className="stats-product-revenue__td stats-product-revenue__td--right"><span className="skeleton-line" /></td>}
-                  </tr>
-                ))
-              ) : sortedProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={hasDelta ? 5 : 4} className="stats-product-revenue__empty">{t('statistics.noData', 'Chưa có dữ liệu')}</td>
-                </tr>
-              ) : (
-                sortedProducts.map((p, idx) => (
-                  <tr key={p.product_id} className="stats-product-revenue__row">
-                    <td className="stats-product-revenue__td stats-product-revenue__td--num">{idx + 1}</td>
-                    <td className="stats-product-revenue__td stats-product-revenue__td--name">{p.product_name}</td>
-                    <td className="stats-product-revenue__td stats-product-revenue__td--right num">{fmt.number(p.total_sold)}</td>
-                    <td className="stats-product-revenue__td stats-product-revenue__td--right num stats-product-revenue__td--revenue">{fmt.currency(p.revenue)}</td>
-                    {hasDelta && (
-                      <td className="stats-product-revenue__td stats-product-revenue__td--right stats-product-revenue__td--delta num">
-                        {p.pct_change == null ? (
-                          <span className="stats-product-revenue__delta stats-product-revenue__delta--neutral">—</span>
-                        ) : p.pct_change > 0 ? (
-                          <span className="stats-product-revenue__delta stats-product-revenue__delta--pos">▲ {p.pct_change}%</span>
-                        ) : p.pct_change < 0 ? (
-                          <span className="stats-product-revenue__delta stats-product-revenue__delta--neg">▼ {Math.abs(p.pct_change)}%</span>
-                        ) : (
-                          <span className="stats-product-revenue__delta stats-product-revenue__delta--neutral">0%</span>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Todo Section */}
-      <div className="stats-todo chart-card">
-        <div className="chart-card__header">
-          <h3 className="chart-card__title">Việc cần làm</h3>
-        </div>
-        <div className="stats-todo__body">
-
-          {/* Group 1: Pending upgrade orders */}
-          <div className="stats-todo__group">
-            <div className="stats-todo__group-header">
-              <span className="stats-todo__group-title">Đơn nâng cấp đang chờ</span>
-              {todoData && (
-                <span className={`stats-todo__badge${todoData.upgrade_orders_count > 0 ? ' stats-todo__badge--warn' : ''}`}>
-                  {todoData.upgrade_orders_count}
-                </span>
-              )}
-            </div>
-            {todoLoading ? (
-              <div className="stats-todo__skeleton" />
-            ) : !todoData?.upgrade_orders.length ? (
-              <p className="stats-todo__empty">Không có đơn nào</p>
-            ) : (
-              todoData.upgrade_orders.map(order => (
-                <button
-                  key={order.id}
-                  className="stats-todo__row"
-                  onClick={() => navigate(`/orders?q=${order.id}`)}
-                >
-                  <span className="stats-todo__row-id num">#{order.id.slice(0, 8)}</span>
-                  <Badge status={order.status as OrderStatus} size="sm">
-                    {t(`orders.status.${order.status}`, order.status)}
-                  </Badge>
-                  <span className="stats-todo__row-amount num">{fmt.currency(order.total_amount)}</span>
-                  <span className="stats-todo__row-time">{fmt.relative(order.created_at)}</span>
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* Group 2: Aging / expiring-soon inventory */}
-          <div className="stats-todo__group">
-            <div className="stats-todo__group-header">
-              <span className="stats-todo__group-title">Tồn kho đã cũ / sắp hết hạn</span>
-              {todoData && (
-                <span className={`stats-todo__badge${todoData.aging_inventory_count > 0 ? ' stats-todo__badge--warn' : ''}`}>
-                  {todoData.aging_inventory_count}
-                </span>
-              )}
-            </div>
-            {todoLoading ? (
-              <div className="stats-todo__skeleton" />
-            ) : !todoData?.aging_inventory.length ? (
-              <p className="stats-todo__empty">Không có phân loại nào</p>
-            ) : (
-              todoData.aging_inventory.map(v => (
-                <button
-                  key={`aging-${v.variation_id}`}
-                  className="stats-todo__row"
-                  onClick={() => navigate(`/pre-uploaded?product=${v.product_id}&variation=${v.variation_id}&aging=aging`)}
-                >
-                  <span className="stats-todo__row-name">{v.product_name}</span>
-                  <span className="stats-todo__row-variation">{v.variation_name}</span>
-                  <span className="stats-todo__row-tags">
-                    {v.aging > 0 && <span className="stats-todo__tag stats-todo__tag--aged">{v.aging} cũ</span>}
-                    {v.expiring_soon > 0 && <span className="stats-todo__tag stats-todo__tag--expiring">{v.expiring_soon} sắp hết</span>}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-
-          {/* Group 3: Low stock inventory */}
-          <div className="stats-todo__group">
-            <div className="stats-todo__group-header">
-              <span className="stats-todo__group-title">Tồn kho sắp hết</span>
-              {todoData && (
-                <span className={`stats-todo__badge${todoData.low_stock_inventory_count > 0 ? ' stats-todo__badge--danger' : ''}`}>
-                  {todoData.low_stock_inventory_count}
-                </span>
-              )}
-            </div>
-            {todoLoading ? (
-              <div className="stats-todo__skeleton" />
-            ) : !todoData?.low_stock_inventory.length ? (
-              <p className="stats-todo__empty">Không có phân loại nào</p>
-            ) : (
-              todoData.low_stock_inventory.map(v => (
-                <button
-                  key={`lowstock-${v.variation_id}`}
-                  className="stats-todo__row"
-                  onClick={() => navigate(`/pre-uploaded?product=${v.product_id}&variation=${v.variation_id}`)}
-                >
-                  <span className="stats-todo__row-name">{v.product_name}</span>
-                  <span className="stats-todo__row-variation">{v.variation_name}</span>
-                  <span className={`stats-todo__stock-pill${v.in_stock === 0 ? ' stats-todo__stock-pill--out' : ' stats-todo__stock-pill--low'}`}>
-                    {v.in_stock === 0 ? 'Hết hàng' : `${v.in_stock} còn`}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-
-        </div>
-      </div>
-
       {/* Bento grid */}
       <div className="stats-page__bento">
+
+        {/* Revenue chart */}
         <ChartCard
           title={t('statistics.revenueTrend', 'Xu hướng doanh thu')}
           loading={loading}
@@ -554,57 +325,109 @@ export function StatisticsPage() {
           )}
         </ChartCard>
 
-        <ChartCard
-          title={t('statistics.ordersByStatus', 'Đơn theo trạng thái')}
-          loading={loading}
-          minHeight={200}
-          className="stats-page__donut-chart"
-        >
-          {donutData && (
-            <Doughnut
-              key={`donut-${resolvedTheme}`}
-              data={donutData}
-              options={{
-                cutout: '65%',
-                plugins: {
-                  legend: { position: 'bottom', labels: { color: theme.textMuted, font: { size: 10 }, boxWidth: 10 } },
-                },
-              }}
-            />
-          )}
-        </ChartCard>
+        {/* Action Required panel — moved from bottom, shown prominently */}
+        <div className="stats-page__action chart-card">
+          <div className="chart-card__header">
+            <h3 className="chart-card__title">Việc cần làm</h3>
+          </div>
+          <div className="stats-action">
 
-        <ChartCard
-          title={t('statistics.conversionFunnel', 'Phễu chuyển đổi')}
-          loading={loading}
-          minHeight={160}
-          className="stats-page__funnel-chart"
-        >
-          {funnelData && (
-            <Bar
-              key={`funnel-${resolvedTheme}`}
-              data={funnelData}
-              options={{ ...baseOpts, indexAxis: 'y' as const, plugins: { ...baseOpts.plugins, legend: { display: false } } } as Parameters<typeof Bar>[0]['options']}
-            />
-          )}
-        </ChartCard>
+            <div className="stats-action__group">
+              <div className="stats-action__group-header">
+                <span className="stats-action__group-title">Đơn nâng cấp đang chờ</span>
+                {todoData && (
+                  <span className={`stats-todo__badge${todoData.upgrade_orders_count > 0 ? ' stats-todo__badge--warn' : ''}`}>
+                    {todoData.upgrade_orders_count}
+                  </span>
+                )}
+              </div>
+              {todoLoading ? (
+                <div className="stats-todo__skeleton" />
+              ) : !todoData?.upgrade_orders.length ? (
+                <p className="stats-todo__empty">Không có đơn nào</p>
+              ) : (
+                todoData.upgrade_orders.map(order => (
+                  <button
+                    key={order.id}
+                    className="stats-todo__row"
+                    onClick={() => navigate(`/orders?q=${order.id}`)}
+                  >
+                    <span className="stats-todo__row-id num">#{order.id.slice(0, 8)}</span>
+                    <Badge status={order.status as OrderStatus} size="sm">
+                      {t(`orders.status.${order.status}`, order.status)}
+                    </Badge>
+                    <span className="stats-todo__row-amount num">{fmt.currency(order.total_amount)}</span>
+                    <span className="stats-todo__row-time">{fmt.relative(order.created_at)}</span>
+                  </button>
+                ))
+              )}
+            </div>
 
-        <ChartCard
-          title={t('statistics.topProducts', 'Sản phẩm bán chạy')}
-          loading={loading}
-          minHeight={160}
-          className="stats-page__top-chart"
-        >
-          {topData && (
-            <Bar
-              key={`top-${resolvedTheme}`}
-              data={topData}
-              options={{ ...baseOpts, indexAxis: 'y' as const, plugins: { ...baseOpts.plugins, legend: { display: false } } } as Parameters<typeof Bar>[0]['options']}
-            />
-          )}
-        </ChartCard>
+            <div className="stats-action__group">
+              <div className="stats-action__group-header">
+                <span className="stats-action__group-title">Tồn kho đã cũ / sắp hết hạn</span>
+                {todoData && (
+                  <span className={`stats-todo__badge${todoData.aging_inventory_count > 0 ? ' stats-todo__badge--warn' : ''}`}>
+                    {todoData.aging_inventory_count}
+                  </span>
+                )}
+              </div>
+              {todoLoading ? (
+                <div className="stats-todo__skeleton" />
+              ) : !todoData?.aging_inventory.length ? (
+                <p className="stats-todo__empty">Không có phân loại nào</p>
+              ) : (
+                todoData.aging_inventory.map(v => (
+                  <button
+                    key={`aging-${v.variation_id}`}
+                    className="stats-todo__row"
+                    onClick={() => navigate(`/pre-uploaded?product=${v.product_id}&variation=${v.variation_id}&aging=aging`)}
+                  >
+                    <span className="stats-todo__row-name">{v.product_name}</span>
+                    <span className="stats-todo__row-variation">{v.variation_name}</span>
+                    <span className="stats-todo__row-tags">
+                      {v.aging > 0 && <span className="stats-todo__tag stats-todo__tag--aged">{v.aging} cũ</span>}
+                      {v.expiring_soon > 0 && <span className="stats-todo__tag stats-todo__tag--expiring">{v.expiring_soon} sắp hết</span>}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
 
-        {/* Heatmap */}
+            <div className="stats-action__group">
+              <div className="stats-action__group-header">
+                <span className="stats-action__group-title">Tồn kho sắp hết</span>
+                {todoData && (
+                  <span className={`stats-todo__badge${todoData.low_stock_inventory_count > 0 ? ' stats-todo__badge--danger' : ''}`}>
+                    {todoData.low_stock_inventory_count}
+                  </span>
+                )}
+              </div>
+              {todoLoading ? (
+                <div className="stats-todo__skeleton" />
+              ) : !todoData?.low_stock_inventory.length ? (
+                <p className="stats-todo__empty">Không có phân loại nào</p>
+              ) : (
+                todoData.low_stock_inventory.map(v => (
+                  <button
+                    key={`lowstock-${v.variation_id}`}
+                    className="stats-todo__row"
+                    onClick={() => navigate(`/pre-uploaded?product=${v.product_id}&variation=${v.variation_id}`)}
+                  >
+                    <span className="stats-todo__row-name">{v.product_name}</span>
+                    <span className="stats-todo__row-variation">{v.variation_name}</span>
+                    <span className={`stats-todo__stock-pill${v.in_stock === 0 ? ' stats-todo__stock-pill--out' : ' stats-todo__stock-pill--low'}`}>
+                      {v.in_stock === 0 ? 'Hết hàng' : `${v.in_stock} còn`}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Heatmap — full width */}
         <div className="stats-page__heatmap chart-card">
           <div className="chart-card__header">
             <h3 className="chart-card__title">{t('statistics.heatmap', 'Mật độ đơn theo giờ')}</h3>
@@ -633,6 +456,38 @@ export function StatisticsPage() {
             </div>
           </div>
         </div>
+
+        {/* Funnel */}
+        <ChartCard
+          title={t('statistics.conversionFunnel', 'Phễu chuyển đổi')}
+          loading={loading}
+          minHeight={160}
+          className="stats-page__funnel-chart"
+        >
+          {funnelData && (
+            <Bar
+              key={`funnel-${resolvedTheme}`}
+              data={funnelData}
+              options={{ ...baseOpts, indexAxis: 'y' as const, plugins: { ...baseOpts.plugins, legend: { display: false } } } as Parameters<typeof Bar>[0]['options']}
+            />
+          )}
+        </ChartCard>
+
+        {/* Top products */}
+        <ChartCard
+          title={t('statistics.topProducts', 'Sản phẩm bán chạy')}
+          loading={loading}
+          minHeight={160}
+          className="stats-page__top-chart"
+        >
+          {topData && (
+            <Bar
+              key={`top-${resolvedTheme}`}
+              data={topData}
+              options={{ ...baseOpts, indexAxis: 'y' as const, plugins: { ...baseOpts.plugins, legend: { display: false } } } as Parameters<typeof Bar>[0]['options']}
+            />
+          )}
+        </ChartCard>
 
         {/* Image of the Day */}
         <div className="stats-page__iotd chart-card">
@@ -678,6 +533,7 @@ export function StatisticsPage() {
             ))}
           </div>
         </div>
+
       </div>
     </div>
   )

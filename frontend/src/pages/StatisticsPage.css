@@ -216,32 +216,34 @@
 /* Bento grid */
 .stats-page__bento {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 3fr 2fr;
   gap: var(--space-3);
   grid-template-areas:
-    "revenue revenue"
-    "donut funnel"
-    "top heatmap"
-    "iotd activity";
+    "revenue  action"
+    "heatmap  heatmap"
+    "funnel   top"
+    "iotd     activity";
 }
 
 .stats-page__revenue-chart  { grid-area: revenue; }
-.stats-page__donut-chart    { grid-area: donut; }
+.stats-page__action         { grid-area: action; }
+.stats-page__heatmap        { grid-area: heatmap; }
 .stats-page__funnel-chart   { grid-area: funnel; }
 .stats-page__top-chart      { grid-area: top; }
-.stats-page__heatmap        { grid-area: heatmap; }
 .stats-page__iotd           { grid-area: iotd; }
 .stats-page__activity       { grid-area: activity; }
+
+/* Remove the old donut area — it's deleted */
 
 @media (max-width: 900px) {
   .stats-page__bento {
     grid-template-columns: 1fr;
     grid-template-areas:
       "revenue"
-      "donut"
+      "action"
+      "heatmap"
       "funnel"
       "top"
-      "heatmap"
       "iotd"
       "activity";
   }
@@ -270,7 +272,7 @@
   line-height: 1;
   text-align: right;
   width: 20px;
-  height: 16px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -291,9 +293,9 @@
 
 .stats-heatmap__cell {
   flex: 1;
-  height: 16px;
+  height: 22px;
   background: var(--amber-400);
-  border-radius: 2px;
+  border-radius: 3px;
   cursor: default;
   min-width: 6px;
 }
@@ -381,6 +383,42 @@
 .stats-product-revenue__delta--pos { color: #4ade80; }
 .stats-product-revenue__delta--neg { color: #f87171; }
 .stats-product-revenue__delta--neutral { color: var(--text-disabled); }
+
+/* ── Action panel (inside bento, grid-area: action) ─────── */
+.stats-page__action {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.stats-action {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.stats-action__group {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.stats-action__group:last-child {
+  border-bottom: none;
+}
+
+.stats-action__group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.stats-action__group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 
 /* ── Todo Section ──────────────────────────────────────────────────────── */
 .stats-todo {
