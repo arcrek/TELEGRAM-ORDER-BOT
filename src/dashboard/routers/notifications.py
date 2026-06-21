@@ -105,22 +105,19 @@ def _parse_user_ids(raw: Optional[str]) -> List[int]:
     """Parse a comma-separated telegram id string into a deduped int list."""
     if not raw:
         return []
-    seen, ids = set(), []
+    ids: dict = {}
     for part in raw.split(","):
         part = part.strip()
         if not part:
             continue
         try:
-            value = int(part)
+            ids[int(part)] = None
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid user id: {part!r}",
             )
-        if value not in seen:
-            seen.add(value)
-            ids.append(value)
-    return ids
+    return list(ids)
 
 
 @router.post("/send", response_model=NotificationResponse)

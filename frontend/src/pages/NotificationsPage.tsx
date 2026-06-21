@@ -189,13 +189,11 @@ export function NotificationsPage() {
       toast.warning(t('notifications.imageTooLarge', 'Ảnh vượt quá giới hạn 10MB'))
       return
     }
-    if (imagePreview) URL.revokeObjectURL(imagePreview)
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
   }
 
   const clearImage = () => {
-    if (imagePreview) URL.revokeObjectURL(imagePreview)
     setImageFile(null)
     setImagePreview(null)
   }
