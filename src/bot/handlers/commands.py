@@ -23,6 +23,8 @@ from src.bot.utils.language import get_user_language, t
 from src.bot.utils.keyboard import get_persistent_keyboard
 from src.database.services.app_settings_service import AppSettingsService
 from src.utils.datetime_format import resolve_tz, now_local
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 
 # Global state manager instance
@@ -171,7 +173,8 @@ async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TY
         inline_keyboard = formatter.create_product_keyboard(
             products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
         )
-        await query.edit_message_text(message, reply_markup=inline_keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=inline_keyboard, parse_mode=parse_mode)
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
@@ -340,7 +343,8 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
 
         # Send main message with inline keyboard
-        await update.message.reply_text(message, reply_markup=inline_keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await update.message.reply_text(rendered, reply_markup=inline_keyboard, parse_mode=parse_mode)
 
         # Restore reply keyboard without leaving a message
         await _restore_reply_keyboard(update, context)

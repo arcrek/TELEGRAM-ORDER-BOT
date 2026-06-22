@@ -19,6 +19,8 @@ from src.bot.states.state_manager import StateManager
 from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
 from src.bot.utils.user_locks import get_user_lock
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +183,8 @@ async def handle_show_products_list(update: Update, context: ContextTypes.DEFAUL
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         keyboard = formatter.create_product_keyboard(products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids)
 
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
@@ -221,7 +224,8 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         keyboard = formatter.create_product_keyboard(products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids)
 
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
@@ -295,7 +299,8 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update, delivery_type=product.delivery_type)
 
         # Update message
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
@@ -737,9 +742,10 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
             sold_count=sold_count,
         )
         keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update, delivery_type=product.delivery_type)
-        
+
         # Update message
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
@@ -782,7 +788,8 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
             products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
         )
 
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
