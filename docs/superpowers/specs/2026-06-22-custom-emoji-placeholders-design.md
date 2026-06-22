@@ -75,7 +75,7 @@ Mirrors the existing sync service layer (`src/database/services/`). Methods:
 - `delete(id) -> bool`
 - `set_content(id, units, raw_text, set_by) -> EmojiPlaceholder` — called by the bot capture flow
 
-Includes a small in-process cache (`id -> rendered HTML`) invalidated on every write (`set_content`, `rename`, `delete`), since rendering runs on every product/notification send.
+Rendering (`get_rendered_html`) is a single indexed PK lookup per call — **no cache**. (An in-process cache was considered but rejected: the bot and dashboard are separate processes, so a dashboard-side delete/edit could never invalidate the bot's cache, making it a correctness hazard for negligible gain.)
 
 ### 3. Render helper — `EmojiRenderer`
 
@@ -148,7 +148,7 @@ Includes a matching `downgrade()`.
 - **Escaping correctness** — the primary risk; mitigated by the fixed render order (escape → substitute) and dedicated tests.
 - **Token referencing a deleted/empty placeholder** — resolves to empty; never a broken message.
 - **Non-admin `/set_emo`** — rejected by `is_admin`.
-- **Cache staleness** — cache invalidated on every service write.
+- **Premium send-rights assumption** — the whole feature assumes the Premium bot owner lets the bot *send* custom emoji (in private chats and group/channel notification targets). This is verified empirically by a spike (plan Task 0) before any build.
 
 ## Out of scope (v1)
 
