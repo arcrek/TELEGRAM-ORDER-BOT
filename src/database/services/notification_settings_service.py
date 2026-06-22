@@ -240,6 +240,8 @@ class NotificationSettingsService:
         whitelist_chat_ids: Optional[List[Any]] = None,
         upgrade_chat_ids: Optional[List[Any]] = None,
         topup_chat_ids: Optional[List[Any]] = None,
+        header_placeholder_id: Optional[int] = None,
+        footer_placeholder_id: Optional[int] = None,
     ) -> NotificationSettings:
         """
         Update notification settings.
@@ -258,6 +260,10 @@ class NotificationSettingsService:
             topup_chat_ids: Separate list of targets for BALANCE_TOPUP_PAID
                 notifications. Same value formats as whitelist. When empty,
                 topup notifications fall back to the main whitelist.
+            header_placeholder_id: Optional Telegram message ID used as a
+                header placeholder for order notifications.
+            footer_placeholder_id: Optional Telegram message ID used as a
+                footer placeholder for order notifications.
 
         Returns:
             Updated NotificationSettings instance.
@@ -284,6 +290,8 @@ class NotificationSettingsService:
             settings.topup_notify_chat_ids = json.dumps(
                 self._normalize_chat_ids(topup_chat_ids)
             )
+        settings.header_placeholder_id = header_placeholder_id
+        settings.footer_placeholder_id = footer_placeholder_id
 
         self.session.commit()
         self.session.refresh(settings)

@@ -83,6 +83,8 @@ class OrderNotificationSettingsResponse(BaseModel):
     whitelist_chat_ids: List[str]
     upgrade_chat_ids: List[str]
     topup_chat_ids: List[str]
+    header_placeholder_id: Optional[int] = None
+    footer_placeholder_id: Optional[int] = None
 
 
 class OrderNotificationSettingsUpdate(BaseModel):
@@ -95,6 +97,8 @@ class OrderNotificationSettingsUpdate(BaseModel):
     whitelist_chat_ids: List[str]
     upgrade_chat_ids: List[str]
     topup_chat_ids: List[str]
+    header_placeholder_id: Optional[int] = None
+    footer_placeholder_id: Optional[int] = None
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # Telegram send_photo cap
@@ -264,6 +268,8 @@ async def get_order_notification_settings(
         whitelist_chat_ids=whitelist_ids,
         upgrade_chat_ids=upgrade_ids,
         topup_chat_ids=topup_ids,
+        header_placeholder_id=settings.header_placeholder_id,
+        footer_placeholder_id=settings.footer_placeholder_id,
     )
 
 
@@ -287,6 +293,8 @@ async def update_order_notification_settings(
         whitelist_chat_ids=payload.whitelist_chat_ids,
         upgrade_chat_ids=payload.upgrade_chat_ids,
         topup_chat_ids=payload.topup_chat_ids,
+        header_placeholder_id=payload.header_placeholder_id,
+        footer_placeholder_id=payload.footer_placeholder_id,
     )
     whitelist_ids = settings_service.get_whitelist_entries(settings)
     upgrade_ids = settings_service.get_upgrade_entries(settings)
@@ -300,6 +308,8 @@ async def update_order_notification_settings(
         whitelist_chat_ids=whitelist_ids,
         upgrade_chat_ids=upgrade_ids,
         topup_chat_ids=topup_ids,
+        header_placeholder_id=settings.header_placeholder_id,
+        footer_placeholder_id=settings.footer_placeholder_id,
     )
 
 
