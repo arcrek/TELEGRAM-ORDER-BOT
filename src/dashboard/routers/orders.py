@@ -2,16 +2,19 @@
 Orders router.
 """
 
+import logging
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.order_service import OrderService
-from src.database.models.enums import OrderStatus
+from src.database.models.enums import OrderStatus, DeliveryType
 import csv
 import io
 from src.utils.datetime_format import to_utc_iso
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -308,6 +311,36 @@ async def update_order_status(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
         )
+
+    if new_status == OrderStatus.DELIVERED:
+        try:
+            is_upgrade = any(
+                item.product and item.product.delivery_type == DeliveryType.UPGRADE
+                for item in order.items
+            )
+            if is_upgrade:
+                from src.dashboard.routers.notifications import get_bot_instance
+                from src.database.services.user_preference_service import UserPreferenceService
+                from src.i18n.bot_translations import get_translation
+
+                bot = get_bot_instance()
+                if bot:
+                    try:
+                        language = UserPreferenceService(db).get_user_language(order.user_id)
+                    except Exception:
+                        language = "vi"
+                    await bot.send_message(
+                        chat_id=order.user_id,
+                        text=get_translation(
+                            "upgrade.done_customer_message",
+                            language,
+                            order_id=order.id,
+                        ),
+                    )
+        except Exception as e:
+            logger.warning(
+                f"Failed to send upgrade done notification for order {order_id}: {e}"
+            )
 
     return {
         "id": order.id,
