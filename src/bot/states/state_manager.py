@@ -34,6 +34,10 @@ class UserState:
     export_variations: list = field(default_factory=list)  # [{"id","name"}] of that product
     export_selected_variation_ids: set = field(default_factory=set)  # toggled variants
 
+    # /set_emo flow state
+    awaiting_emoji_input: bool = False
+    pending_emoji_placeholder_id: Optional[int] = None
+
 
 class StateManager:
     """Manages user session states (in-memory storage)."""

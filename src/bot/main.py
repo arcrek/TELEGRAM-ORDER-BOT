@@ -80,6 +80,7 @@ from src.bot.handlers.export import (
     handle_export_cancel,
     handle_export_generate,
 )
+from src.bot.handlers.emoji_admin import set_emo_command, handle_emoji_capture
 from telegram.ext import CallbackQueryHandler, MessageHandler, filters
 from src.ipn import set_global_bot
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
@@ -122,6 +123,7 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("balance", balance_command))
     application.add_handler(CommandHandler("sodu", balance_command))
     application.add_handler(CommandHandler("setadmin", setadmin_command))
+    application.add_handler(CommandHandler("set_emo", set_emo_command))
     application.add_handler(CommandHandler("top", handle_top_buyers_button))
     application.add_handler(CommandHandler("doanhthu", doanhthu_command))
     application.add_handler(CommandHandler("api", api_command))
@@ -284,6 +286,11 @@ def create_bot_application() -> Application:
     application.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, handle_topup_amount_text),
         group=3,
+    )
+    # Emoji capture: only acts when the user is in /set_emo awaiting state.
+    application.add_handler(
+        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_emoji_capture),
+        group=4,
     )
     # UPGRADE-delivery dispatcher: handles both the customer's account-info reply
     # (private chat) and admin status-update replies (notification chat).
