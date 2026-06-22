@@ -30,6 +30,7 @@ from src.dashboard.routers import (
     app_settings,
     balances,
     manuals,
+    emoji_placeholders,
 )
 from src.dashboard.routers import api_v1
 
@@ -115,6 +116,11 @@ app.include_router(iotd.router, prefix="/api/iotd", tags=["iotd"])
 app.include_router(balances.router, prefix="/api/balances", tags=["balances"])
 app.include_router(manuals.router, prefix="/api/manuals", tags=["manuals"])
 app.include_router(api_v1.router, prefix="/api/v1", tags=["public-api"])
+app.include_router(
+    emoji_placeholders.router,
+    prefix="/api/emoji-placeholders",
+    tags=["emoji-placeholders"],
+)
 
 
 @app.get("/")
