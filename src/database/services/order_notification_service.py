@@ -8,7 +8,9 @@ from typing import Optional, Dict, Any, List, Tuple
 from sqlalchemy.orm import Session
 from telegram import Bot
 from telegram.error import TelegramError
+from src.bot.messages.emoji_renderer import render as render_emoji
 from src.database.models import Order
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
@@ -32,6 +34,21 @@ class OrderNotificationService:
         self.session = session
         self.bot = bot
         self._settings_service = NotificationSettingsService(session)
+
+    def _compose_with_emoji(self, message: str) -> Tuple[str, Optional[str]]:
+        """
+        Prepend/append the configured header/footer placeholders (as {emo:id}
+        tokens) and render the whole thing. Returns (text, parse_mode).
+        """
+        settings = self._settings_service.get_settings()
+        combined = message
+        header_id = getattr(settings, "header_placeholder_id", None)
+        footer_id = getattr(settings, "footer_placeholder_id", None)
+        if header_id:
+            combined = f"{{emo:{header_id}}}\n{combined}"
+        if footer_id:
+            combined = f"{combined}\n{{emo:{footer_id}}}"
+        return render_emoji(combined, EmojiPlaceholderService(self.session))
 
     async def _send_async(self, event: str, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -124,13 +141,17 @@ class OrderNotificationService:
             "details": [],
         }
 
+        rendered_message, parse_mode = self._compose_with_emoji(message)
+
         for target in targets:
             chat_id = int(target["chat_id"])
             message_thread_id = target.get("message_thread_id")
             send_kwargs = {
                 "chat_id": chat_id,
-                "text": message,
+                "text": rendered_message,
             }
+            if parse_mode is not None:
+                send_kwargs["parse_mode"] = parse_mode
             if message_thread_id is not None:
                 send_kwargs["message_thread_id"] = int(message_thread_id)
 
