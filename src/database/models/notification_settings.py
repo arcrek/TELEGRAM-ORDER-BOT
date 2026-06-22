@@ -2,7 +2,7 @@
 Notification settings model for global order notification configuration.
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, Text, DateTime
+from sqlalchemy import Column, String, Boolean, Text, DateTime, Integer
 from sqlalchemy.sql import func
 from src.database.models.base import Base
 
@@ -33,6 +33,11 @@ class NotificationSettings(Base):
     # Separate JSON-encoded list for BALANCE_TOPUP_PAID notifications.
     # When empty, _send_topup_async falls back to order_notify_whitelist_chat_ids.
     topup_notify_chat_ids = Column(Text, nullable=True)
+
+    # FK-by-convention (no DB constraint) to emoji_placeholders.id for the
+    # notification header/footer. Null = none. Dangling id renders to empty.
+    header_placeholder_id = Column(Integer, nullable=True)
+    footer_placeholder_id = Column(Integer, nullable=True)
 
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
