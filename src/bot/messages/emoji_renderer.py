@@ -5,9 +5,9 @@ Emoji rendering for the bot:
 - render: replace {emo:<id>} tokens in outgoing text with <tg-emoji> HTML,
   HTML-escaping all surrounding human content first (render side).
 """
-import html  # noqa: F401 — used by render() added in Task 4
+import html
 import re
-from typing import Iterable, List, Optional, Tuple  # noqa: F401 — Optional/Tuple used in Task 4
+from typing import Iterable, List, Optional, Tuple
 
 CUSTOM_EMOJI_TYPE = "custom_emoji"
 _TOKEN_RE = re.compile(r"\{emo:(\d+)\}")
@@ -55,3 +55,23 @@ def parse_emoji_units(text: str, entities: Iterable) -> List[dict]:
         units.append({"t": "text", "v": slice_u16(cursor, total_units - cursor)})
 
     return units
+
+
+def render(text: str, service) -> Tuple[str, Optional[str]]:
+    """
+    Expand {emo:<id>} tokens to <tg-emoji> HTML.
+
+    Returns (text, None) if there is no token (sent as plain text, unchanged).
+    Otherwise HTML-escapes the whole string first (so human content is safe),
+    then replaces tokens with already-safe placeholder HTML, returning
+    (html_string, "HTML").
+    """
+    if "{emo:" not in text:
+        return text, None
+
+    escaped = html.escape(text)  # tokens contain no HTML-special chars, survive
+
+    def _replace(match: "re.Match[str]") -> str:
+        return service.get_rendered_html(int(match.group(1)))
+
+    return _TOKEN_RE.sub(_replace, escaped), "HTML"
