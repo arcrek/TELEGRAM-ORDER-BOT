@@ -24,6 +24,7 @@ from src.database.models.balance_transaction import BalanceTransaction
 from src.database.models.manual import Manual, ManualProductAssignment
 from src.database.models.app_settings import AppSettings
 from src.database.models.emoji_placeholder import EmojiPlaceholder  # noqa: F401
+from src.database.models.emoji_thumbnail import EmojiThumbnail  # noqa: F401
 from src.database.models.enums import (
     DeliveryType,
     OrderStatus,
@@ -58,6 +59,7 @@ __all__ = [
     "ManualProductAssignment",
     "AppSettings",
     "EmojiPlaceholder",
+    "EmojiThumbnail",
     "DeliveryType",
     "OrderStatus",
     "SupplierOrderStatus",
