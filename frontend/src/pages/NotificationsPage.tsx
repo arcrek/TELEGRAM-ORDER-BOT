@@ -12,6 +12,7 @@ import { Select } from '../shared/components/Select'
 import { Skeleton } from '../shared/components/Skeleton'
 import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
+import { EmojiPreview, type EmojiUnit } from '../shared/components/EmojiPreview'
 import './NotificationsPage.css'
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
@@ -49,6 +50,7 @@ interface EmojiPlaceholder {
   id: number
   name: string
   token: string
+  units: EmojiUnit[]
 }
 
 type AudienceMode = 'all' | 'active' | 'specific'
@@ -129,7 +131,7 @@ export function NotificationsPage() {
 
   const fetchPlaceholders = async () => {
     try {
-      const res = await apiClient.get<EmojiPlaceholder[]>('/api/emoji-placeholders')
+      const res = await apiClient.get<{ id: number; name: string; token: string; units: EmojiUnit[] }[]>('/api/emoji-placeholders')
       setPlaceholders(res.data)
     } catch {
       /* non-fatal: dropdowns just stay empty */
@@ -476,7 +478,11 @@ export function NotificationsPage() {
                       {(() => {
                         const placeholderOptions = [
                           { value: '', label: '—' },
-                          ...placeholders.map(p => ({ value: String(p.id), label: `${p.name} (${p.token})` })),
+                          ...placeholders.map(p => ({
+                            value: String(p.id),
+                            label: `${p.name} (${p.token})`,
+                            icon: p.units && p.units.length > 0 ? <EmojiPreview units={p.units} /> : undefined,
+                          })),
                         ]
                         return (
                           <>
