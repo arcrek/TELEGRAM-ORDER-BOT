@@ -5,7 +5,7 @@ import { PageHeader } from '../shared/components/PageHeader'
 import { Button } from '../shared/components/Button'
 import { IconButton } from '../shared/components/IconButton'
 import { FormField } from '../shared/components/FormField'
-import { Textarea } from '../shared/components/Textarea'
+import { EmojiAutocompleteTextarea } from '../shared/components/EmojiAutocompleteTextarea'
 import { Skeleton } from '../shared/components/Skeleton'
 import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
@@ -146,7 +146,7 @@ export function BotUiSettingsPage() {
                 htmlFor="bui-upload"
                 helperText={t('botUi.uploadHeaderHint', 'Hiển thị khi có sản phẩm mới được tải lên')}
               >
-                <Textarea
+                <EmojiAutocompleteTextarea
                   id="bui-upload"
                   value={fields.upload_notification_header}
                   onChange={setField('upload_notification_header')}
@@ -161,7 +161,7 @@ export function BotUiSettingsPage() {
                 htmlFor="bui-product"
                 helperText={t('botUi.productTextHint', 'Hiển thị trước danh sách sản phẩm')}
               >
-                <Textarea
+                <EmojiAutocompleteTextarea
                   id="bui-product"
                   value={fields.product_choose_text}
                   onChange={setField('product_choose_text')}
@@ -176,7 +176,7 @@ export function BotUiSettingsPage() {
                 htmlFor="bui-variation"
                 helperText={t('botUi.variationTextHint', 'Hiển thị trước danh sách gói')}
               >
-                <Textarea
+                <EmojiAutocompleteTextarea
                   id="bui-variation"
                   value={fields.variation_choose_text}
                   onChange={setField('variation_choose_text')}

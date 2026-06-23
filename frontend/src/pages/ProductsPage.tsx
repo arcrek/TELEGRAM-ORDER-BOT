@@ -14,7 +14,7 @@ import { Select } from '../shared/components/Select'
 import { Switch } from '../shared/components/Switch'
 import { Tooltip } from '../shared/components/Tooltip'
 import { FormField } from '../shared/components/FormField'
-import { Textarea } from '../shared/components/Textarea'
+import { EmojiAutocompleteTextarea } from '../shared/components/EmojiAutocompleteTextarea'
 import { useToast } from '../shared/components/Toast'
 import { useConfirm } from '../shared/components/ConfirmDialog'
 import { apiClient, formatApiError } from '../shared/lib/api'
@@ -568,7 +568,7 @@ export function ProductsPage() {
           </FormField>
 
           <FormField label={t('products.fieldDesc', 'Mô tả')} htmlFor={`${formId}-desc`}>
-            <Textarea
+            <EmojiAutocompleteTextarea
               id={`${formId}-desc`}
               value={formData.description}
               onChange={e => setFormData(d => ({ ...d, description: e.target.value }))}
@@ -587,7 +587,7 @@ export function ProductsPage() {
 
           {formData.delivery_type === 'upgrade' && (
             <FormField label={t('products.fieldUpgradeText', 'Nội dung yêu cầu nâng cấp')} htmlFor={`${formId}-upgrade`}>
-              <Textarea
+              <EmojiAutocompleteTextarea
                 id={`${formId}-upgrade`}
                 value={formData.upgrade_request_text}
                 onChange={e => setFormData(d => ({ ...d, upgrade_request_text: e.target.value }))}

@@ -5,6 +5,7 @@ import { PageHeader } from '../shared/components/PageHeader'
 import { Tabs } from '../shared/components/Tabs'
 import { Button } from '../shared/components/Button'
 import { Textarea } from '../shared/components/Textarea'
+import { EmojiAutocompleteTextarea } from '../shared/components/EmojiAutocompleteTextarea'
 import { Switch } from '../shared/components/Switch'
 import { Badge } from '../shared/components/Badge'
 import { FormField } from '../shared/components/FormField'
@@ -257,7 +258,7 @@ export function NotificationsPage() {
                   </h3>
 
                   <FormField label={t('notifications.message', 'Nội dung')} htmlFor="notif-msg">
-                    <Textarea
+                    <EmojiAutocompleteTextarea
                       id="notif-msg"
                       value={message}
                       onChange={e => setMessage(e.target.value)}
