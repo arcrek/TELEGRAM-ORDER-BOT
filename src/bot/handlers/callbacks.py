@@ -347,8 +347,9 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
 
         # Show out-of-stock screen instead of quantity form
         if actual_stock == 0:
+            import html
             msg = t('products.order_confirmation.variation_out_of_stock', update)
-            msg = msg.format(variation_name=variation.name)
+            msg = msg.format(variation_name=html.escape(str(variation.name)))
             back_text = t('products.order_confirmation.back_to_product', update)
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton(back_text, callback_data=f"product_{product.id}")]
