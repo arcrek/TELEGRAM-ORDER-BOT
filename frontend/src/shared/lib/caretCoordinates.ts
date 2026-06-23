@@ -18,7 +18,6 @@ export function getCaretCoordinates(el: HTMLTextAreaElement, position: number): 
   const doc = el.ownerDocument
   const computed = window.getComputedStyle(el)
   const div = doc.createElement('div')
-  doc.body.appendChild(div)
 
   const style = div.style
   style.position = 'absolute'
@@ -26,22 +25,26 @@ export function getCaretCoordinates(el: HTMLTextAreaElement, position: number): 
   style.whiteSpace = 'pre-wrap'
   style.wordWrap = 'break-word'
   style.overflow = 'hidden'
+  const styleMap = style as unknown as Record<string, string>
+  const computedMap = computed as unknown as Record<string, string>
   for (const prop of MIRROR_PROPS) {
-    style.setProperty(prop, computed.getPropertyValue(prop))
+    styleMap[prop] = computedMap[prop]
   }
 
-  div.textContent = el.value.slice(0, position)
-  const span = doc.createElement('span')
-  // A non-empty span gives a measurable box even at end-of-text.
-  span.textContent = el.value.slice(position) || '.'
-  div.appendChild(span)
+  doc.body.appendChild(div)
+  try {
+    div.textContent = el.value.slice(0, position)
+    const span = doc.createElement('span')
+    // A non-empty span gives a measurable box even at end-of-text.
+    span.textContent = el.value.slice(position) || '.'
+    div.appendChild(span)
 
-  const coords: CaretCoords = {
-    top: span.offsetTop,
-    left: span.offsetLeft,
-    height: parseInt(computed.lineHeight, 10) || el.offsetHeight,
+    return {
+      top: span.offsetTop,
+      left: span.offsetLeft,
+      height: parseInt(computed.lineHeight, 10) || el.offsetHeight,
+    }
+  } finally {
+    doc.body.removeChild(div)
   }
-
-  doc.body.removeChild(div)
-  return coords
 }
