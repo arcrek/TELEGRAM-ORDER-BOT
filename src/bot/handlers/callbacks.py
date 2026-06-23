@@ -19,7 +19,7 @@ from src.bot.states.state_manager import StateManager
 from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
 from src.bot.utils.user_locks import get_user_lock
-from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.messages.emoji_renderer import render as render_emoji, substitute_tokens
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 logger = logging.getLogger(__name__)
@@ -353,6 +353,7 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
             keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton(back_text, callback_data=f"product_{product.id}")]
             ])
+            msg = substitute_tokens(msg, EmojiPlaceholderService(session))
             await query.edit_message_text(msg, reply_markup=keyboard, parse_mode="HTML")
             return
 
@@ -1843,6 +1844,7 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             lines.append(t("order_history.transaction", update, txn_id=html.escape(str(txn_id))))
 
         message = "\n".join(lines)
+        message = substitute_tokens(message, EmojiPlaceholderService(session))
 
         back_text = t("order_history.back_to_list", update)
         keyboard = [[InlineKeyboardButton(back_text, callback_data=f"back_to_order_history_{from_page}")]]

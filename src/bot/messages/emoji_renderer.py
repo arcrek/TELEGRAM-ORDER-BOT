@@ -75,3 +75,13 @@ def render(text: str, service) -> Tuple[str, Optional[str]]:
         return service.get_rendered_html(int(match.group(1)))
 
     return _TOKEN_RE.sub(_replace, escaped), "HTML"
+
+
+def substitute_tokens(html_text: str, service) -> str:
+    """Replace {emo:<id>} tokens with placeholder <tg-emoji> HTML WITHOUT
+    escaping the surrounding text. Use ONLY on strings that are ALREADY
+    valid/escaped HTML (callers that build markup by hand and send parse_mode=HTML).
+    The substituted placeholder HTML is itself safe (units_to_html escapes its parts)."""
+    if "{emo:" not in html_text:
+        return html_text
+    return _TOKEN_RE.sub(lambda m: service.get_rendered_html(int(m.group(1))), html_text)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.bot.messages.emoji_renderer import parse_emoji_units, render
+from src.bot.messages.emoji_renderer import parse_emoji_units, render, substitute_tokens
 
 
 @dataclass
@@ -90,3 +90,31 @@ def test_render_multiple_tokens():
     out, mode = render("{emo:1}-{emo:2}", svc)
     assert out == "A-B"
     assert mode == "HTML"
+
+
+# --- substitute_tokens tests ---
+
+
+def test_substitute_tokens_no_token_passthrough():
+    """No {emo:} token: string returned unchanged, existing HTML is NOT escaped."""
+    svc = FakeService({})
+    html_text = "<b>hello &amp; world</b>"
+    result = substitute_tokens(html_text, svc)
+    assert result == "<b>hello &amp; world</b>"
+
+
+def test_substitute_tokens_replaces_token_leaves_html_intact():
+    """Token replaced by service HTML; surrounding already-escaped HTML untouched."""
+    tg = '<tg-emoji emoji-id="9">🔔</tg-emoji>'
+    svc = FakeService({5: tg})
+    html_text = "<b>Sản phẩm &amp; {emo:5} giá tốt</b>"
+    result = substitute_tokens(html_text, svc)
+    assert result == f"<b>Sản phẩm &amp; {tg} giá tốt</b>"
+
+
+def test_substitute_tokens_missing_placeholder_drops_token():
+    """Missing placeholder: token is replaced with empty string (dropped)."""
+    svc = FakeService({})
+    html_text = "<b>Tên {emo:99}</b>"
+    result = substitute_tokens(html_text, svc)
+    assert result == "<b>Tên </b>"
