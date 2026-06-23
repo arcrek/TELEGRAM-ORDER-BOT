@@ -78,7 +78,7 @@ class EmojiPlaceholderService:
             if unit.get("t") == "emoji":
                 fallback = html.escape(unit.get("fb", ""))
                 parts.append(
-                    f'<tg-emoji emoji-id="{unit["id"]}">{fallback}</tg-emoji>'
+                    f'<tg-emoji emoji-id="{html.escape(str(unit["id"]), quote=True)}">{fallback}</tg-emoji>'
                 )
             else:
                 parts.append(html.escape(unit.get("v", "")))

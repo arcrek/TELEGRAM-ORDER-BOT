@@ -29,6 +29,15 @@
       "user_not_found": "❌ User {username} not found. They must start the bot first.",
       "list": "👥 Current admin list:\n{ids}"
     },
+    "set_emo": {
+      "no_permission": "⛔ No permission.",
+      "usage": "Usage: /set_emo <placeholder_id>",
+      "not_found": "Placeholder {id} not found.",
+      "prompt": "Send the premium emoji(s) for placeholder {id} ('{name}').",
+      "no_emoji": "No custom emoji found in that message. Run /set_emo again and send premium (animated) emoji.",
+      "captured": "✅ Captured {count} custom emoji for placeholder {id}. Use it anywhere with {{emo:{id}}}.",
+      "gone": "Placeholder {id} no longer exists."
+    },
     "products": {
       "error": "❌ Error loading products. Please try again later."
     },

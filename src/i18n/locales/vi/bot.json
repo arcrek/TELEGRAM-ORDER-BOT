@@ -29,6 +29,15 @@
       "user_not_found": "❌ Không tìm thấy người dùng {username}. Họ cần /start bot trước.",
       "list": "👥 Danh sách admin hiện tại:\n{ids}"
     },
+    "set_emo": {
+      "no_permission": "⛔ Bạn không có quyền dùng lệnh này.",
+      "usage": "Cách dùng: /set_emo <placeholder_id>",
+      "not_found": "Không tìm thấy placeholder {id}.",
+      "prompt": "Hãy gửi emoji premium cho placeholder {id} ('{name}').",
+      "no_emoji": "Không tìm thấy emoji tùy chỉnh trong tin nhắn đó. Hãy chạy lại /set_emo và gửi emoji premium (có hiệu ứng động).",
+      "captured": "✅ Đã lưu {count} emoji tùy chỉnh cho placeholder {id}. Dùng tại bất kỳ đâu với {{emo:{id}}}.",
+      "gone": "Placeholder {id} không còn tồn tại."
+    },
     "products": {
       "error": "❌ Lỗi khi tải sản phẩm. Vui lòng thử lại sau."
     },

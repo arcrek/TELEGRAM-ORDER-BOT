@@ -12,6 +12,7 @@ from telegram.ext import ContextTypes
 from src.bot.handlers.commands import state_manager
 from src.bot.messages.emoji_renderer import parse_emoji_units
 from src.bot.utils.admin_check import is_admin
+from src.bot.utils.language import t
 from src.database.connection import get_session_factory
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
@@ -27,12 +28,12 @@ async def set_emo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     """/set_emo <id> — begin capturing emoji for a placeholder (admins only)."""
     user = update.effective_user
     if not user or not is_admin(user.id):
-        await update.message.reply_text("⛔ No permission.")
+        await update.message.reply_text(t("commands.set_emo.no_permission", update))
         return
 
     args = context.args or []
     if not args or not args[0].isdigit():
-        await update.message.reply_text("Usage: /set_emo <placeholder_id>")
+        await update.message.reply_text(t("commands.set_emo.usage", update))
         return
 
     placeholder_id = int(args[0])
@@ -41,7 +42,9 @@ async def set_emo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         svc = EmojiPlaceholderService(session)
         row = svc.get(placeholder_id)
         if row is None:
-            await update.message.reply_text(f"Placeholder {placeholder_id} not found.")
+            await update.message.reply_text(
+                t("commands.set_emo.not_found", update, id=placeholder_id)
+            )
             return
         name = row.name
     finally:
@@ -56,7 +59,7 @@ async def set_emo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     state_manager.set_user_state(user.id, state)
 
     await update.message.reply_text(
-        f"Send the premium emoji(s) for placeholder {placeholder_id} ('{name}')."
+        t("commands.set_emo.prompt", update, id=placeholder_id, name=name)
     )
 
 
@@ -83,10 +86,7 @@ async def handle_emoji_capture(update: Update, context: ContextTypes.DEFAULT_TYP
 
     emoji_count = sum(1 for u in units if u.get("t") == "emoji")
     if emoji_count == 0:
-        await message.reply_text(
-            "No custom emoji found in that message. Run /set_emo again and send "
-            "premium (animated) emoji."
-        )
+        await message.reply_text(t("commands.set_emo.no_emoji", update))
         return
 
     session = get_session_factory()()
@@ -96,12 +96,13 @@ async def handle_emoji_capture(update: Update, context: ContextTypes.DEFAULT_TYP
             placeholder_id, units, raw_text=message.text or "", set_by=user.id
         )
     except ValueError:
-        await message.reply_text(f"Placeholder {placeholder_id} no longer exists.")
+        await message.reply_text(
+            t("commands.set_emo.gone", update, id=placeholder_id)
+        )
         return
     finally:
         session.close()
 
     await message.reply_text(
-        f"✅ Captured {emoji_count} custom emoji for placeholder {placeholder_id}. "
-        f"Use it anywhere with {{emo:{placeholder_id}}}."
+        t("commands.set_emo.captured", update, count=emoji_count, id=placeholder_id)
     )

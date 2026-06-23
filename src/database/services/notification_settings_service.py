@@ -246,7 +246,13 @@ class NotificationSettingsService:
         """
         Update notification settings.
 
-        All parameters are optional; only provided values are updated.
+        Most parameters are optional; only provided (non-None) values are
+        applied for the boolean toggles and chat-ID lists.
+
+        ``header_placeholder_id`` and ``footer_placeholder_id`` are
+        ALWAYS assigned unconditionally from the passed value, including
+        ``None`` — this allows the dashboard to clear them via a dropdown
+        that sends the full payload.
 
         Args:
             order_notify_enabled: Master toggle for order notifications.
@@ -260,10 +266,10 @@ class NotificationSettingsService:
             topup_chat_ids: Separate list of targets for BALANCE_TOPUP_PAID
                 notifications. Same value formats as whitelist. When empty,
                 topup notifications fall back to the main whitelist.
-            header_placeholder_id: Optional Telegram message ID used as a
-                header placeholder for order notifications.
-            footer_placeholder_id: Optional Telegram message ID used as a
-                footer placeholder for order notifications.
+            header_placeholder_id: Emoji placeholder ID for the notification
+                header, or ``None`` to clear it.
+            footer_placeholder_id: Emoji placeholder ID for the notification
+                footer, or ``None`` to clear it.
 
         Returns:
             Updated NotificationSettings instance.
