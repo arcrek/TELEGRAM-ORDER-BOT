@@ -171,7 +171,8 @@ async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TY
 
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         inline_keyboard = formatter.create_product_keyboard(
-            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
+            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            emoji_service=EmojiPlaceholderService(session),
         )
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
         await query.edit_message_text(rendered, reply_markup=inline_keyboard, parse_mode=parse_mode)
@@ -339,7 +340,8 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         inline_keyboard = formatter.create_product_keyboard(
-            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
+            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            emoji_service=EmojiPlaceholderService(session),
         )
 
         # Send main message with inline keyboard

@@ -181,7 +181,12 @@ async def handle_show_products_list(update: Update, context: ContextTypes.DEFAUL
             [p.id for p in products]
         )
         message = formatter.format_product_list(product_choose_text=product_choose_text)
-        keyboard = formatter.create_product_keyboard(products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids)
+        keyboard = formatter.create_product_keyboard(
+            products,
+            update,
+            pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            emoji_service=EmojiPlaceholderService(session),
+        )
 
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
         await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
@@ -222,7 +227,12 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
             [p.id for p in products]
         )
         message = formatter.format_product_list(product_choose_text=product_choose_text)
-        keyboard = formatter.create_product_keyboard(products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids)
+        keyboard = formatter.create_product_keyboard(
+            products,
+            update,
+            pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            emoji_service=EmojiPlaceholderService(session),
+        )
 
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
         await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
@@ -296,7 +306,14 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
             variation_choose_text=variation_choose_text,
             sold_count=sold_count,
         )
-        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update, delivery_type=product.delivery_type)
+        keyboard = formatter.create_product_detail_keyboard(
+            product_id,
+            current_page,
+            variations,
+            update,
+            delivery_type=product.delivery_type,
+            emoji_service=EmojiPlaceholderService(session),
+        )
 
         # Update message
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
@@ -748,7 +765,14 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
             variation_choose_text=variation_choose_text,
             sold_count=sold_count,
         )
-        keyboard = formatter.create_product_detail_keyboard(product_id, current_page, variations, update, delivery_type=product.delivery_type)
+        keyboard = formatter.create_product_detail_keyboard(
+            product_id,
+            current_page,
+            variations,
+            update,
+            delivery_type=product.delivery_type,
+            emoji_service=EmojiPlaceholderService(session),
+        )
 
         # Update message
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
@@ -792,7 +816,8 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         keyboard = formatter.create_product_keyboard(
-            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids
+            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            emoji_service=EmojiPlaceholderService(session),
         )
 
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
@@ -1936,4 +1961,3 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
         await query.answer("❌ Error changing language. Please try again.", show_alert=True)
     finally:
         session.close()
-

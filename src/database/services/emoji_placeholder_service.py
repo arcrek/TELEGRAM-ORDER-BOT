@@ -101,3 +101,34 @@ class EmojiPlaceholderService:
         if row is None or not row.content:
             return ""
         return self.units_to_html(json.loads(row.content))
+
+    @staticmethod
+    def units_to_plain(units: List[dict]) -> str:
+        """Plain-text rendering: emoji units become their fallback char, text
+        units their literal value. For contexts that cannot render <tg-emoji>."""
+        parts: List[str] = []
+        for unit in units:
+            if unit.get("t") == "emoji":
+                parts.append(unit.get("fb", ""))
+            else:
+                parts.append(unit.get("v", ""))
+        return "".join(parts)
+
+    def get_plain_text(self, placeholder_id: int) -> str:
+        """Return the placeholder's plain fallback text, or '' if missing/empty."""
+        row = self.get(placeholder_id)
+        if row is None or not row.content:
+            return ""
+        return self.units_to_plain(json.loads(row.content))
+
+    def get_first_emoji_id(self, placeholder_id: int) -> Optional[str]:
+        """Return the custom_emoji_id of the placeholder's first emoji unit, or
+        None if the placeholder is missing/empty or holds no emoji. Used to set a
+        button's icon_custom_emoji_id (one icon per button)."""
+        row = self.get(placeholder_id)
+        if row is None or not row.content:
+            return None
+        for unit in json.loads(row.content):
+            if unit.get("t") == "emoji" and unit.get("id"):
+                return str(unit["id"])
+        return None

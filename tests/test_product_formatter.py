@@ -30,20 +30,17 @@ def formatter():
 
 class TestProductFormatter:
     def test_format_product_list_without_custom_text_returns_non_empty_placeholder(self, formatter, sample_products):
-        formatted = formatter.format_product_list(sample_products, page=1, total_pages=1)
+        formatted = formatter.format_product_list()
         assert formatted == "\u200B"
 
     def test_format_product_list_custom_prompt(self, formatter, sample_products):
         formatted = formatter.format_product_list(
-            sample_products,
-            page=1,
-            total_pages=1,
             product_choose_text="Pick one",
         )
         assert "Pick one" in formatted
 
     def test_create_product_keyboard_uses_product_names(self, formatter, sample_products):
-        keyboard = formatter.create_product_keyboard(sample_products, page=1, total_pages=1)
+        keyboard = formatter.create_product_keyboard(sample_products)
 
         assert isinstance(keyboard, InlineKeyboardMarkup)
         buttons = [btn for row in keyboard.inline_keyboard for btn in row]
@@ -76,16 +73,34 @@ class TestProductFormatter:
             ),
         ]
 
-        keyboard = formatter.create_product_keyboard(products, page=1, total_pages=1)
+        keyboard = formatter.create_product_keyboard(products)
         rows = keyboard.inline_keyboard
         # Short products should stay in the top 3-column section.
         assert rows[0][0].callback_data == "product_short_1"
         assert rows[0][1].callback_data == "product_short_2"
-        # Long product should be placed at the bottom as a single-button row.
-        assert rows[-1][0].callback_data == "product_long_1"
-        assert len(rows[-1]) == 1
+        # Long product should be placed above the order-history row as a single-button row.
+        assert rows[-2][0].callback_data == "product_long_1"
+        assert len(rows[-2]) == 1
 
-    def test_calculate_total_pages(self, formatter):
-        assert formatter.calculate_total_pages(15, 15) == 1
-        assert formatter.calculate_total_pages(16, 15) == 2
+    def test_create_product_keyboard_uses_custom_emoji_icon(self, formatter):
+        class FakeEmojiService:
+            def get_first_emoji_id(self, placeholder_id):
+                assert placeholder_id == 1
+                return "5379748062124983193"
 
+            def get_plain_text(self, placeholder_id):
+                return "⭐"
+
+        product = Product(
+            id="prod_emoji",
+            name="{emo:1} Claude",
+            description="",
+            delivery_type=DeliveryType.PRE_UPLOADED,
+            is_active=True,
+        )
+
+        keyboard = formatter.create_product_keyboard([product], emoji_service=FakeEmojiService())
+        button = keyboard.inline_keyboard[0][0]
+
+        assert button.text == "Claude"
+        assert button.icon_custom_emoji_id == "5379748062124983193"

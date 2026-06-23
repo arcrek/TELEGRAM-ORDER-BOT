@@ -270,3 +270,55 @@ class TestNotificationServiceImage:
         assert not isinstance(photos[1], str)   # second: bytes again (no file_id yet)
         assert photos[2] == "FILEID_SECOND"     # third: reuse captured id
 
+
+
+class TestNotificationEmojiRendering:
+    """Broadcast notifications must expand {emo:id} tokens (premium custom emoji)
+    to <tg-emoji> HTML and send with parse_mode=HTML, mirroring OrderNotificationService."""
+
+    def _make_placeholder(self, db_session):
+        from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+        svc = EmojiPlaceholderService(db_session)
+        pid = svc.create("Star")
+        svc.set_content(
+            pid,
+            [{"t": "emoji", "id": "5379748062124983193", "fb": "⭐"}],
+            raw_text="⭐",
+            set_by=None,
+        )
+        return pid
+
+    def test_single_user_renders_emoji_token(self, notification_service, mock_bot, db_session):
+        pid = self._make_placeholder(db_session)
+        mock_bot.send_message.return_value = Mock(message_id=1)
+
+        res = notification_service.send_notification_to_user(
+            telegram_user_id=999, message=f"{{emo:{pid}}} test"
+        )
+
+        assert res["success"] is True
+        kwargs = mock_bot.send_message.call_args.kwargs
+        assert kwargs["parse_mode"] == "HTML"
+        assert "{emo:" not in kwargs["text"]
+        assert "<tg-emoji" in kwargs["text"]
+        assert "test" in kwargs["text"]
+
+    def test_broadcast_renders_emoji_token(self, notification_service, mock_bot, db_session, sample_users):
+        pid = self._make_placeholder(db_session)
+        mock_bot.send_message.return_value = Mock(message_id=1)
+
+        res = notification_service.send_notification_to_all_started(f"{{emo:{pid}}} hi")
+
+        assert res["success"] == 3
+        for call in mock_bot.send_message.call_args_list:
+            assert call.kwargs["parse_mode"] == "HTML"
+            assert "<tg-emoji" in call.kwargs["text"]
+            assert "{emo:" not in call.kwargs["text"]
+
+    def test_plain_message_sent_without_parse_mode(self, notification_service, mock_bot):
+        """No token → plain text, no parse_mode (unchanged behavior)."""
+        mock_bot.send_message.return_value = Mock(message_id=1)
+        notification_service.send_notification_to_user(telegram_user_id=5, message="plain")
+        kwargs = mock_bot.send_message.call_args.kwargs
+        assert "parse_mode" not in kwargs
+        assert kwargs["text"] == "plain"

@@ -77,6 +77,35 @@ def render(text: str, service) -> Tuple[str, Optional[str]]:
     return _TOKEN_RE.sub(_replace, escaped), "HTML"
 
 
+def split_icon(text: str, service) -> Tuple[str, Optional[str]]:
+    """Resolve emoji tokens for a plain-text button label.
+
+    Telegram inline-keyboard buttons render a custom emoji via the separate
+    ``icon_custom_emoji_id`` field (Bot API 9.4), not inside the text. So we
+    take the FIRST {emo:<id>} token's emoji as the button icon and strip that
+    token from the visible text. Any remaining tokens (a button has just one
+    icon) fall back to their plain unicode emoji.
+
+    Returns (clean_text, icon_custom_emoji_id). icon is None when there is no
+    usable emoji token.
+    """
+    if "{emo:" not in text:
+        return text, None
+
+    icon_id: Optional[str] = None
+    m = _TOKEN_RE.search(text)
+    if m is not None:
+        icon_id = service.get_first_emoji_id(int(m.group(1)))
+        if icon_id:
+            # Drop the token that became the icon; keep everything else.
+            text = text[: m.start()] + text[m.end():]
+
+    # Remaining tokens (or all of them, if the first had no usable emoji) become
+    # their plain fallback text.
+    text = _TOKEN_RE.sub(lambda mm: service.get_plain_text(int(mm.group(1))), text)
+    return text.strip() or "​", icon_id
+
+
 def substitute_tokens(html_text: str, service) -> str:
     """Replace {emo:<id>} tokens with placeholder <tg-emoji> HTML WITHOUT
     escaping the surrounding text. Use ONLY on strings that are ALREADY

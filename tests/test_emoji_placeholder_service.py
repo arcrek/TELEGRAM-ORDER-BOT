@@ -5,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
 from src.database.models.emoji_placeholder import EmojiPlaceholder
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 
 def _session():
@@ -20,9 +21,6 @@ def test_model_table_creates_and_inserts():
     session.commit()
     assert row.id is not None
     assert row.content is None
-
-
-from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 
 def test_create_and_get():
@@ -82,3 +80,33 @@ def test_delete_removes():
     assert svc.get_rendered_html(pid) == "hi"
     assert svc.delete(pid) is True
     assert svc.get_rendered_html(pid) == ""
+
+
+def test_plain_text_and_first_emoji_id_for_button_icons():
+    session = _session()
+    svc = EmojiPlaceholderService(session)
+    pid = svc.create("Button icon")
+    svc.set_content(
+        pid,
+        [
+            {"t": "emoji", "id": "5379748062124983193", "fb": "⭐"},
+            {"t": "text", "v": " VIP"},
+        ],
+        raw_text="⭐ VIP",
+        set_by=None,
+    )
+
+    assert svc.get_plain_text(pid) == "⭐ VIP"
+    assert svc.get_first_emoji_id(pid) == "5379748062124983193"
+
+
+def test_first_emoji_id_missing_or_text_only_returns_none():
+    session = _session()
+    svc = EmojiPlaceholderService(session)
+    assert svc.get_first_emoji_id(999) is None
+
+    pid = svc.create("Text only")
+    svc.set_content(pid, [{"t": "text", "v": "TEXT"}], raw_text="TEXT", set_by=None)
+
+    assert svc.get_plain_text(pid) == "TEXT"
+    assert svc.get_first_emoji_id(pid) is None

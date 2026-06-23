@@ -3,12 +3,14 @@ Notification service for sending notifications to bot users.
 """
 import asyncio
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 from io import BytesIO
 from telegram import Bot, InputFile
 from telegram.error import Forbidden, TelegramError
+from src.bot.messages.emoji_renderer import render as render_emoji
 from src.database.services.bot_user_service import BotUserService
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +25,27 @@ class NotificationService:
         self._is_async_send_message = bot is not None and asyncio.iscoroutinefunction(bot.send_message)
         self._is_async_send_photo = bot is not None and asyncio.iscoroutinefunction(bot.send_photo)
 
+    def _render(self, message: str) -> Tuple[str, Optional[str]]:
+        """Expand {emo:id} tokens to <tg-emoji> HTML. Returns (text, parse_mode).
+
+        parse_mode is "HTML" when any token was expanded, else None (plain text).
+        """
+        return render_emoji(message, EmojiPlaceholderService(self.session))
+
     async def send_notification_to_user_async(
         self,
         telegram_user_id: int,
         message: str,
         image_bytes: Optional[bytes] = None,
         file_id_holder: Optional[dict] = None,
+        parse_mode: Optional[str] = None,
     ) -> Dict[str, any]:
-        """Send a notification (optionally with one image) to a single user."""
+        """Send a notification (optionally with one image) to a single user.
+
+        When parse_mode is None the message is rendered here (expanding {emo:id}
+        tokens). Broadcast callers pre-render once and pass parse_mode through to
+        avoid re-rendering per recipient.
+        """
         if not self.bot:
             return {
                 "success": False,
@@ -38,15 +53,21 @@ class NotificationService:
                 "telegram_user_id": telegram_user_id,
             }
 
+        if parse_mode is None:
+            message, parse_mode = self._render(message)
+
         try:
             if image_bytes is None:
+                send_kwargs: dict = {"chat_id": telegram_user_id, "text": message}
+                if parse_mode is not None:
+                    send_kwargs["parse_mode"] = parse_mode
                 if self._is_async_send_message:
-                    await self.bot.send_message(chat_id=telegram_user_id, text=message)
+                    await self.bot.send_message(**send_kwargs)
                 else:
-                    self.bot.send_message(chat_id=telegram_user_id, text=message)
+                    self.bot.send_message(**send_kwargs)
             else:
                 await self._send_photo_to_user(
-                    telegram_user_id, message, image_bytes, file_id_holder
+                    telegram_user_id, message, image_bytes, file_id_holder, parse_mode
                 )
 
             logger.info(f"Notification sent successfully to user {telegram_user_id}")
@@ -72,6 +93,7 @@ class NotificationService:
         message: str,
         image_bytes: bytes,
         file_id_holder: Optional[dict],
+        parse_mode: Optional[str] = None,
     ) -> None:
         """Send a photo, reusing a captured file_id across a broadcast when available."""
         holder = file_id_holder if file_id_holder is not None else {"file_id": None}
@@ -84,10 +106,14 @@ class NotificationService:
         use_caption = len(message) <= 1024
         caption = message if (use_caption and message) else None
 
+        photo_kwargs: dict = {"chat_id": telegram_user_id, "photo": photo, "caption": caption}
+        if parse_mode is not None and caption is not None:
+            photo_kwargs["parse_mode"] = parse_mode
+
         if self._is_async_send_photo:
-            sent = await self.bot.send_photo(chat_id=telegram_user_id, photo=photo, caption=caption)
+            sent = await self.bot.send_photo(**photo_kwargs)
         else:
-            sent = self.bot.send_photo(chat_id=telegram_user_id, photo=photo, caption=caption)
+            sent = self.bot.send_photo(**photo_kwargs)
 
         # Capture the file_id from the first successful upload for later recipients.
         if not cached_id and sent is not None:
@@ -97,10 +123,13 @@ class NotificationService:
 
         # Text longer than the caption limit goes in a separate message.
         if not use_caption and message:
+            text_kwargs: dict = {"chat_id": telegram_user_id, "text": message}
+            if parse_mode is not None:
+                text_kwargs["parse_mode"] = parse_mode
             if self._is_async_send_message:
-                await self.bot.send_message(chat_id=telegram_user_id, text=message)
+                await self.bot.send_message(**text_kwargs)
             else:
-                self.bot.send_message(chat_id=telegram_user_id, text=message)
+                self.bot.send_message(**text_kwargs)
 
     def _run_async(self, coro):
         """Run an async coroutine from synchronous context."""
@@ -124,8 +153,12 @@ class NotificationService:
         """Send a notification to a list of user IDs, sharing a single image upload."""
         results = {"total": len(user_ids), "success": 0, "failed": 0, "details": []}
         file_id_holder: dict = {"file_id": None}
+        # Render emoji tokens once for the whole broadcast (same message for all).
+        rendered, parse_mode = self._render(message)
         for uid in user_ids:
-            result = await self.send_notification_to_user_async(uid, message, image_bytes, file_id_holder)
+            result = await self.send_notification_to_user_async(
+                uid, rendered, image_bytes, file_id_holder, parse_mode
+            )
             results["details"].append(result)
             if result["success"]:
                 results["success"] += 1

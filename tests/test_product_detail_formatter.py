@@ -74,3 +74,31 @@ class TestProductDetailFormatter:
         assert "100,000d" in variation_buttons[0].text
         assert "8" in variation_buttons[0].text
 
+    def test_create_product_detail_keyboard_uses_custom_emoji_icon(self, formatter):
+        class FakeEmojiService:
+            def get_first_emoji_id(self, placeholder_id):
+                assert placeholder_id == 2
+                return "5379748062124983193"
+
+            def get_plain_text(self, placeholder_id):
+                return "⭐"
+
+        variation = ProductVariation(
+            id="var_emoji",
+            product_id="prod_1",
+            name="{emo:2} Pro 1 Month",
+            price=99000,
+            stock=5,
+            is_active=True,
+        )
+
+        keyboard = formatter.create_product_detail_keyboard(
+            "prod_1",
+            variations=[variation],
+            emoji_service=FakeEmojiService(),
+        )
+        button = keyboard.inline_keyboard[0][0]
+
+        assert button.text.startswith("Pro 1 Month")
+        assert "{emo:" not in button.text
+        assert button.icon_custom_emoji_id == "5379748062124983193"

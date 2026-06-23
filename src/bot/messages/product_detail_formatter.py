@@ -2,11 +2,12 @@
 Product detail formatter for Telegram messages.
 """
 
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import KeyboardButtonStyle
 from src.database.models import Product, ProductVariation
 from src.database.models.enums import DeliveryType
+from src.bot.messages.emoji_renderer import split_icon
 from src.bot.utils.language import t
 
 
@@ -29,10 +30,19 @@ class ProductDetailFormatter:
         self,
         variation: ProductVariation,
         update: Optional[Update] = None,
-    ) -> str:
+        emoji_service=None,
+    ) -> Tuple[str, Optional[str]]:
+        """Return (button_label, icon_custom_emoji_id).
+
+        The first {emo:id} token in the variation name becomes the button's
+        custom-emoji icon (Bot API 9.4) and is stripped from the label.
+        """
+        name, icon = (variation.name, None)
+        if emoji_service is not None:
+            name, icon = split_icon(variation.name, emoji_service)
         price_str = f"{variation.price:,}d"
         if variation.stock >= self._UNLIMITED_STOCK_THRESHOLD:
-            text = f"{variation.name} • {price_str}"
+            text = f"{name} • {price_str}"
         else:
             if variation.stock > 0:
                 stock_str = str(variation.stock)
@@ -42,8 +52,8 @@ class ProductDetailFormatter:
                     if update
                     else "out of stock"
                 )
-            text = f"{variation.name} • {price_str} • {stock_str}"
-        return self._truncate_button_text(text, self._BUTTON_TEXT_MAX_LEN)
+            text = f"{name} • {price_str} • {stock_str}"
+        return self._truncate_button_text(text, self._BUTTON_TEXT_MAX_LEN), icon
 
     def format_product_detail(
         self,
@@ -204,6 +214,7 @@ class ProductDetailFormatter:
         product_id: str,
         update: Optional[Update] = None,
         delivery_type: Optional[str] = None,
+        emoji_service=None,
     ) -> InlineKeyboardMarkup:
         """
         Create inline keyboard for variation selection.
@@ -220,10 +231,12 @@ class ProductDetailFormatter:
         # Variation buttons (2 per row)
         row = []
         for variation in variations:
+            label, icon = self._variation_button_text(variation, update, emoji_service)
             button = InlineKeyboardButton(
-                self._variation_button_text(variation, update),
+                label,
                 callback_data=f"variation_{variation.id}",
                 style=self._variation_style(variation, delivery_type),
+                icon_custom_emoji_id=icon,
             )
             row.append(button)
 
@@ -253,6 +266,7 @@ class ProductDetailFormatter:
         variations: List[ProductVariation] = None,
         update: Optional[Update] = None,
         delivery_type: Optional[str] = None,
+        emoji_service=None,
     ) -> InlineKeyboardMarkup:
         """
         Create inline keyboard for product detail view.
@@ -270,10 +284,12 @@ class ProductDetailFormatter:
         if variations:
             row = []
             for variation in variations:
+                label, icon = self._variation_button_text(variation, update, emoji_service)
                 button = InlineKeyboardButton(
-                    self._variation_button_text(variation, update),
+                    label,
                     callback_data=f"variation_{variation.id}",
                     style=self._variation_style(variation, delivery_type),
+                    icon_custom_emoji_id=icon,
                 )
                 row.append(button)
 

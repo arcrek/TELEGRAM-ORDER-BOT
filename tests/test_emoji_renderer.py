@@ -1,7 +1,12 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from src.bot.messages.emoji_renderer import parse_emoji_units, render, substitute_tokens
+from src.bot.messages.emoji_renderer import (
+    parse_emoji_units,
+    render,
+    split_icon,
+    substitute_tokens,
+)
 
 
 @dataclass
@@ -118,3 +123,60 @@ def test_substitute_tokens_missing_placeholder_drops_token():
     html_text = "<b>Tên {emo:99}</b>"
     result = substitute_tokens(html_text, svc)
     assert result == "<b>Tên </b>"
+
+
+# --- split_icon tests (button labels: emoji goes to icon_custom_emoji_id) ---
+
+
+class FakeIconService:
+    """first_emoji maps placeholder_id -> custom_emoji_id; plain maps -> fallback text."""
+
+    def __init__(self, first_emoji=None, plain=None):
+        self.first_emoji = first_emoji or {}
+        self.plain = plain or {}
+
+    def get_first_emoji_id(self, pid):
+        return self.first_emoji.get(pid)
+
+    def get_plain_text(self, pid):
+        return self.plain.get(pid, "")
+
+
+def test_split_icon_no_token_passthrough():
+    assert split_icon("ChatGPT", FakeIconService()) == ("ChatGPT", None)
+
+
+def test_split_icon_leading_token_becomes_icon_and_is_stripped():
+    svc = FakeIconService(first_emoji={5: "9988"})
+    text, icon = split_icon("{emo:5} ChatGPT", svc)
+    assert icon == "9988"
+    assert text == "ChatGPT"
+
+
+def test_split_icon_token_mid_text():
+    svc = FakeIconService(first_emoji={5: "9988"})
+    text, icon = split_icon("Pro {emo:5} plan", svc)
+    assert icon == "9988"
+    assert text == "Pro  plan".strip()  # leading/trailing trimmed, inner spacing kept
+
+
+def test_split_icon_missing_emoji_falls_back_to_plain():
+    """Token whose placeholder has no usable emoji: no icon, plain fallback text."""
+    svc = FakeIconService(first_emoji={}, plain={7: "⭐"})
+    text, icon = split_icon("{emo:7} VIP", svc)
+    assert icon is None
+    assert text == "⭐ VIP"
+
+
+def test_split_icon_first_is_icon_rest_are_plain():
+    svc = FakeIconService(first_emoji={1: "111"}, plain={2: "🔥"})
+    text, icon = split_icon("{emo:1} hot {emo:2}", svc)
+    assert icon == "111"
+    assert text == "hot 🔥"
+
+
+def test_split_icon_icon_only_keeps_non_empty_button_text():
+    svc = FakeIconService(first_emoji={1: "111"}, plain={1: "⭐"})
+    text, icon = split_icon("{emo:1}", svc)
+    assert icon == "111"
+    assert text == "​"
