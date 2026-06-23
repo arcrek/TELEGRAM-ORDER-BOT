@@ -6,6 +6,7 @@ import { Button } from '../shared/components/Button'
 import { IconButton } from '../shared/components/IconButton'
 import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
+import { EmojiPreview, type EmojiUnit } from '../shared/components/EmojiPreview'
 
 interface EmojiPlaceholder {
   id: number
@@ -13,6 +14,7 @@ interface EmojiPlaceholder {
   configured: boolean
   raw_text: string | null
   token: string
+  units: EmojiUnit[]
 }
 
 export function EmojiPlaceholdersPage() {
@@ -154,8 +156,8 @@ export function EmojiPlaceholdersPage() {
                     </span>
                   </td>
                   <td className="emoji-placeholders-page__preview-cell">
-                    {item.configured && item.raw_text
-                      ? <span className="emoji-placeholders-page__raw">{item.raw_text}</span>
+                    {item.configured && item.units && item.units.length > 0
+                      ? <EmojiPreview units={item.units} />
                       : (
                         <span
                           className="emoji-placeholders-page__hint"
