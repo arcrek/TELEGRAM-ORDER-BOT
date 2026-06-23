@@ -77,6 +77,7 @@ describe('EmojiAutocompleteTextarea', () => {
     expect(screen.getByText('Footer')).toBeInTheDocument()
     // Move highlight from item 0 (Header) to item 1 (Footer)
     fireEvent.keyDown(ta, { key: 'ArrowDown' })
+    fireEvent.keyUp(ta, { key: 'ArrowDown' })   // drives onKeyUp -> reSync -> syncTrigger (the buggy path)
     fireEvent.keyDown(ta, { key: 'Enter' })
     // Footer is id:6 → token {emo:6}
     await waitFor(() => expect(ta.value).toBe('{emo:6}'))
