@@ -31,6 +31,7 @@ from src.dashboard.routers import (
     balances,
     manuals,
     emoji_placeholders,
+    emoji_thumbnails,
 )
 from src.dashboard.routers import api_v1
 
@@ -120,6 +121,11 @@ app.include_router(
     emoji_placeholders.router,
     prefix="/api/emoji-placeholders",
     tags=["emoji-placeholders"],
+)
+app.include_router(
+    emoji_thumbnails.router,
+    prefix="/api/emoji-thumbnails",
+    tags=["emoji-thumbnails"],
 )
 
 
