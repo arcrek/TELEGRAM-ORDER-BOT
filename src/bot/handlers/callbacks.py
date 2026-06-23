@@ -383,7 +383,8 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock, update)
 
         # Update message
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
@@ -466,7 +467,8 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
         keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock, update)
 
         # Update message
-        await query.edit_message_text(message, reply_markup=keyboard)
+        rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
     finally:
         session.close()
 
@@ -646,21 +648,24 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
             keyboard = formatter.create_quantity_keyboard(
                 user_state.selected_variation_id, quantity, actual_stock, update
             )
-            
+            rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+
             try:
                 await context.bot.edit_message_text(
                     chat_id=user_id,
                     message_id=user_state.order_message_id,
-                    text=message,
-                    reply_markup=keyboard
+                    text=rendered,
+                    reply_markup=keyboard,
+                    parse_mode=parse_mode,
                 )
             except Exception as e:
                 logger.warning(f"Could not edit order message: {str(e)}")
                 # Fallback: send a new message
                 await context.bot.send_message(
                     chat_id=user_id,
-                    text=message,
-                    reply_markup=keyboard
+                    text=rendered,
+                    reply_markup=keyboard,
+                    parse_mode=parse_mode,
                 )
         
         # Clear the prompt message ID from state
@@ -1099,6 +1104,8 @@ async def _create_qr_for_order(
             state_manager.update_user_state(user_id, pending_order_id=order.id)
 
             payment_message, caption = format_payment_message(order, update, session)
+            rendered_pm, pm_parse_mode = render_emoji(payment_message, EmojiPlaceholderService(session))
+            rendered_caption, caption_parse_mode = render_emoji(caption, EmojiPlaceholderService(session))
 
             cancel_keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
@@ -1108,13 +1115,13 @@ async def _create_qr_for_order(
             if reply_to_query:
                 from telegram.error import BadRequest as TgBadRequest
                 try:
-                    await reply_to_query.edit_message_text(payment_message)
+                    await reply_to_query.edit_message_text(rendered_pm, parse_mode=pm_parse_mode)
                 except TgBadRequest as exc:
                     if "is not modified" not in str(exc):
                         raise
                 text_message_id = reply_to_query.message.message_id
             else:
-                sent_text = await context.bot.send_message(chat_id=user_id, text=payment_message)
+                sent_text = await context.bot.send_message(chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode)
                 text_message_id = sent_text.message_id
 
             if qr_payload:
@@ -1124,10 +1131,11 @@ async def _create_qr_for_order(
                     sent_message = await context.bot.send_photo(
                         chat_id=user_id,
                         photo=qr_image,
-                        caption=caption,
+                        caption=rendered_caption,
                         reply_markup=cancel_keyboard,
                         write_timeout=30,
                         read_timeout=30,
+                        parse_mode=caption_parse_mode,
                     )
                     message_ids = [text_message_id, sent_message.message_id]
                     state_manager.update_user_state(
@@ -1140,7 +1148,7 @@ async def _create_qr_for_order(
                 except Exception as e:
                     logger.error(f"Failed to send PayOS QR image: {e}", exc_info=True)
                     fallback = await context.bot.send_message(
-                        chat_id=user_id, text=payment_message, reply_markup=cancel_keyboard,
+                        chat_id=user_id, text=rendered_pm, reply_markup=cancel_keyboard, parse_mode=pm_parse_mode,
                     )
                     message_ids = [text_message_id, fallback.message_id]
                     state_manager.update_user_state(
@@ -1152,7 +1160,7 @@ async def _create_qr_for_order(
                     session.commit()
             else:
                 fallback = await context.bot.send_message(
-                    chat_id=user_id, text=payment_message, reply_markup=cancel_keyboard,
+                    chat_id=user_id, text=rendered_pm, reply_markup=cancel_keyboard, parse_mode=pm_parse_mode,
                 )
                 message_ids = [text_message_id, fallback.message_id]
                 state_manager.update_user_state(
@@ -1308,6 +1316,7 @@ async def _create_qr_for_order(
             state_manager.update_user_state(user_id, pending_order_id=order.id)
 
             payment_message, caption_base = format_payment_message(order, update, session)
+            rendered_pm, pm_parse_mode = render_emoji(payment_message, EmojiPlaceholderService(session))
 
             qr_code_data = None
             qr_list = payment_response.get("qrList", [])
@@ -1330,10 +1339,10 @@ async def _create_qr_for_order(
                 ])
 
                 if reply_to_query:
-                    await reply_to_query.edit_message_text(payment_message)
+                    await reply_to_query.edit_message_text(rendered_pm, parse_mode=pm_parse_mode)
                     text_message_id = reply_to_query.message.message_id
                 else:
-                    sent_text = await context.bot.send_message(chat_id=user_id, text=payment_message)
+                    sent_text = await context.bot.send_message(chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode)
                     text_message_id = sent_text.message_id
 
                 bank_info = (
@@ -1342,13 +1351,17 @@ async def _create_qr_for_order(
                     f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
                     f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
                 )
-                caption_with_bank = caption_base + bank_info
+                # Render caption_with_bank AFTER concatenation to preserve escape-order
+                rendered_caption_wb, cwb_parse_mode = render_emoji(
+                    caption_base + bank_info, EmojiPlaceholderService(session)
+                )
 
                 sent_message = await context.bot.send_photo(
                     chat_id=user_id,
                     photo=InputFile(qr_image, filename="qr_code.png"),
-                    caption=caption_with_bank,
-                    reply_markup=cancel_keyboard
+                    caption=rendered_caption_wb,
+                    reply_markup=cancel_keyboard,
+                    parse_mode=cwb_parse_mode,
                 )
 
                 message_ids = [text_message_id, sent_message.message_id]
@@ -1370,17 +1383,21 @@ async def _create_qr_for_order(
                         f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
                         f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
                     )
-                payment_message += f"{bank_info}\n\n🔗 Payment link:\n{payment_url}"
+                # Render AFTER appending bank_info and payment_url to preserve escape-order
+                full_payment_message = payment_message + f"{bank_info}\n\n🔗 Payment link:\n{payment_url}"
+                rendered_full_pm, full_pm_parse_mode = render_emoji(
+                    full_payment_message, EmojiPlaceholderService(session)
+                )
                 cancel_keyboard = InlineKeyboardMarkup([
                     [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
                 ])
 
                 if reply_to_query:
                     text_message_id = reply_to_query.message.message_id
-                    edited_message = await reply_to_query.edit_message_text(payment_message, reply_markup=cancel_keyboard)
+                    edited_message = await reply_to_query.edit_message_text(rendered_full_pm, reply_markup=cancel_keyboard, parse_mode=full_pm_parse_mode)
                 else:
                     edited_message = await context.bot.send_message(
-                        chat_id=user_id, text=payment_message, reply_markup=cancel_keyboard,
+                        chat_id=user_id, text=rendered_full_pm, reply_markup=cancel_keyboard, parse_mode=full_pm_parse_mode,
                     )
                     text_message_id = edited_message.message_id
 

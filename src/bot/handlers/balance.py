@@ -39,6 +39,8 @@ from src.database.services.topup_service import (
     BALANCE_TOPUP_MIN,
     TopupService,
 )
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +140,7 @@ async def _create_topup_qr(
             amount=_format_amount(amount),
             topup_id=topup_id,
         )
+        rendered_caption, caption_parse_mode = render_emoji(caption, EmojiPlaceholderService(session))
 
         if payment_provider == "payos":
             try:
@@ -239,25 +242,28 @@ async def _create_topup_qr(
                     sent = await context.bot.send_photo(
                         chat_id=user_id,
                         photo=qr_image,
-                        caption=caption,
+                        caption=rendered_caption,
                         reply_markup=cancel_keyboard,
                         write_timeout=30,
                         read_timeout=30,
+                        parse_mode=caption_parse_mode,
                     )
                     ids_to_track.append(sent.message_id)
                 except Exception as exc:
                     logger.error(f"Failed to send PayOS QR for topup: {exc}", exc_info=True)
                     sent = await context.bot.send_message(
                         chat_id=user_id,
-                        text=caption,
+                        text=rendered_caption,
                         reply_markup=cancel_keyboard,
+                        parse_mode=caption_parse_mode,
                     )
                     ids_to_track.append(sent.message_id)
             else:
                 sent = await context.bot.send_message(
                     chat_id=user_id,
-                    text=caption,
+                    text=rendered_caption,
                     reply_markup=cancel_keyboard,
+                    parse_mode=caption_parse_mode,
                 )
                 ids_to_track.append(sent.message_id)
 
@@ -362,21 +368,30 @@ async def _create_topup_qr(
                         f"\n\n🏦 Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
                         f"Account: {qr_list[0].get('account_number', 'N/A')}"
                     )
+                # Render AFTER concatenation to preserve escape-order
+                rendered_cap_bank, cap_bank_parse_mode = render_emoji(
+                    caption + bank_info, EmojiPlaceholderService(session)
+                )
                 qr_image = BytesIO(qr_code_data)
                 qr_image.name = "qr_code.png"
                 sent = await context.bot.send_photo(
                     chat_id=user_id,
                     photo=InputFile(qr_image, filename="qr_code.png"),
-                    caption=caption + bank_info,
+                    caption=rendered_cap_bank,
                     reply_markup=cancel_keyboard,
+                    parse_mode=cap_bank_parse_mode,
                 )
                 ids_to_track.append(sent.message_id)
             else:
-                text_msg = caption + f"\n\n🔗 {payment_url}"
+                # Render AFTER concatenation to preserve escape-order
+                rendered_text_msg, text_msg_parse_mode = render_emoji(
+                    caption + f"\n\n🔗 {payment_url}", EmojiPlaceholderService(session)
+                )
                 sent = await context.bot.send_message(
                     chat_id=user_id,
-                    text=text_msg,
+                    text=rendered_text_msg,
                     reply_markup=cancel_keyboard,
+                    parse_mode=text_msg_parse_mode,
                 )
                 ids_to_track.append(sent.message_id)
         else:
@@ -431,7 +446,8 @@ async def handle_balance_button(update: Update, context: ContextTypes.DEFAULT_TY
             f"{t('balance.view_title', update)}\n\n"
             f"{t('balance.current_balance', update, balance=_format_amount(balance))}"
         )
-        msg = await update.message.reply_text(text, reply_markup=_balance_view_keyboard(update))
+        rendered, parse_mode = render_emoji(text, EmojiPlaceholderService(session))
+        msg = await update.message.reply_text(rendered, reply_markup=_balance_view_keyboard(update), parse_mode=parse_mode)
         state_manager.update_user_state(user.id, balance_message_id=msg.message_id)
     finally:
         session.close()
@@ -458,7 +474,8 @@ async def handle_balance_view(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"{t('balance.view_title', update)}\n\n"
             f"{t('balance.current_balance', update, balance=_format_amount(balance))}"
         )
-        await query.edit_message_text(text, reply_markup=_balance_view_keyboard(update))
+        rendered, parse_mode = render_emoji(text, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=_balance_view_keyboard(update), parse_mode=parse_mode)
         state_manager.update_user_state(user_id, balance_message_id=query.message.message_id)
     finally:
         session.close()
@@ -650,7 +667,9 @@ async def handle_balance_history(update: Update, context: ContextTypes.DEFAULT_T
         back_kb = InlineKeyboardMarkup([
             [InlineKeyboardButton(t("balance.back_button", update), callback_data="balance_view")]
         ])
-        await query.edit_message_text("\n".join(lines), reply_markup=back_kb)
+        history_text = "\n".join(lines)
+        rendered, parse_mode = render_emoji(history_text, EmojiPlaceholderService(session))
+        await query.edit_message_text(rendered, reply_markup=back_kb, parse_mode=parse_mode)
     finally:
         session.close()
 
