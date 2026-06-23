@@ -1,0 +1,23 @@
+{
+  "emoji": {
+    "title": "Emoji Placeholders",
+    "description": "Manage custom emoji placeholders for the bot",
+    "create": "New placeholder",
+    "created": "Placeholder created",
+    "deleted": "Placeholder deleted",
+    "copied": "Token copied",
+    "namePlaceholder": "Name (e.g. Header banner)",
+    "configured": "Configured",
+    "emptyBadge": "Empty",
+    "empty": "No placeholders yet. Create one above.",
+    "setHint": "Run /set_emo {id} in the bot and send your premium emoji",
+    "copyToken": "Copy token",
+    "deleteConfirm": "Delete this placeholder?",
+    "loadError": "Could not load placeholders",
+    "saveError": "Could not save",
+    "colName": "Name",
+    "colToken": "Token",
+    "colStatus": "Status",
+    "colPreview": "Preview"
+  }
+}

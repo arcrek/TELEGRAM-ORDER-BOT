@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart2, Package, Layers, Star, ShoppingCart, Bell, Upload,
-  Database, Gift, Settings, Users, Boxes, Wallet, BookOpen,
+  Database, Gift, Settings, Users, Boxes, Wallet, BookOpen, Smile,
   Bot, PanelLeftClose, PanelLeft,
 } from 'lucide-react'
 import { Tooltip } from '../../shared/components/Tooltip'
@@ -12,7 +12,7 @@ import './Sidebar.css'
 
 const ICON_MAP: Record<string, LucideIcon> = {
   BarChart2, Package, Layers, Star, ShoppingCart, Bell,
-  Upload, Database, Gift, Settings, Users, Boxes, Wallet, BookOpen,
+  Upload, Database, Gift, Settings, Users, Boxes, Wallet, BookOpen, Smile,
 }
 
 export interface NavBadgeCounts {

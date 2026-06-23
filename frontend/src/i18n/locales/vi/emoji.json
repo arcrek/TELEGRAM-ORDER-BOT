@@ -1,0 +1,23 @@
+{
+  "emoji": {
+    "title": "Emoji Placeholders",
+    "description": "Quản lý emoji placeholder cho bot",
+    "create": "Tạo mới",
+    "created": "Đã tạo placeholder",
+    "deleted": "Đã xóa placeholder",
+    "copied": "Đã sao chép token",
+    "namePlaceholder": "Tên (ví dụ: Banner header)",
+    "configured": "Đã cấu hình",
+    "emptyBadge": "Trống",
+    "empty": "Chưa có placeholder nào. Tạo một cái ở trên.",
+    "setHint": "Chạy /set_emo {id} trong bot và gửi emoji cao cấp của bạn",
+    "copyToken": "Sao chép token",
+    "deleteConfirm": "Xóa placeholder này?",
+    "loadError": "Không thể tải danh sách placeholder",
+    "saveError": "Không thể lưu",
+    "colName": "Tên",
+    "colToken": "Token",
+    "colStatus": "Trạng thái",
+    "colPreview": "Xem trước"
+  }
+}

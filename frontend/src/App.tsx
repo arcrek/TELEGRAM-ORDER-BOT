@@ -23,6 +23,7 @@ import { GeneralSettingsPage } from './pages/GeneralSettingsPage'
 import { InventoryUpdatePage } from './pages/InventoryUpdatePage'
 import { BalancesPage } from './pages/BalancesPage'
 import { ManualsPage } from './pages/ManualsPage'
+import { EmojiPlaceholdersPage } from './pages/EmojiPlaceholdersPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -79,6 +80,7 @@ export function AppRoutes() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />
           <Route path="general-settings" element={<GeneralSettingsPage />} />
+          <Route path="emoji-placeholders" element={<EmojiPlaceholdersPage />} />
           <Route path="iotd" element={<IotdPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

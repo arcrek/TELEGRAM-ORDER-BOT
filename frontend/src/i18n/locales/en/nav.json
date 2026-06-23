@@ -9,6 +9,8 @@
     "suppliers": "Suppliers",
     "notifications": "Notifications",
     "botUiSettings": "Bot UI Settings",
+    "generalSettings": "General Settings",
+    "emojiPlaceholders": "Emoji",
     "productUpload": "Product Upload",
     "preUploaded": "Inventory",
     "inventoryUpdate": "Stock Update",

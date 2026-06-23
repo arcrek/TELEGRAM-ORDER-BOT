@@ -28,6 +28,7 @@ export const ROUTES: RouteDefinition[] = [
   // Settings
   { path: '/bot-ui-settings', key: 'botUiSettings', labelKey: 'nav.botUiSettings', group: 'settings', iconName: 'Settings' },
   { path: '/general-settings', key: 'generalSettings', labelKey: 'nav.generalSettings', group: 'settings', iconName: 'Star' },
+  { path: '/emoji-placeholders', key: 'emojiPlaceholders', labelKey: 'nav.emojiPlaceholders', group: 'settings', iconName: 'Smile' },
 ]
 
 export const ROUTE_GROUPS: { key: NonNullable<RouteDefinition['group']>; labelKey: string }[] = [
