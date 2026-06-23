@@ -1,4 +1,5 @@
 """Dashboard CRUD API for emoji placeholders."""
+import json
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -11,11 +12,19 @@ from src.database.services.emoji_placeholder_service import EmojiPlaceholderServ
 router = APIRouter()
 
 
+class EmojiUnit(BaseModel):
+    type: str  # 'text' | 'emoji'
+    value: Optional[str] = None
+    emoji_id: Optional[str] = None
+    fallback: Optional[str] = None
+
+
 class EmojiPlaceholderResponse(BaseModel):
     id: int
     name: str
     configured: bool
     raw_text: Optional[str] = None
+    units: List[EmojiUnit] = []
 
     @computed_field
     @property
@@ -31,12 +40,25 @@ class EmojiPlaceholderUpdate(BaseModel):
     name: str
 
 
+def _parse_units(content: Optional[str]) -> List[EmojiUnit]:
+    if not content:
+        return []
+    out: List[EmojiUnit] = []
+    for u in json.loads(content):
+        if u.get("t") == "emoji":
+            out.append(EmojiUnit(type="emoji", emoji_id=str(u.get("id")), fallback=u.get("fb", "")))
+        else:
+            out.append(EmojiUnit(type="text", value=u.get("v", "")))
+    return out
+
+
 def _to_response(row) -> EmojiPlaceholderResponse:
     return EmojiPlaceholderResponse(
         id=row.id,
         name=row.name,
         configured=bool(row.content),
         raw_text=row.raw_text,
+        units=_parse_units(row.content),
     )
 
 

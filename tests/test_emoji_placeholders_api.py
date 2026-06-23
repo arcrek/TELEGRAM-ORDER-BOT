@@ -8,3 +8,24 @@ def test_response_token_format():
     )
     assert resp.token == "{emo:5}"
     assert resp.configured is False
+
+
+from src.dashboard.routers.emoji_placeholders import _parse_units, EmojiUnit
+
+
+def test_parse_units_maps_emoji_and_text():
+    import json
+    content = json.dumps([
+        {"t": "emoji", "id": "111", "fb": "🔔"},
+        {"t": "text", "v": "THÔNG BÁO"},
+    ])
+    units = _parse_units(content)
+    assert units == [
+        EmojiUnit(type="emoji", emoji_id="111", fallback="🔔"),
+        EmojiUnit(type="text", value="THÔNG BÁO"),
+    ]
+
+
+def test_parse_units_empty_for_unconfigured():
+    assert _parse_units(None) == []
+    assert _parse_units("") == []
