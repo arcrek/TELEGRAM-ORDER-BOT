@@ -1,4 +1,4 @@
-import { useEffect, useRef, type TextareaHTMLAttributes } from 'react'
+import { forwardRef, useEffect, useRef, type TextareaHTMLAttributes } from 'react'
 import './Textarea.css'
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -10,7 +10,7 @@ export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElemen
   id?: string
 }
 
-export function Textarea({
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea({
   label,
   helperText,
   error,
@@ -21,16 +21,22 @@ export function Textarea({
   disabled,
   className = '',
   ...rest
-}: TextareaProps) {
+}, forwardedRef) {
   const textareaId = id ?? rest.name ?? `textarea-${Math.random().toString(36).slice(2, 9)}`
   const helperId = helperText ? `${textareaId}-helper` : undefined
   const errorId = error ? `${textareaId}-error` : undefined
   const describedBy = [helperId, errorId].filter(Boolean).join(' ') || undefined
-  const ref = useRef<HTMLTextAreaElement>(null)
+  const innerRef = useRef<HTMLTextAreaElement | null>(null)
+
+  const setRefs = (el: HTMLTextAreaElement | null) => {
+    innerRef.current = el
+    if (typeof forwardedRef === 'function') forwardedRef(el)
+    else if (forwardedRef) forwardedRef.current = el
+  }
 
   useEffect(() => {
-    if (!autoResize || !ref.current) return
-    const el = ref.current
+    if (!autoResize || !innerRef.current) return
+    const el = innerRef.current
     el.style.height = 'auto'
     const next = maxHeight ? Math.min(el.scrollHeight, maxHeight) : el.scrollHeight
     el.style.height = `${next}px`
@@ -44,7 +50,7 @@ export function Textarea({
         </label>
       )}
       <textarea
-        ref={ref}
+        ref={setRefs}
         id={textareaId}
         value={value}
         disabled={disabled}
@@ -61,4 +67,4 @@ export function Textarea({
       )}
     </div>
   )
-}
+})
