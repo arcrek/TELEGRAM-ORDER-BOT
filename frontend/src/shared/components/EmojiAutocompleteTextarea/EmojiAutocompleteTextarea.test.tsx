@@ -67,4 +67,27 @@ describe('EmojiAutocompleteTextarea', () => {
     expect(ta.value).toBe('plain text')
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
+
+  it('arrow-nav: ArrowDown moves highlight so Enter inserts the second item', async () => {
+    render(<Harness />)
+    const ta = screen.getByLabelText('composer') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: '@emo' } })
+    // Wait for both items to be rendered before dispatching arrow key
+    await screen.findByText('Header')
+    expect(screen.getByText('Footer')).toBeInTheDocument()
+    // Move highlight from item 0 (Header) to item 1 (Footer)
+    fireEvent.keyDown(ta, { key: 'ArrowDown' })
+    fireEvent.keyDown(ta, { key: 'Enter' })
+    // Footer is id:6 → token {emo:6}
+    await waitFor(() => expect(ta.value).toBe('{emo:6}'))
+  })
+
+  it('shows empty state when no placeholders are configured', async () => {
+    vi.restoreAllMocks()
+    vi.spyOn(apiClient, 'get').mockResolvedValue({ data: [] } as never)
+    render(<Harness />)
+    const ta = screen.getByLabelText('composer') as HTMLTextAreaElement
+    fireEvent.change(ta, { target: { value: '@emo' } })
+    expect(await screen.findByText('No emoji placeholders — create one on the Emoji page')).toBeInTheDocument()
+  })
 })

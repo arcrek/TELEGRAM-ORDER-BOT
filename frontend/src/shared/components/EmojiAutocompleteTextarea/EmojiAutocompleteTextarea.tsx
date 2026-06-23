@@ -65,9 +65,10 @@ export function EmojiAutocompleteTextarea(props: TextareaProps) {
       return
     }
     void ensureLoaded()
+    const changed = !open || m.query !== query || m.start !== triggerStart
     setTriggerStart(m.start)
     setQuery(m.query)
-    setHighlight(0)
+    if (changed) setHighlight(0)
     const rect = el.getBoundingClientRect()
     const c = getCaretCoordinates(el, caret)
     setPos({
@@ -117,27 +118,31 @@ export function EmojiAutocompleteTextarea(props: TextareaProps) {
         onKeyUp={reSync}
         onClick={reSync}
       />
-      {open && items.length > 0 && pos && createPortal(
+      {open && pos && createPortal(
         <div
           ref={panelRef}
           role="listbox"
           className="emoji-ac__panel"
           style={{ top: pos.top, left: pos.left }}
         >
-          {items.map((p, i) => (
-            <div
-              key={p.id}
-              role="option"
-              aria-selected={i === highlight}
-              className={`emoji-ac__option ${i === highlight ? 'emoji-ac__option--active' : ''}`}
-              onMouseEnter={() => setHighlight(i)}
-              onMouseDown={e => { e.preventDefault(); choose(p) }}
-            >
-              <EmojiPreview units={p.units} />
-              <span className="emoji-ac__name">{p.name}</span>
-              <span className="emoji-ac__token">{p.token}</span>
-            </div>
-          ))}
+          {items.length === 0 ? (
+            <div className="emoji-ac__empty">No emoji placeholders — create one on the Emoji page</div>
+          ) : (
+            items.map((p, i) => (
+              <div
+                key={p.id}
+                role="option"
+                aria-selected={i === highlight}
+                className={`emoji-ac__option ${i === highlight ? 'emoji-ac__option--active' : ''}`}
+                onMouseEnter={() => setHighlight(i)}
+                onMouseDown={e => { e.preventDefault(); choose(p) }}
+              >
+                <EmojiPreview units={p.units} />
+                <span className="emoji-ac__name">{p.name}</span>
+                <span className="emoji-ac__token">{p.token}</span>
+              </div>
+            ))
+          )}
         </div>,
         document.body,
       )}

@@ -21,3 +21,4 @@
 .emoji-ac__option--active { background: var(--color-hover, #232321); }
 .emoji-ac__name { flex: 1; }
 .emoji-ac__token { opacity: 0.5; font-size: 0.85em; font-family: monospace; }
+.emoji-ac__empty { padding: 6px 8px; opacity: 0.6; font-size: 0.9em; }
