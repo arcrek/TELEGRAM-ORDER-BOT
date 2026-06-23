@@ -26,6 +26,7 @@ class EmojiThumbnailService:
             self.session.add(row)
         row.data = data
         row.mime = mime
+        row.fetched_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.session.commit()
         self.session.refresh(row)
         return row
@@ -37,6 +38,7 @@ class EmojiThumbnailService:
             self.session.add(row)
         row.data = None
         row.mime = None
+        row.fetched_at = datetime.now(timezone.utc).replace(tzinfo=None)
         self.session.commit()
         self.session.refresh(row)
         return row

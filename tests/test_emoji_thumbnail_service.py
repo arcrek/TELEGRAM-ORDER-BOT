@@ -76,3 +76,17 @@ def test_referenced_emoji_ids():
     # An unconfigured placeholder contributes nothing.
     psvc.create("empty")
     assert psvc.referenced_emoji_ids() == {"111", "222"}
+
+
+def test_store_failure_refreshes_fetched_at_on_reattempt():
+    from datetime import datetime as _dt
+    session = _session()
+    svc = EmojiThumbnailService(session)
+    svc.store_failure("z")
+    # Simulate a prior attempt far in the past (explicit set => onupdate skipped).
+    row = svc.get("z")
+    row.fetched_at = _dt(2000, 1, 1)
+    session.commit()
+    # Re-attempt: must bump fetched_at even though data/mime stay None.
+    svc.store_failure("z")
+    assert svc.get("z").fetched_at.year > 2000
