@@ -14,6 +14,9 @@
     "imageAlt": "Attached image",
     "imageTooLarge": "Image exceeds the 10MB limit",
     "imageNotImage": "Attachment must be an image",
-    "noUsersSelected": "Select at least one user"
+    "noUsersSelected": "Select at least one user",
+    "headerPlaceholder": "Notification header",
+    "footerPlaceholder": "Notification footer",
+    "selectPlaceholder": "Select placeholder…"
   }
 }

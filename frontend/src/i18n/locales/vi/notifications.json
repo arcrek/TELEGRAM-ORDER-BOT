@@ -14,6 +14,9 @@
     "imageAlt": "Ảnh đính kèm",
     "imageTooLarge": "Ảnh vượt quá giới hạn 10MB",
     "imageNotImage": "Tệp đính kèm phải là ảnh",
-    "noUsersSelected": "Chọn ít nhất một người dùng"
+    "noUsersSelected": "Chọn ít nhất một người dùng",
+    "headerPlaceholder": "Placeholder đầu thông báo",
+    "footerPlaceholder": "Placeholder cuối thông báo",
+    "selectPlaceholder": "Chọn placeholder…"
   }
 }

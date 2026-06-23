@@ -8,6 +8,7 @@ import { Textarea } from '../shared/components/Textarea'
 import { Switch } from '../shared/components/Switch'
 import { Badge } from '../shared/components/Badge'
 import { FormField } from '../shared/components/FormField'
+import { Select } from '../shared/components/Select'
 import { Skeleton } from '../shared/components/Skeleton'
 import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
@@ -40,6 +41,14 @@ interface OrderNotificationSettings {
   whitelist_chat_ids: string[]
   upgrade_chat_ids: string[]
   topup_chat_ids: string[]
+  header_placeholder_id: number | null
+  footer_placeholder_id: number | null
+}
+
+interface EmojiPlaceholder {
+  id: number
+  name: string
+  token: string
 }
 
 type AudienceMode = 'all' | 'active' | 'specific'
@@ -75,8 +84,12 @@ export function NotificationsPage() {
   const [loadingOrderSettings, setLoadingOrderSettings] = useState(false)
   const [savingOrderSettings, setSavingOrderSettings] = useState(false)
 
+  // ── Emoji placeholders state ───────────────────────────────────────
+  const [placeholders, setPlaceholders] = useState<EmojiPlaceholder[]>([])
+
   useEffect(() => {
     fetchOrderSettings()
+    fetchPlaceholders()
   }, [])
 
   useEffect(() => {
@@ -111,6 +124,15 @@ export function NotificationsPage() {
       toast.error(formatApiError(err, t('notifications.settingsError', 'Không thể tải cài đặt thông báo')))
     } finally {
       setLoadingOrderSettings(false)
+    }
+  }
+
+  const fetchPlaceholders = async () => {
+    try {
+      const res = await apiClient.get<EmojiPlaceholder[]>('/api/emoji-placeholders')
+      setPlaceholders(res.data)
+    } catch {
+      /* non-fatal: dropdowns just stay empty */
     }
   }
 
@@ -450,6 +472,37 @@ export function NotificationsPage() {
                           rows={3}
                         />
                       </FormField>
+
+                      {(() => {
+                        const placeholderOptions = [
+                          { value: '', label: '—' },
+                          ...placeholders.map(p => ({ value: String(p.id), label: `${p.name} (${p.token})` })),
+                        ]
+                        return (
+                          <>
+                            <FormField label={t('notifications.headerPlaceholder', 'Notification header')} htmlFor="notif-header">
+                              <Select
+                                id="notif-header"
+                                options={placeholderOptions}
+                                value={orderSettings.header_placeholder_id != null ? String(orderSettings.header_placeholder_id) : ''}
+                                onChange={v => setOrderSettings(s => s ? { ...s, header_placeholder_id: v ? Number(v) : null } : s)}
+                                searchable
+                                placeholder={t('notifications.selectPlaceholder', 'Select placeholder…')}
+                              />
+                            </FormField>
+                            <FormField label={t('notifications.footerPlaceholder', 'Notification footer')} htmlFor="notif-footer">
+                              <Select
+                                id="notif-footer"
+                                options={placeholderOptions}
+                                value={orderSettings.footer_placeholder_id != null ? String(orderSettings.footer_placeholder_id) : ''}
+                                onChange={v => setOrderSettings(s => s ? { ...s, footer_placeholder_id: v ? Number(v) : null } : s)}
+                                searchable
+                                placeholder={t('notifications.selectPlaceholder', 'Select placeholder…')}
+                              />
+                            </FormField>
+                          </>
+                        )
+                      })()}
 
                       <div className="notifications-page__send-footer">
                         <Button
