@@ -28,6 +28,17 @@ class EmojiPlaceholderService:
     def get(self, placeholder_id: int) -> Optional[EmojiPlaceholder]:
         return self.session.get(EmojiPlaceholder, placeholder_id)
 
+    def referenced_emoji_ids(self) -> set:
+        """All custom_emoji_ids referenced by any stored placeholder's content."""
+        ids: set = set()
+        for row in self.session.query(EmojiPlaceholder).all():
+            if not row.content:
+                continue
+            for unit in json.loads(row.content):
+                if unit.get("t") == "emoji" and unit.get("id"):
+                    ids.add(str(unit["id"]))
+        return ids
+
     # ---- mutations ---------------------------------------------------------
     def create(self, name: str) -> int:
         row = EmojiPlaceholder(name=name)
