@@ -91,7 +91,7 @@ export function EmojiAutocompleteTextarea(props: TextareaProps) {
     const el = taRef.current
     if (!el) return
     const caret = el.selectionStart ?? el.value.length
-    const next = insertToken(String(value ?? ''), caret, triggerStart, p.token)
+    const next = insertToken(el.value, caret, triggerStart, p.token)
     el.value = next.value
     setPendingCaret(next.caret)
     setOpen(false)
@@ -99,11 +99,11 @@ export function EmojiAutocompleteTextarea(props: TextareaProps) {
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (open && e.key === 'Escape') { e.preventDefault(); setOpen(false); return }
     if (!open || items.length === 0) return
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(h => (h + 1) % items.length) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(h => (h - 1 + items.length) % items.length) }
     else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); choose(items[highlight]) }
-    else if (e.key === 'Escape') { e.preventDefault(); setOpen(false) }
   }
 
   return (
