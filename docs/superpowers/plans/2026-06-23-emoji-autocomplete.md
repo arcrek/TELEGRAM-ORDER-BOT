@@ -358,8 +358,11 @@ export function getCaretCoordinates(el: HTMLTextAreaElement, position: number): 
   style.whiteSpace = 'pre-wrap'
   style.wordWrap = 'break-word'
   style.overflow = 'hidden'
+  // camelCase property names require bracket assignment, NOT setProperty/
+  // getPropertyValue (those need kebab-case and would no-op on camelCase).
   for (const prop of MIRROR_PROPS) {
-    style.setProperty(prop, computed.getPropertyValue(prop))
+    ;(style as unknown as Record<string, string>)[prop] =
+      (computed as unknown as Record<string, string>)[prop]
   }
 
   div.textContent = el.value.slice(0, position)
