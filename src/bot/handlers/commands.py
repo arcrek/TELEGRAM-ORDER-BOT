@@ -1,6 +1,7 @@
 """
 Command handlers for the Telegram bot.
 """
+
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -14,17 +15,24 @@ from src.database.services.order_service import OrderService
 from src.database.services.statistics_service import StatisticsService
 from src.database.models.enums import OrderStatus
 from src.database.services.user_preference_service import UserPreferenceService
-from src.bot.utils.admin_check import GLOBAL_ADMIN_ID, add_admin, get_admin_telegram_ids, is_admin, remove_admin
+from src.bot.utils.admin_check import (
+    GLOBAL_ADMIN_ID,
+    add_admin,
+    get_admin_telegram_ids,
+    is_admin,
+    remove_admin,
+)
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.database.services.pre_uploaded_service import PreUploadedService
 from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
-from src.bot.utils.language import get_user_language, t
+from src.bot.utils.language import t
 from src.bot.utils.keyboard import get_persistent_keyboard
 from src.database.services.app_settings_service import AppSettingsService
 from src.utils.datetime_format import resolve_tz, now_local
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.database.services.block_service import BlockService
 
 
 # Global state manager instance
@@ -37,7 +45,10 @@ def _get_bot_selection_prompts(session) -> tuple[str | None, str | None]:
     settings = service.get_settings()
     return settings.product_choose_text, settings.variation_choose_text
 
-async def _restore_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def _restore_reply_keyboard(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Restore the reply-keyboard without leaving an extra message in chat.
 
@@ -52,15 +63,20 @@ async def _restore_reply_keyboard(update: Update, context: ContextTypes.DEFAULT_
 
     try:
         # Use a zero-width space so the message is "non-empty" but visually blank.
-        sent = await context.bot.send_message(chat_id=chat_id, text="\u200B", reply_markup=keyboard)
+        sent = await context.bot.send_message(
+            chat_id=chat_id, text="\u200b", reply_markup=keyboard
+        )
         try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=sent.message_id)
+            await context.bot.delete_message(
+                chat_id=chat_id, message_id=sent.message_id
+            )
         except Exception:
             # If deletion fails (permissions, timing), it's harmless.
             pass
     except Exception:
         # Never break the main flow just because keyboard restore failed.
         pass
+
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -77,19 +93,31 @@ async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 def _start_inline_keyboard(update: Update) -> InlineKeyboardMarkup:
     """Build the start menu inline keyboard."""
-    return InlineKeyboardMarkup([
+    return InlineKeyboardMarkup(
         [
-            InlineKeyboardButton(t("buttons.products", update), callback_data="start_products"),
-            InlineKeyboardButton(t("buttons.balance", update), callback_data="balance_view"),
-        ],
-        [
-            InlineKeyboardButton(t("buttons.order_history", update), callback_data="start_history"),
-            InlineKeyboardButton(t("start_menu.api_button", update), callback_data="start_api"),
-        ],
-        [
-            InlineKeyboardButton(t("buttons.export", update), callback_data="start_export"),
-        ],
-    ])
+            [
+                InlineKeyboardButton(
+                    t("buttons.products", update), callback_data="start_products"
+                ),
+                InlineKeyboardButton(
+                    t("buttons.balance", update), callback_data="balance_view"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    t("buttons.order_history", update), callback_data="start_history"
+                ),
+                InlineKeyboardButton(
+                    t("start_menu.api_button", update), callback_data="start_api"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    t("buttons.export", update), callback_data="start_export"
+                ),
+            ],
+        ]
+    )
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -117,6 +145,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         # Log error but don't fail the command
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error tracking user: {str(e)}", exc_info=True)
     finally:
@@ -144,10 +173,14 @@ async def handle_start_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     query = update.callback_query
     await query.answer()
     menu_title = t("start_menu.title", update)
-    await query.edit_message_text(menu_title, reply_markup=_start_inline_keyboard(update))
+    await query.edit_message_text(
+        menu_title, reply_markup=_start_inline_keyboard(update)
+    )
 
 
-async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_start_products(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Callback: start_products — show product list from the start menu."""
     query = update.callback_query
     await query.answer()
@@ -162,7 +195,9 @@ async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TY
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
-        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        products = product_service.list_products(
+            page=1, per_page=9999, only_active=True
+        )
 
         pre_uploaded_service = PreUploadedService(session)
         pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
@@ -171,13 +206,18 @@ async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TY
 
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         inline_keyboard = formatter.create_product_keyboard(
-            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            products,
+            update,
+            pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
             emoji_service=EmojiPlaceholderService(session),
         )
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=inline_keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=inline_keyboard, parse_mode=parse_mode
+        )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error in handle_start_products: {str(e)}", exc_info=True)
         await query.edit_message_text(t("commands.products.error", update))
@@ -185,7 +225,9 @@ async def handle_start_products(update: Update, context: ContextTypes.DEFAULT_TY
         session.close()
 
 
-async def handle_start_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_start_history(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Callback: start_history — show order history from the start menu."""
     query = update.callback_query
     await query.answer()
@@ -196,7 +238,9 @@ async def handle_start_history(update: Update, context: ContextTypes.DEFAULT_TYP
     session = session_factory()
     try:
         order_service = OrderService(session)
-        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
+        orders = order_service.get_user_orders(
+            user_id, status=OrderStatus.DELIVERED, limit=200
+        )
 
         total = len(orders)
         total_pages = max(1, (total + _ORDERS_PER_PAGE - 1) // _ORDERS_PER_PAGE)
@@ -221,15 +265,29 @@ async def handle_start_history(update: Update, context: ContextTypes.DEFAULT_TYP
 
         keyboard = []
         for order in page_orders:
-            status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+            status_val = (
+                order.status.value
+                if hasattr(order.status, "value")
+                else str(order.status)
+            )
             emoji = status_emoji.get(status_val, "❓")
             label = f"#{order.id} | {emoji} | {order.total_amount:,}đ"
-            keyboard.append([InlineKeyboardButton(label, callback_data=f"order_detail_{order.id}_from_{page}")])
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        label, callback_data=f"order_detail_{order.id}_from_{page}"
+                    )
+                ]
+            )
 
         nav_row = []
         if page < total_pages:
             next_text = t("buttons.next", update)
-            nav_row.append(InlineKeyboardButton(next_text, callback_data=f"order_history_page_{page + 1}"))
+            nav_row.append(
+                InlineKeyboardButton(
+                    next_text, callback_data=f"order_history_page_{page + 1}"
+                )
+            )
         if nav_row:
             keyboard.append(nav_row)
 
@@ -237,6 +295,7 @@ async def handle_start_history(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error in handle_start_history: {str(e)}", exc_info=True)
         await query.edit_message_text(t("order_history.error", update))
@@ -247,17 +306,17 @@ async def handle_start_history(update: Update, context: ContextTypes.DEFAULT_TYP
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle /help command.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     user = update.effective_user
-    
+
     # Track user in database (if not already tracked)
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         bot_user_service = BotUserService(session)
         bot_user_service.track_user(
@@ -269,16 +328,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     except Exception as e:
         # Log error but don't fail the command
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error tracking user: {str(e)}", exc_info=True)
     finally:
         session.close()
-    
+
     from src.bot.utils.admin_check import is_admin
-    
+
     user_id = user.id
     is_user_admin = is_admin(user_id)
-    
+
     help_message = (
         f"{t('commands.help.title', update)}\n\n"
         f"{t('commands.help.start', update)}\n"
@@ -287,7 +347,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         f"{t('commands.help.balance', update)}\n\n"
         f"{t('commands.help.interaction_hint', update)}"
     )
-    
+
     if is_user_admin:
         help_message += (
             f"\n\n{t('commands.help.admin_title', update)}\n"
@@ -296,7 +356,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             f"{t('commands.help.notify_active', update)}\n"
             f"{t('commands.help.setadmin', update)}"
         )
-    
+
     # Show persistent keyboard
     keyboard = get_persistent_keyboard(update)
     await update.message.reply_text(help_message, reply_markup=keyboard)
@@ -305,18 +365,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle /products command - show product list.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     user = update.effective_user
     user_id = user.id
-    
+
     # Track user in database (if not already tracked)
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         bot_user_service = BotUserService(session)
         bot_user_service.track_user(
@@ -325,13 +385,15 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             first_name=user.first_name,
             last_name=user.last_name,
         )
-        
+
         # Get products
         product_service = ProductService(session)
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
-        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        products = product_service.list_products(
+            page=1, per_page=9999, only_active=True
+        )
 
         pre_uploaded_service = PreUploadedService(session)
         pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
@@ -340,22 +402,27 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         inline_keyboard = formatter.create_product_keyboard(
-            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            products,
+            update,
+            pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
             emoji_service=EmojiPlaceholderService(session),
         )
 
         # Send main message with inline keyboard
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await update.message.reply_text(rendered, reply_markup=inline_keyboard, parse_mode=parse_mode)
+        await update.message.reply_text(
+            rendered, reply_markup=inline_keyboard, parse_mode=parse_mode
+        )
 
         # Restore reply keyboard without leaving a message
         await _restore_reply_keyboard(update, context)
     except Exception as e:
         # Log error but don't fail the command
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error in products command: {str(e)}", exc_info=True)
-        await update.message.reply_text(t('commands.products.error', update))
+        await update.message.reply_text(t("commands.products.error", update))
     finally:
         session.close()
 
@@ -376,19 +443,23 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error tracking user in /balance: {str(e)}", exc_info=True)
     finally:
         session.close()
 
     from src.bot.handlers.balance import handle_balance_button
+
     await handle_balance_button(update, context)
 
 
 _ORDERS_PER_PAGE = 8
 
 
-async def order_history_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def order_history_command(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle /orders command and reply-keyboard 'Order History' button."""
     user = update.effective_user
     user_id = user.id
@@ -406,7 +477,9 @@ async def order_history_command(update: Update, context: ContextTypes.DEFAULT_TY
         )
 
         order_service = OrderService(session)
-        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
+        orders = order_service.get_user_orders(
+            user_id, status=OrderStatus.DELIVERED, limit=200
+        )
 
         total = len(orders)
         total_pages = max(1, (total + _ORDERS_PER_PAGE - 1) // _ORDERS_PER_PAGE)
@@ -431,15 +504,29 @@ async def order_history_command(update: Update, context: ContextTypes.DEFAULT_TY
 
         keyboard = []
         for order in page_orders:
-            status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+            status_val = (
+                order.status.value
+                if hasattr(order.status, "value")
+                else str(order.status)
+            )
             emoji = status_emoji.get(status_val, "❓")
             label = f"#{order.id} | {emoji} | {order.total_amount:,}đ"
-            keyboard.append([InlineKeyboardButton(label, callback_data=f"order_detail_{order.id}_from_{page}")])
+            keyboard.append(
+                [
+                    InlineKeyboardButton(
+                        label, callback_data=f"order_detail_{order.id}_from_{page}"
+                    )
+                ]
+            )
 
         nav_row = []
         if page < total_pages:
             next_text = t("buttons.next", update)
-            nav_row.append(InlineKeyboardButton(next_text, callback_data=f"order_history_page_{page + 1}"))
+            nav_row.append(
+                InlineKeyboardButton(
+                    next_text, callback_data=f"order_history_page_{page + 1}"
+                )
+            )
         if nav_row:
             keyboard.append(nav_row)
 
@@ -449,6 +536,7 @@ async def order_history_command(update: Update, context: ContextTypes.DEFAULT_TY
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error in order_history_command: {str(e)}", exc_info=True)
         await update.message.reply_text(t("order_history.error", update))
@@ -456,10 +544,12 @@ async def order_history_command(update: Update, context: ContextTypes.DEFAULT_TY
         session.close()
 
 
-async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_products_button(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle Products button press from persistent keyboard.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
@@ -467,9 +557,9 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     # Check if the message text matches the Products button text in any language
     if not update.message or not update.message.text:
         return  # Not a text message, ignore
-    
+
     message_text = update.message.text.strip()
-    
+
     # Reply-keyboard buttons
     products_text = t("buttons.products", update)
     language_text = t("buttons.language", update)
@@ -480,11 +570,31 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     # Also check common variations (in case user switched language)
     api_text = t("start_menu.api_button", update)
 
-    products_variations = {products_text, "🛒 Products", "🛒 Sản phẩm", "Products", "Sản phẩm"}
-    language_variations = {language_text, "🌐 Language", "🌐 Ngôn ngữ", "Language", "Ngôn ngữ"}
-    order_history_variations = {order_history_text, "📋 Order History", "📋 Đơn hàng đã mua"}
+    products_variations = {
+        products_text,
+        "🛒 Products",
+        "🛒 Sản phẩm",
+        "Products",
+        "Sản phẩm",
+    }
+    language_variations = {
+        language_text,
+        "🌐 Language",
+        "🌐 Ngôn ngữ",
+        "Language",
+        "Ngôn ngữ",
+    }
+    order_history_variations = {
+        order_history_text,
+        "📋 Order History",
+        "📋 Đơn hàng đã mua",
+    }
     balance_variations = {balance_text, "💰 Balance", "💰 Số dư"}
-    top_buyers_variations = {top_buyers_text, "🏆 Top buyers today", "🏆 Top mua hôm nay"}
+    top_buyers_variations = {
+        top_buyers_text,
+        "🏆 Top buyers today",
+        "🏆 Top mua hôm nay",
+    }
     api_variations = {api_text, "🔑 API"}
 
     if message_text in products_variations:
@@ -497,6 +607,7 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
 
     if message_text in balance_variations:
         from src.bot.handlers.balance import handle_balance_button
+
         await handle_balance_button(update, context)
         return
 
@@ -510,6 +621,7 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
 
     if message_text in api_variations:
         from src.bot.handlers.apitoken import api_command
+
         await api_command(update, context)
         return
 
@@ -517,6 +629,7 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
     export_variations = {export_text, "📤 Export", "📤 Xuất dữ liệu"}
     if message_text in export_variations:
         from src.bot.handlers.export import export_command
+
         await export_command(update, context)
         return
 
@@ -524,45 +637,47 @@ async def handle_products_button(update: Update, context: ContextTypes.DEFAULT_T
 async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle /lang or /language command - show language selection menu.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     user = update.effective_user
     user_id = user.id
-    
+
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         preference_service = UserPreferenceService(session)
         current_language = preference_service.get_user_language(user_id)
-        
+
         # Get language display names
-        lang_display = t('languages.en', update) if current_language == 'en' else t('languages.vi', update)
-        
+        lang_display = (
+            t("languages.en", update)
+            if current_language == "en"
+            else t("languages.vi", update)
+        )
+
         message = (
             f"{t('commands.language.title', update)}\n\n"
             f"{t('commands.language.current', update, lang_name=lang_display)}\n\n"
             f"{t('commands.language.select', update)}"
         )
-        
+
         # Create language selection keyboard
         keyboard = [
             [
                 InlineKeyboardButton(
-                    t('languages.en', update),
-                    callback_data="lang_en"
+                    t("languages.en", update), callback_data="lang_en"
                 ),
                 InlineKeyboardButton(
-                    t('languages.vi', update),
-                    callback_data="lang_vi"
+                    t("languages.vi", update), callback_data="lang_vi"
                 ),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
+
         # Send language selection message with inline keyboard
         await update.message.reply_text(message, reply_markup=reply_markup)
 
@@ -570,16 +685,15 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await _restore_reply_keyboard(update, context)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error in language command: {str(e)}", exc_info=True)
-        await update.message.reply_text(t('commands.language.error', update))
+        await update.message.reply_text(t("commands.language.error", update))
     finally:
         session.close()
 
 
-async def _resolve_admin_target(
-    arg: str, update: Update
-) -> Optional[int]:
+async def _resolve_admin_target(arg: str, update: Update) -> Optional[int]:
     """
     Resolve a /setadmin argument to a Telegram user ID.
 
@@ -601,7 +715,11 @@ async def _resolve_admin_target(
             session.close()
         if not bot_user:
             await update.message.reply_text(
-                t("commands.setadmin.user_not_found", update, username=arg if arg.startswith("@") else f"@{arg}")
+                t(
+                    "commands.setadmin.user_not_found",
+                    update,
+                    username=arg if arg.startswith("@") else f"@{arg}",
+                )
             )
             return None
         return bot_user.telegram_user_id
@@ -638,6 +756,7 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         session = session_factory()
         try:
             from src.database.services.bot_admin_service import BotAdminService
+
             bot_svc = BotUserService(session)
             ba_svc = BotAdminService(session)
             db_records = {r.telegram_user_id: r for r in ba_svc.list_all()}
@@ -645,9 +764,13 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             lines = []
             for uid in get_admin_telegram_ids():
                 bot_user = bot_svc.get_user_by_telegram_id(uid)
-                uname = f" (@{bot_user.username})" if bot_user and bot_user.username else ""
-                source = " [super]" if uid == GLOBAL_ADMIN_ID else (
-                    " [env]" if uid not in db_records else ""
+                uname = (
+                    f" (@{bot_user.username})" if bot_user and bot_user.username else ""
+                )
+                source = (
+                    " [super]"
+                    if uid == GLOBAL_ADMIN_ID
+                    else (" [env]" if uid not in db_records else "")
                 )
                 lines.append(f"• {uid}{uname}{source}")
         finally:
@@ -693,6 +816,67 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
 
 
+async def block_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /block <id|@username> — block a user (admin only)."""
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        await update.message.reply_text(t("commands.block.no_permission", update))
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(t("commands.block.usage", update))
+        return
+
+    identifier = args[0]
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        try:
+            BlockService(session).block(identifier)
+        except ValueError:
+            await update.message.reply_text(t("commands.block.usage", update))
+            return
+    finally:
+        session.close()
+    await update.message.reply_text(
+        t("commands.block.blocked", update, target=identifier)
+    )
+
+
+async def unblock_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle /unblock <id|@username> — unblock a user (admin only)."""
+    user = update.effective_user
+    if not user or not is_admin(user.id):
+        await update.message.reply_text(t("commands.block.no_permission", update))
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(t("commands.block.usage", update))
+        return
+
+    identifier = args[0]
+    session_factory = get_session_factory()
+    session = session_factory()
+    try:
+        try:
+            removed = BlockService(session).unblock(identifier)
+        except ValueError:
+            await update.message.reply_text(t("commands.block.usage", update))
+            return
+    finally:
+        session.close()
+    if removed:
+        await update.message.reply_text(
+            t("commands.block.unblocked", update, target=identifier)
+        )
+    else:
+        await update.message.reply_text(
+            t("commands.block.not_blocked", update, target=identifier)
+        )
+
+
 def _mask_name(name: str) -> str:
     """Mask a name/username, keeping first and last char with stars in between."""
     if not name:
@@ -704,7 +888,9 @@ def _mask_name(name: str) -> str:
     return name[0] + "*" * (len(name) - 2) + name[-1]
 
 
-async def handle_top_buyers_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_top_buyers_button(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle Top Buyers button — shows top 5 users by spending today."""
     if not update.message:
         return
@@ -776,14 +962,14 @@ async def doanhthu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if args:
             raw = args[0].strip()
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
-                await update.message.reply_text("❌ Định dạng ngày không hợp lệ. Dùng: /doanhthu YYYY-MM-DD")
+                await update.message.reply_text(
+                    "❌ Định dạng ngày không hợp lệ. Dùng: /doanhthu YYYY-MM-DD"
+                )
                 return
             try:
                 parsed = datetime.strptime(raw, "%Y-%m-%d")
                 # Interpret input as a local calendar day in app timezone
-                target = datetime(
-                    parsed.year, parsed.month, parsed.day, tzinfo=app_tz
-                )
+                target = datetime(parsed.year, parsed.month, parsed.day, tzinfo=app_tz)
             except ValueError:
                 await update.message.reply_text("❌ Ngày không hợp lệ.")
                 return
@@ -793,12 +979,20 @@ async def doanhthu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         # Build UTC range covering the full calendar day in app timezone
         # Statistics service expects naive-UTC datetimes
         day_start_utc = target.astimezone(timezone.utc).replace(tzinfo=None)
-        day_end_utc = (target + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+        day_end_utc = (
+            (target + timedelta(days=1)).astimezone(timezone.utc).replace(tzinfo=None)
+        )
 
         service = StatisticsService(session)
-        revenue = service.get_total_revenue(start_date=day_start_utc, end_date=day_end_utc)
-        order_count = service.get_total_orders_count(start_date=day_start_utc, end_date=day_end_utc)
-        by_status = service.get_orders_by_status(start_date=day_start_utc, end_date=day_end_utc)
+        revenue = service.get_total_revenue(
+            start_date=day_start_utc, end_date=day_end_utc
+        )
+        order_count = service.get_total_orders_count(
+            start_date=day_start_utc, end_date=day_end_utc
+        )
+        by_status = service.get_orders_by_status(
+            start_date=day_start_utc, end_date=day_end_utc
+        )
     finally:
         session.close()
 

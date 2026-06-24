@@ -22,6 +22,8 @@ from src.bot.handlers.commands import (
     handle_start_menu,
     handle_start_products,
     handle_start_history,
+    block_command,
+    unblock_command,
 )
 from src.bot.handlers.notification_commands import (
     notify_all,
@@ -123,6 +125,8 @@ def create_bot_application() -> Application:
     application.add_handler(CommandHandler("balance", balance_command))
     application.add_handler(CommandHandler("sodu", balance_command))
     application.add_handler(CommandHandler("setadmin", setadmin_command))
+    application.add_handler(CommandHandler("block", block_command))
+    application.add_handler(CommandHandler("unblock", unblock_command))
     application.add_handler(CommandHandler("set_emo", set_emo_command))
     application.add_handler(CommandHandler("top", handle_top_buyers_button))
     application.add_handler(CommandHandler("doanhthu", doanhthu_command))

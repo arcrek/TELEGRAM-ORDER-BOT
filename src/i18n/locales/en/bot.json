@@ -29,6 +29,13 @@
       "user_not_found": "❌ User {username} not found. They must start the bot first.",
       "list": "👥 Current admin list:\n{ids}"
     },
+    "block": {
+      "no_permission": "⛔ You do not have permission to use this command.",
+      "usage": "⚙️ Usage:\n/block <id|@username> — Block a user\n/unblock <id|@username> — Unblock a user",
+      "blocked": "✅ Blocked user: {target}",
+      "unblocked": "✅ Unblocked user: {target}",
+      "not_blocked": "ℹ️ {target} is not currently blocked."
+    },
     "set_emo": {
       "no_permission": "⛔ No permission.",
       "usage": "Usage: /set_emo <placeholder_id>",
@@ -185,7 +192,8 @@
     "generic": "❌ An error occurred. Please try again.",
     "not_found": "❌ Not found.",
     "unauthorized": "❌ Unauthorized access.",
-    "validation": "❌ Error: {error}"
+    "validation": "❌ Error: {error}",
+    "user_blocked": "⛔ Your account is blocked and cannot create orders or top up. Please contact an admin for help."
   },
   "order_history": {
     "title": "📋 ORDER HISTORY",
