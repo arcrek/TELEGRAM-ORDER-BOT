@@ -12,11 +12,13 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.bot.handlers.commands import state_manager
+from src.bot.messages.emoji_renderer import render as render_emoji, split_icon
 from src.bot.messages.export_formatter import build_variant_file
 from src.bot.states.state_manager import UserState
 from src.bot.utils.language import t
 from src.database.connection import get_session_factory
 from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.services.export_service import ExportService
 from src.utils.datetime_format import resolve_tz
 
@@ -36,22 +38,32 @@ def _export_labels(update: Update) -> dict:
     }
 
 
-def _product_list_keyboard(products: list, update: Update) -> InlineKeyboardMarkup:
-    rows = [
-        [InlineKeyboardButton(p["name"], callback_data=f"export_prod_{i}")]
-        for i, p in enumerate(products)
-    ]
+def _btn_label_icon(name: str, emoji_service):
+    """Resolve a {emo:id} token in a name to (clean_label, icon_custom_emoji_id)."""
+    if emoji_service is None:
+        return name, None
+    return split_icon(name, emoji_service)
+
+
+def _product_list_keyboard(products: list, update: Update, emoji_service=None) -> InlineKeyboardMarkup:
+    rows = []
+    for i, p in enumerate(products):
+        label, icon = _btn_label_icon(p["name"], emoji_service)
+        rows.append([InlineKeyboardButton(label, callback_data=f"export_prod_{i}",
+                                          icon_custom_emoji_id=icon)])
     rows.append([InlineKeyboardButton(t("buttons.cancel", update),
                                       callback_data="export_cancel")])
     return InlineKeyboardMarkup(rows)
 
 
-def _variant_keyboard(variations: list, selected: set, update: Update) -> InlineKeyboardMarkup:
+def _variant_keyboard(variations: list, selected: set, update: Update, emoji_service=None) -> InlineKeyboardMarkup:
     rows = []
     for i, v in enumerate(variations):
         mark = "✅ " if v["id"] in selected else "▫️ "
-        rows.append([InlineKeyboardButton(f"{mark}{v['name']}",
-                                          callback_data=f"export_var_{i}")])
+        label, icon = _btn_label_icon(v["name"], emoji_service)
+        rows.append([InlineKeyboardButton(f"{mark}{label}",
+                                          callback_data=f"export_var_{i}",
+                                          icon_custom_emoji_id=icon)])
     rows.append([InlineKeyboardButton(t("commands.export.export_button", update),
                                       callback_data="export_go")])
     rows.append([
@@ -59,6 +71,31 @@ def _variant_keyboard(variations: list, selected: set, update: Update) -> Inline
         InlineKeyboardButton(t("buttons.cancel", update), callback_data="export_cancel"),
     ])
     return InlineKeyboardMarkup(rows)
+
+
+def _product_list_keyboard_emoji(products: list, update: Update) -> InlineKeyboardMarkup:
+    """Product-list keyboard with custom-emoji button icons (own short session)."""
+    session = get_session_factory()()
+    try:
+        return _product_list_keyboard(products, update, EmojiPlaceholderService(session))
+    finally:
+        session.close()
+
+
+def _variant_view(text: str, variations: list, selected: set, update: Update):
+    """Render the choose-variants message text and build the variant keyboard
+    (with custom-emoji button icons) in a single short session.
+
+    Returns (rendered_text, parse_mode, keyboard).
+    """
+    session = get_session_factory()()
+    try:
+        svc = EmojiPlaceholderService(session)
+        rendered, parse_mode = render_emoji(text, svc)
+        keyboard = _variant_keyboard(variations, selected, update, svc)
+        return rendered, parse_mode, keyboard
+    finally:
+        session.close()
 
 
 async def _render_product_list(update: Update, user_id: int, *, edit: bool) -> None:
@@ -85,7 +122,7 @@ async def _render_product_list(update: Update, user_id: int, *, edit: bool) -> N
     state_manager.set_user_state(user_id, state)
 
     text = t("commands.export.choose_product", update)
-    kb = _product_list_keyboard(products, update)
+    kb = _product_list_keyboard_emoji(products, update)
     if edit and update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=kb)
     else:
@@ -134,7 +171,8 @@ async def handle_export_product(update: Update, context: ContextTypes.DEFAULT_TY
     state_manager.set_user_state(user_id, state)
 
     text = t("commands.export.choose_variants", update, product=product["name"])
-    await query.edit_message_text(text, reply_markup=_variant_keyboard(variations, set(), update))
+    rendered, parse_mode, kb = _variant_view(text, variations, set(), update)
+    await query.edit_message_text(rendered, reply_markup=kb, parse_mode=parse_mode)
 
 
 async def handle_export_variant_toggle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -162,9 +200,8 @@ async def handle_export_variant_toggle(update: Update, context: ContextTypes.DEF
         (p["name"] for p in state.export_products if p["id"] == state.export_product_id), ""
     )
     text = t("commands.export.choose_variants", update, product=product_name)
-    await query.edit_message_text(
-        text, reply_markup=_variant_keyboard(state.export_variations, selected, update)
-    )
+    rendered, parse_mode, kb = _variant_view(text, state.export_variations, selected, update)
+    await query.edit_message_text(rendered, reply_markup=kb, parse_mode=parse_mode)
 
 
 async def handle_export_back(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

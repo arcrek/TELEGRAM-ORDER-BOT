@@ -31,10 +31,12 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
+from src.bot.messages.emoji_renderer import render as render_emoji
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.admin_check import is_admin
 from src.bot.utils.language import t
 from src.database.connection import get_session_factory
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.models import Order
 from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.notification_settings_service import NotificationSettingsService
@@ -162,6 +164,13 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                     f"UPGRADE info for order {order.id}: upgrade channel empty, falling back to whitelist ({len(targets)} target(s))"
                 )
 
+        # Expand {emo:id} placeholders in the human-facing header (product/variation
+        # names may contain them). The <pre> copy block below intentionally keeps the
+        # raw header — custom emoji can't render inside a monospace code block.
+        rendered_header, header_parse_mode = render_emoji(
+            header, EmojiPlaceholderService(session)
+        )
+
         done_button_label = get_translation("upgrade.done_button", "vi")
         done_prompt_text = get_translation("upgrade.done_prompt", "vi", order_id=order.id)
 
@@ -177,7 +186,9 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
             for target in targets:
                 chat_id = int(target["chat_id"])
                 thread_id = target.get("message_thread_id")
-                send_kwargs = {"chat_id": chat_id, "text": header}
+                send_kwargs = {"chat_id": chat_id, "text": rendered_header}
+                if header_parse_mode is not None:
+                    send_kwargs["parse_mode"] = header_parse_mode
                 forward_kwargs = {
                     "chat_id": chat_id,
                     "from_chat_id": user_id,

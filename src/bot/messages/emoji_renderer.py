@@ -10,7 +10,11 @@ import re
 from typing import Iterable, List, Optional, Tuple
 
 CUSTOM_EMOJI_TYPE = "custom_emoji"
-_TOKEN_RE = re.compile(r"\{emo:(\d+)\}")
+# Case-insensitive: legitimate tokens are always lowercase (from /set_emo and the
+# dashboard autocomplete), but display transforms like str.upper() on a product
+# name turn "{emo:2}" into "{EMO:2}". Matching case-insensitively keeps those
+# rendering instead of leaking the literal token.
+_TOKEN_RE = re.compile(r"\{emo:(\d+)\}", re.IGNORECASE)
 
 
 def parse_emoji_units(text: str, entities: Iterable) -> List[dict]:
@@ -66,7 +70,7 @@ def render(text: str, service) -> Tuple[str, Optional[str]]:
     then replaces tokens with already-safe placeholder HTML, returning
     (html_string, "HTML").
     """
-    if "{emo:" not in text:
+    if not _TOKEN_RE.search(text):
         return text, None
 
     escaped = html.escape(text)  # tokens contain no HTML-special chars, survive
@@ -89,7 +93,7 @@ def split_icon(text: str, service) -> Tuple[str, Optional[str]]:
     Returns (clean_text, icon_custom_emoji_id). icon is None when there is no
     usable emoji token.
     """
-    if "{emo:" not in text:
+    if not _TOKEN_RE.search(text):
         return text, None
 
     icon_id: Optional[str] = None
@@ -111,6 +115,6 @@ def substitute_tokens(html_text: str, service) -> str:
     escaping the surrounding text. Use ONLY on strings that are ALREADY
     valid/escaped HTML (callers that build markup by hand and send parse_mode=HTML).
     The substituted placeholder HTML is itself safe (units_to_html escapes its parts)."""
-    if "{emo:" not in html_text:
+    if not _TOKEN_RE.search(html_text):
         return html_text
     return _TOKEN_RE.sub(lambda m: service.get_rendered_html(int(m.group(1))), html_text)

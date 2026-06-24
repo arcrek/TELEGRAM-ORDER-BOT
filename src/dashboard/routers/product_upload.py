@@ -18,6 +18,8 @@ from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.connection import get_session_factory
 from src.ipn import get_global_customer_bot
 from src.bot.utils.bot_instance import get_shared_bot_instance
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 logger = logging.getLogger(__name__)
 
@@ -124,12 +126,17 @@ async def _send_upload_notifications(entries: List[Dict[str, Any]]) -> None:
             session = session_factory()
             try:
                 users = BotUserService(session).get_all_started_users()
+                # Expand {emo:id} placeholders (header + product/variation names)
+                # to <tg-emoji> HTML once for the whole broadcast.
+                rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+                send_kwargs = {"text": rendered, "reply_markup": keyboard}
+                if parse_mode is not None:
+                    send_kwargs["parse_mode"] = parse_mode
                 for user in users:
                     try:
                         await bot.send_message(
                             chat_id=user.telegram_user_id,
-                            text=message,
-                            reply_markup=keyboard,
+                            **send_kwargs,
                         )
                     except Exception as e:
                         logger.warning(

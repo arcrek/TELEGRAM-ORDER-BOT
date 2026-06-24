@@ -97,6 +97,16 @@ def test_render_multiple_tokens():
     assert mode == "HTML"
 
 
+def test_render_uppercased_token_still_matches():
+    """A product name run through str.upper() yields {EMO:2}; it must still render
+    (not leak the literal token). Guards against a future drop of re.IGNORECASE."""
+    svc = FakeService({2: '<tg-emoji emoji-id="9">⚡</tg-emoji>'})
+    out, mode = render("{EMO:2} ADOBE", svc)
+    assert mode == "HTML"
+    assert out == '<tg-emoji emoji-id="9">⚡</tg-emoji> ADOBE'
+    assert "{EMO:2}" not in out
+
+
 # --- substitute_tokens tests ---
 
 

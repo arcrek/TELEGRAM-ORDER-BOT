@@ -61,13 +61,15 @@ async def test_variant_toggle_flips_selection():
     st.export_variations = [{"id": "v1", "name": "1 Month"}, {"id": "v2", "name": "12 Month"}]
     state_manager.set_user_state(100, st)
 
-    update = _callback_update(data="export_var_0")
-    await export.handle_export_variant_toggle(update, MagicMock())
-    assert state_manager.get_user_state(100).export_selected_variation_ids == {"v1"}
+    with patch.object(export, "get_session_factory") as gsf:
+        gsf.return_value.return_value = MagicMock()  # session for emoji rendering
+        update = _callback_update(data="export_var_0")
+        await export.handle_export_variant_toggle(update, MagicMock())
+        assert state_manager.get_user_state(100).export_selected_variation_ids == {"v1"}
 
-    update2 = _callback_update(data="export_var_0")
-    await export.handle_export_variant_toggle(update2, MagicMock())
-    assert state_manager.get_user_state(100).export_selected_variation_ids == set()
+        update2 = _callback_update(data="export_var_0")
+        await export.handle_export_variant_toggle(update2, MagicMock())
+        assert state_manager.get_user_state(100).export_selected_variation_ids == set()
 
 
 @pytest.mark.asyncio
