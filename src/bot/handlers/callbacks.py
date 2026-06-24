@@ -1,6 +1,7 @@
 """
 Callback query handlers for the Telegram bot.
 """
+
 import base64
 import logging
 from io import BytesIO
@@ -66,100 +67,148 @@ def get_actual_stock(variation, product, variation_service: VariationService) ->
 def format_payment_message(order, update, session) -> tuple[str, str]:
     """
     Format payment message with item details and translations.
-    
+
     Args:
         order: Order instance with items
         update: Telegram update for language detection
         session: Database session
-    
+
     Returns:
         Tuple of (full_message, caption_message)
     """
     from src.bot.utils.language import t
-    
+
     # Get translations
-    order_created = t('payment.order_created', update) if update else "✅ Order created successfully!"
-    scan_qr = t('payment.scan_qr', update) if update else "💳 Scan QR code below to complete payment"
-    auto_cancel = t('payment.auto_cancel_30min', update) if update else "⏰ This order will be automatically cancelled if payment is not completed within 10 minutes."
-    auto_cancel_short = t('payment.auto_cancel_short', update) if update else "⏰ Auto-cancels in 10 minutes if unpaid"
-    product_label = t('payment.product_label', update) if update else "📌 Product"
-    variation_label = t('payment.variation_label', update) if update else "➕ Type"
-    quantity_label = t('payment.quantity_label', update) if update else "👉 Order quantity"
-    total_amount_label = t('payment.total_amount_label', update) if update else "💰 Total Amount"
-    
+    order_created = (
+        t("payment.order_created", update)
+        if update
+        else "✅ Order created successfully!"
+    )
+    scan_qr = (
+        t("payment.scan_qr", update)
+        if update
+        else "💳 Scan QR code below to complete payment"
+    )
+    auto_cancel = (
+        t("payment.auto_cancel_30min", update)
+        if update
+        else "⏰ This order will be automatically cancelled if payment is not completed within 10 minutes."
+    )
+    auto_cancel_short = (
+        t("payment.auto_cancel_short", update)
+        if update
+        else "⏰ Auto-cancels in 10 minutes if unpaid"
+    )
+    product_label = t("payment.product_label", update) if update else "📌 Product"
+    variation_label = t("payment.variation_label", update) if update else "➕ Type"
+    quantity_label = (
+        t("payment.quantity_label", update) if update else "👉 Order quantity"
+    )
+    total_amount_label = (
+        t("payment.total_amount_label", update) if update else "💰 Total Amount"
+    )
+
     lines = [order_created, ""]
     lines.append(f"📦 Order ID: {order.id}")
-    
+
     # Format item details
     product_service = ProductService(session)
     variation_service = VariationService(session)
-    
+
     for item in order.items:
         # Get product and variation info
-        product = product_service.get_product_by_id(item.product_id) if item.product_id else None
-        variation = variation_service.get_variation_by_id(item.variation_id) if item.variation_id else None
-        
+        product = (
+            product_service.get_product_by_id(item.product_id)
+            if item.product_id
+            else None
+        )
+        variation = (
+            variation_service.get_variation_by_id(item.variation_id)
+            if item.variation_id
+            else None
+        )
+
         product_name = product.name if product else "N/A"
         variation_name = variation.name if variation else "N/A"
-        
+
         lines.append(f"{product_label}: {product_name}")
         lines.append(f"{variation_label}: {variation_name}")
-        
+
         # Format quantity with bonus
         bonus_qty = item.bonus_quantity or 0
         if bonus_qty > 0:
-            qty_with_bonus = t('payment.quantity_with_bonus', update) if update else "x{quantity} (Bonus {bonus})"
+            qty_with_bonus = (
+                t("payment.quantity_with_bonus", update)
+                if update
+                else "x{quantity} (Bonus {bonus})"
+            )
             qty_text = qty_with_bonus.format(quantity=item.quantity, bonus=bonus_qty)
         else:
-            qty_no_bonus = t('payment.quantity_no_bonus', update) if update else "x{quantity}"
+            qty_no_bonus = (
+                t("payment.quantity_no_bonus", update) if update else "x{quantity}"
+            )
             qty_text = qty_no_bonus.format(quantity=item.quantity)
-        
+
         lines.append(f"{quantity_label}: {qty_text}")
-    
+
     lines.append("")
     lines.append(f"{total_amount_label}: {order.total_amount:,} VND")
     lines.append("")
     lines.append(scan_qr)
     lines.append("")
     lines.append(auto_cancel)
-    
+
     full_message = "\n".join(lines)
-    
+
     # Shorter caption for QR image
-    caption_lines = [
-        f"📦 Order ID: {order.id}"
-    ]
-    
+    caption_lines = [f"📦 Order ID: {order.id}"]
+
     for item in order.items:
-        product = product_service.get_product_by_id(item.product_id) if item.product_id else None
-        variation = variation_service.get_variation_by_id(item.variation_id) if item.variation_id else None
-        
+        product = (
+            product_service.get_product_by_id(item.product_id)
+            if item.product_id
+            else None
+        )
+        variation = (
+            variation_service.get_variation_by_id(item.variation_id)
+            if item.variation_id
+            else None
+        )
+
         product_name = product.name if product else "N/A"
         variation_name = variation.name if variation else "N/A"
-        
+
         caption_lines.append(f"{product_label}: {product_name}")
         caption_lines.append(f"{variation_label}: {variation_name}")
-        
+
         bonus_qty = item.bonus_quantity or 0
         if bonus_qty > 0:
-            qty_with_bonus = t('payment.quantity_with_bonus', update) if update else "x{quantity} (Bonus {bonus})"
+            qty_with_bonus = (
+                t("payment.quantity_with_bonus", update)
+                if update
+                else "x{quantity} (Bonus {bonus})"
+            )
             qty_text = qty_with_bonus.format(quantity=item.quantity, bonus=bonus_qty)
         else:
-            qty_no_bonus = t('payment.quantity_no_bonus', update) if update else "x{quantity}"
+            qty_no_bonus = (
+                t("payment.quantity_no_bonus", update) if update else "x{quantity}"
+            )
             qty_text = qty_no_bonus.format(quantity=item.quantity)
-        
+
         caption_lines.append(f"{quantity_label}: {qty_text}")
-    
+
     caption_lines.append(f"{total_amount_label}: {order.total_amount:,} VND")
     caption_lines.append("")
     caption_lines.append(auto_cancel_short)
-    
+
     caption_message = "\n".join(caption_lines)
-    
+
     return full_message, caption_message
 
 
-async def handle_show_products_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_show_products_list(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle show_products_list callback — send the full product list as a new message."""
     query = update.callback_query
     await query.answer()
@@ -175,7 +224,9 @@ async def handle_show_products_list(update: Update, context: ContextTypes.DEFAUL
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
-        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        products = product_service.list_products(
+            page=1, per_page=9999, only_active=True
+        )
         pre_uploaded_service = PreUploadedService(session)
         pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
             [p.id for p in products]
@@ -189,39 +240,45 @@ async def handle_show_products_list(update: Update, context: ContextTypes.DEFAUL
         )
 
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
 
-async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_page_navigation(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle page navigation callback (next/prev page).
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer()
-    
+
     # Parse page number from callback data (format: "page_2")
     page = int(query.data.split("_")[1])
     user_id = query.from_user.id
-    
+
     # Update user state
     state_manager.update_user_state(user_id, current_page=page)
-    
+
     # Get products for the page
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         product_service = ProductService(session)
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
-        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        products = product_service.list_products(
+            page=1, per_page=9999, only_active=True
+        )
         pre_uploaded_service = PreUploadedService(session)
         pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
             [p.id for p in products]
@@ -235,61 +292,70 @@ async def handle_page_navigation(update: Update, context: ContextTypes.DEFAULT_T
         )
 
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
 
-async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_product_selection(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle product selection callback.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer()
-    
+
     # Parse product ID from callback data (format: "product_prod_1")
     product_id = query.data.replace("product_", "")
     user_id = query.from_user.id
-    
+
     # Update user state
     state_manager.update_user_state(user_id, selected_product_id=product_id)
-    
+
     # Get product details
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         product_service = ProductService(session)
         variation_service = VariationService(session)
         formatter = ProductDetailFormatter()
         _, variation_choose_text = _get_bot_selection_prompts(session)
-        
+
         # Get product
         product = product_service.get_product_by_id(product_id)
         if not product:
             await query.edit_message_text("❌ Product not found.")
             return
-        
+
         # Get variations
-        variations = variation_service.list_variations_by_product(product_id, only_active=True)
-        
+        variations = variation_service.list_variations_by_product(
+            product_id, only_active=True
+        )
+
         # Calculate actual stock based on delivery type and update variation objects
         total_stock = 0
         for variation in variations:
             actual_stock = get_actual_stock(variation, product, variation_service)
             variation.stock = actual_stock  # Override with actual stock
             total_stock += actual_stock
-        
+
         # Get bonus texts for variations
         from src.bot.utils.language import get_user_language
+
         language = get_user_language(update)
         variation_ids = [v.id for v in variations]
-        bonus_texts = formatter.get_bonus_texts_for_variations(variation_ids, session, language)
-        
+        bonus_texts = formatter.get_bonus_texts_for_variations(
+            variation_ids, session, language
+        )
+
         # Get current page from state (for back button)
         user_state = state_manager.get_user_state(user_id)
         current_page = user_state.current_page if user_state else 1
@@ -317,47 +383,51 @@ async def handle_product_selection(update: Update, context: ContextTypes.DEFAULT
 
         # Update message
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
 
-async def handle_variation_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_variation_selection(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle variation selection callback.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer()
-    
+
     # Parse variation ID from callback data (format: "variation_var_1")
     variation_id = query.data.replace("variation_", "")
     user_id = query.from_user.id
-    
+
     # Get variation and product
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         variation_service = VariationService(session)
         product_service = ProductService(session)
         formatter = OrderConfirmationFormatter()
-        
+
         # Get variation
         variation = variation_service.get_variation_by_id(variation_id)
         if not variation:
             await query.edit_message_text("❌ Variation not found.")
             return
-        
+
         # Get product
         product = product_service.get_product_by_id(variation.product_id)
         if not product:
             await query.edit_message_text("❌ Product not found.")
             return
-        
+
         # Get actual stock based on delivery type
         actual_stock = get_actual_stock(variation, product, variation_service)
         variation.stock = actual_stock  # Override with actual stock
@@ -365,12 +435,19 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         # Show out-of-stock screen instead of quantity form
         if actual_stock == 0:
             import html
-            msg = t('products.order_confirmation.variation_out_of_stock', update)
+
+            msg = t("products.order_confirmation.variation_out_of_stock", update)
             msg = msg.format(variation_name=html.escape(str(variation.name)))
-            back_text = t('products.order_confirmation.back_to_product', update)
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(back_text, callback_data=f"product_{product.id}")]
-            ])
+            back_text = t("products.order_confirmation.back_to_product", update)
+            keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            back_text, callback_data=f"product_{product.id}"
+                        )
+                    ]
+                ]
+            )
             msg = substitute_tokens(msg, EmojiPlaceholderService(session))
             await query.edit_message_text(msg, reply_markup=keyboard, parse_mode="HTML")
             return
@@ -381,12 +458,13 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
             selected_variation_id=variation_id,
             quantity=1,  # Default quantity
         )
-        
+
         # Format order confirmation with bonus and/or discount
         quantity = 1
         from src.bot.utils.language import get_user_language
+
         language = get_user_language(update)
-        benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
+        benefit_mode = getattr(variation, "benefit_mode", "bonus")
         bonus_quantity, bonus_label = formatter.get_applicable_bonus(
             variation_id, quantity, actual_stock, session, language
         )
@@ -395,30 +473,42 @@ async def handle_variation_selection(update: Update, context: ContextTypes.DEFAU
         )
         sold_count = variation_service.get_sold_count_by_variation(variation_id)
         message = formatter.format_order_confirmation(
-            product, variation, quantity, update, bonus_quantity, bonus_label,
-            discount_label=discount_label, discount_amount=discount_amount,
+            product,
+            variation,
+            quantity,
+            update,
+            bonus_quantity,
+            bonus_label,
+            discount_label=discount_label,
+            discount_amount=discount_amount,
             sold_count=sold_count,
         )
-        keyboard = formatter.create_quantity_keyboard(variation_id, quantity, actual_stock, update)
+        keyboard = formatter.create_quantity_keyboard(
+            variation_id, quantity, actual_stock, update
+        )
 
         # Update message
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
 
-async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_quantity_adjustment(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle quantity adjustment callback (+1, +5, -1, -5).
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer()
-    
+
     # Parse adjustment from callback data (format: "qty_var_1_+1" or "qty_alight_12m_1_+1")
     # The last part is always the adjustment (+1, +5, -1, -5)
     # Everything between "qty_" and the last part is the variation_id
@@ -426,51 +516,52 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
     adjustment = parts[-1]  # Last part: +1, +5, -1, -5
     variation_id = "_".join(parts[1:-1])  # Everything between "qty" and adjustment
     user_id = query.from_user.id
-    
+
     # Get user state
     user_state = state_manager.get_user_state(user_id)
     if not user_state or not user_state.selected_variation_id:
         await query.edit_message_text("❌ Please select a variation first.")
         return
-    
+
     # Get variation
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         variation_service = VariationService(session)
         product_service = ProductService(session)
         formatter = OrderConfirmationFormatter()
-        
+
         variation = variation_service.get_variation_by_id(variation_id)
         if not variation:
             await query.edit_message_text("❌ Variation not found.")
             return
-        
+
         product = product_service.get_product_by_id(variation.product_id)
         if not product:
             await query.edit_message_text("❌ Product not found.")
             return
-        
+
         # Get actual stock based on delivery type
         actual_stock = get_actual_stock(variation, product, variation_service)
         variation.stock = actual_stock  # Override with actual stock
-        
+
         # Calculate new quantity
         current_quantity = user_state.quantity
         adjustment_value = int(adjustment)
         new_quantity = current_quantity + adjustment_value
-        
+
         # Validate quantity
         new_quantity = formatter.validate_quantity(new_quantity, actual_stock)
-        
+
         # Update state
         state_manager.update_user_state(user_id, quantity=new_quantity)
-        
+
         # Format updated order confirmation with bonus and/or discount
         from src.bot.utils.language import get_user_language
+
         language = get_user_language(update)
-        benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
+        benefit_mode = getattr(variation, "benefit_mode", "bonus")
         bonus_quantity, bonus_label = formatter.get_applicable_bonus(
             variation_id, new_quantity, actual_stock, session, language
         )
@@ -479,64 +570,76 @@ async def handle_quantity_adjustment(update: Update, context: ContextTypes.DEFAU
         )
         sold_count = variation_service.get_sold_count_by_variation(variation_id)
         message = formatter.format_order_confirmation(
-            product, variation, new_quantity, update, bonus_quantity, bonus_label,
-            discount_label=discount_label, discount_amount=discount_amount,
+            product,
+            variation,
+            new_quantity,
+            update,
+            bonus_quantity,
+            bonus_label,
+            discount_label=discount_label,
+            discount_amount=discount_amount,
             sold_count=sold_count,
         )
-        keyboard = formatter.create_quantity_keyboard(variation_id, new_quantity, actual_stock, update)
+        keyboard = formatter.create_quantity_keyboard(
+            variation_id, new_quantity, actual_stock, update
+        )
 
         # Update message
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
 
-async def handle_custom_quantity_prompt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_custom_quantity_prompt(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle custom quantity button callback - send a prompt for user to input quantity.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     from src.bot.utils.language import t
-    
+
     query = update.callback_query
     await query.answer()
-    
+
     # Parse variation ID from callback data (format: "qty_custom_var_1" or "qty_custom_alight_12m_1")
     # Remove "qty_custom_" prefix to get variation_id
     variation_id = query.data.replace("qty_custom_", "")
     user_id = query.from_user.id
-    
+
     # Get user state
     user_state = state_manager.get_user_state(user_id)
     if not user_state or not user_state.selected_variation_id:
         await query.edit_message_text("❌ Please select a variation first.")
         return
-    
+
     # Get variation to get max stock
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         variation_service = VariationService(session)
         product_service = ProductService(session)
-        
+
         variation = variation_service.get_variation_by_id(variation_id)
         if not variation:
             await query.edit_message_text("❌ Variation not found.")
             return
-        
+
         product = product_service.get_product_by_id(variation.product_id)
         if not product:
             await query.edit_message_text("❌ Product not found.")
             return
-        
+
         # Get actual stock based on delivery type
         actual_stock = get_actual_stock(variation, product, variation_service)
-        
+
         # Store the order message ID and set waiting flag
         # Mutually exclusive: clear topup-amount mode if active
         order_message_id = query.message.message_id
@@ -546,128 +649,161 @@ async def handle_custom_quantity_prompt(update: Update, context: ContextTypes.DE
             waiting_for_custom_quantity=True,
             order_message_id=order_message_id,
         )
-        
+
         # Send prompt message
-        prompt_text = t('products.order_confirmation.custom_prompt', update, max_stock=actual_stock)
-        prompt_message = await context.bot.send_message(
-            chat_id=user_id,
-            text=prompt_text
+        prompt_text = t(
+            "products.order_confirmation.custom_prompt", update, max_stock=actual_stock
         )
-        
+        prompt_message = await context.bot.send_message(
+            chat_id=user_id, text=prompt_text
+        )
+
         # Store the prompt message ID for deletion later
         state_manager.update_user_state(
             user_id,
             custom_quantity_prompt_message_id=prompt_message.message_id,
         )
-        
+
     finally:
         session.close()
 
 
-async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_custom_quantity_input(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle text input for custom quantity.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     from src.bot.utils.language import t
-    
+
     user_id = update.effective_user.id
     user_state = state_manager.get_user_state(user_id)
-    
+
     # Check if user is waiting for custom quantity input
     if not user_state or not user_state.waiting_for_custom_quantity:
         return  # Not waiting for input, ignore
-    
+
     if not user_state.selected_variation_id:
         return  # No variation selected
-    
+
     # Try to parse the quantity
     text = update.message.text.strip()
-    
+
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         variation_service = VariationService(session)
         product_service = ProductService(session)
         formatter = OrderConfirmationFormatter()
-        
-        variation = variation_service.get_variation_by_id(user_state.selected_variation_id)
+
+        variation = variation_service.get_variation_by_id(
+            user_state.selected_variation_id
+        )
         if not variation:
             await update.message.reply_text("❌ Variation not found.")
             return
-        
+
         product = product_service.get_product_by_id(variation.product_id)
         if not product:
             await update.message.reply_text("❌ Product not found.")
             return
-        
+
         # Get actual stock based on delivery type
         actual_stock = get_actual_stock(variation, product, variation_service)
         variation.stock = actual_stock  # Override with actual stock for display
-        
+
         # Try to parse the quantity
         try:
             quantity = int(text)
         except ValueError:
             # Invalid input - not a number
-            invalid_msg = t('products.order_confirmation.custom_invalid', update, max_stock=actual_stock)
+            invalid_msg = t(
+                "products.order_confirmation.custom_invalid",
+                update,
+                max_stock=actual_stock,
+            )
             await update.message.reply_text(invalid_msg)
             return
-        
+
         # Validate quantity range
         if quantity < 1 or quantity > actual_stock:
-            invalid_msg = t('products.order_confirmation.custom_invalid', update, max_stock=actual_stock)
+            invalid_msg = t(
+                "products.order_confirmation.custom_invalid",
+                update,
+                max_stock=actual_stock,
+            )
             await update.message.reply_text(invalid_msg)
             return
-        
+
         # Valid quantity - update state
         state_manager.update_user_state(
             user_id,
             quantity=quantity,
             waiting_for_custom_quantity=False,
         )
-        
+
         # Delete the prompt message
         if user_state.custom_quantity_prompt_message_id:
             try:
                 await context.bot.delete_message(
                     chat_id=user_id,
-                    message_id=user_state.custom_quantity_prompt_message_id
+                    message_id=user_state.custom_quantity_prompt_message_id,
                 )
             except Exception as e:
                 logger.warning(f"Could not delete prompt message: {str(e)}")
-        
+
         # Delete the user's input message
         try:
             await update.message.delete()
         except Exception as e:
             logger.warning(f"Could not delete user input message: {str(e)}")
-        
+
         # Update the order confirmation message with bonus and/or discount
         if user_state.order_message_id:
             from src.bot.utils.language import get_user_language
+
             language = get_user_language(update)
-            benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
+            benefit_mode = getattr(variation, "benefit_mode", "bonus")
             bonus_quantity, bonus_label = formatter.get_applicable_bonus(
-                user_state.selected_variation_id, quantity, actual_stock, session, language
+                user_state.selected_variation_id,
+                quantity,
+                actual_stock,
+                session,
+                language,
             )
             discount_label, discount_amount = formatter.get_applicable_discount(
-                user_state.selected_variation_id, quantity, variation.price, session, language, benefit_mode
+                user_state.selected_variation_id,
+                quantity,
+                variation.price,
+                session,
+                language,
+                benefit_mode,
             )
-            sold_count = variation_service.get_sold_count_by_variation(user_state.selected_variation_id)
+            sold_count = variation_service.get_sold_count_by_variation(
+                user_state.selected_variation_id
+            )
             message = formatter.format_order_confirmation(
-                product, variation, quantity, update, bonus_quantity, bonus_label,
-                discount_label=discount_label, discount_amount=discount_amount,
+                product,
+                variation,
+                quantity,
+                update,
+                bonus_quantity,
+                bonus_label,
+                discount_label=discount_label,
+                discount_amount=discount_amount,
                 sold_count=sold_count,
             )
             keyboard = formatter.create_quantity_keyboard(
                 user_state.selected_variation_id, quantity, actual_stock, update
             )
-            rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
+            rendered, parse_mode = render_emoji(
+                message, EmojiPlaceholderService(session)
+            )
 
             try:
                 await context.bot.edit_message_text(
@@ -686,70 +822,77 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
                     reply_markup=keyboard,
                     parse_mode=parse_mode,
                 )
-        
+
         # Clear the prompt message ID from state
         state_manager.update_user_state(
             user_id,
             custom_quantity_prompt_message_id=None,
         )
-        
+
     finally:
         session.close()
 
 
-async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_refresh_product(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle refresh product callback.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer("🔄 Refreshing...")
-    
+
     user_id = query.from_user.id
     user_state = state_manager.get_user_state(user_id)
-    
+
     if not user_state or not user_state.selected_product_id:
         await query.edit_message_text("❌ No product selected.")
         return
-    
+
     # Temporarily store product_id for handle_product_selection
     product_id = user_state.selected_product_id
-    
+
     # Get product details
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         product_service = ProductService(session)
         variation_service = VariationService(session)
         formatter = ProductDetailFormatter()
         _, variation_choose_text = _get_bot_selection_prompts(session)
-        
+
         # Get product
         product = product_service.get_product_by_id(product_id)
         if not product:
             await query.edit_message_text("❌ Product not found.")
             return
-        
+
         # Get variations
-        variations = variation_service.list_variations_by_product(product_id, only_active=True)
-        
+        variations = variation_service.list_variations_by_product(
+            product_id, only_active=True
+        )
+
         # Calculate actual stock based on delivery type and update variation objects
         total_stock = 0
         for variation in variations:
             actual_stock = get_actual_stock(variation, product, variation_service)
             variation.stock = actual_stock  # Override with actual stock
             total_stock += actual_stock
-        
+
         # Get bonus texts for variations
         from src.bot.utils.language import get_user_language
+
         language = get_user_language(update)
         variation_ids = [v.id for v in variations]
-        bonus_texts = formatter.get_bonus_texts_for_variations(variation_ids, session, language)
-        
+        bonus_texts = formatter.get_bonus_texts_for_variations(
+            variation_ids, session, language
+        )
+
         # Get current page from state (for back button)
         current_page = user_state.current_page if user_state else 1
 
@@ -776,38 +919,44 @@ async def handle_refresh_product(update: Update, context: ContextTypes.DEFAULT_T
 
         # Update message
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
 
-async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_back_to_list(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle back to list callback.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer()
-    
+
     user_id = query.from_user.id
     user_state = state_manager.get_user_state(user_id)
-    
+
     # Get current page from state
     current_page = user_state.current_page if user_state else 1
-    
+
     # Show product list for that page
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         product_service = ProductService(session)
         formatter = ProductFormatter()
         product_choose_text, _ = _get_bot_selection_prompts(session)
 
-        products = product_service.list_products(page=1, per_page=9999, only_active=True)
+        products = product_service.list_products(
+            page=1, per_page=9999, only_active=True
+        )
 
         pre_uploaded_service = PreUploadedService(session)
         pre_uploaded_in_stock_ids = pre_uploaded_service.get_in_stock_product_ids(
@@ -816,12 +965,16 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         message = formatter.format_product_list(product_choose_text=product_choose_text)
         keyboard = formatter.create_product_keyboard(
-            products, update, pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
+            products,
+            update,
+            pre_uploaded_in_stock_ids=pre_uploaded_in_stock_ids,
             emoji_service=EmojiPlaceholderService(session),
         )
 
         rendered, parse_mode = render_emoji(message, EmojiPlaceholderService(session))
-        await query.edit_message_text(rendered, reply_markup=keyboard, parse_mode=parse_mode)
+        await query.edit_message_text(
+            rendered, reply_markup=keyboard, parse_mode=parse_mode
+        )
     finally:
         session.close()
 
@@ -829,62 +982,73 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Handle payment callback - create order and payment URL.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer("💳 Processing payment...")
-    
+
     # Parse variation ID from callback data (format: "payment_var_1" or "payment_alight_12m_1")
     variation_id = query.data.replace("payment_", "")
     user_id = query.from_user.id
-    
+
     # Get user state
     user_state = state_manager.get_user_state(user_id)
     if not user_state or not user_state.selected_variation_id:
         await query.edit_message_text("❌ Please select a variation first.")
         return
-    
+
     if user_state.selected_variation_id != variation_id:
         await query.edit_message_text("❌ Variation mismatch. Please try again.")
         return
-    
+
     quantity = user_state.quantity or 1
-    
+
     # Get services
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
+        # Block gate: a blocked user cannot create an order.
+        from src.database.services.block_service import BlockService
+        from src.bot.utils.language import t as _t
+
+        if BlockService(session).is_blocked(user_id, query.from_user.username):
+            await query.edit_message_text(_t("errors.user_blocked", update))
+            return
+
         order_service = OrderService(session)
         variation_service = VariationService(session)
         product_service = ProductService(session)
-        
+
         # Get variation and actual stock
         variation = variation_service.get_variation_by_id(variation_id)
         if not variation:
             await query.edit_message_text("❌ Variation not found.")
             return
-        
+
         product = product_service.get_product_by_id(variation.product_id)
         if not product:
             await query.edit_message_text("❌ Product not found.")
             return
-        
+
         actual_stock = get_actual_stock(variation, product, variation_service)
-        
+
         # Determine which benefits apply for this variation
-        benefit_mode = getattr(variation, 'benefit_mode', 'bonus')
+        benefit_mode = getattr(variation, "benefit_mode", "bonus")
 
         # Get applicable bonus (if mode includes bonus)
         from src.database.services.bonus_tier_service import BonusTierService
+
         bonus_service = BonusTierService(session)
         bonus_tier = None
         bonus_quantity = 0
-        if benefit_mode in ('bonus', 'both'):
-            bonus_tier = bonus_service.get_applicable_bonus(variation_id, quantity, actual_stock)
+        if benefit_mode in ("bonus", "both"):
+            bonus_tier = bonus_service.get_applicable_bonus(
+                variation_id, quantity, actual_stock
+            )
             bonus_quantity = bonus_tier.bonus_quantity if bonus_tier else 0
 
         total_items = quantity + bonus_quantity
@@ -898,10 +1062,13 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
         # Get applicable discount (if mode includes discount)
         from src.database.services.discount_tier_service import DiscountTierService
+
         discount_service = DiscountTierService(session)
         discount_tier = None
-        if benefit_mode in ('discount', 'both'):
-            discount_tier = discount_service.get_applicable_discount(variation_id, quantity)
+        if benefit_mode in ("discount", "both"):
+            discount_tier = discount_service.get_applicable_discount(
+                variation_id, quantity
+            )
 
         # Create order with bonus and/or discount
         try:
@@ -936,18 +1103,20 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             f"{_t('balance.pay_method_balance_line', update, balance=f'{current_balance:,}')}\n"
             f"{_t('balance.pay_method_total_line', update, total=f'{order.total_amount:,}')}"
         )
-        picker_keyboard = InlineKeyboardMarkup([
+        picker_keyboard = InlineKeyboardMarkup(
             [
-                InlineKeyboardButton(
-                    _t("balance.pay_with_balance_button", update),
-                    callback_data=f"pay_balance_{order.id}",
-                ),
-                InlineKeyboardButton(
-                    _t("balance.pay_with_qr_button", update),
-                    callback_data=f"pay_qr_{order.id}",
-                ),
+                [
+                    InlineKeyboardButton(
+                        _t("balance.pay_with_balance_button", update),
+                        callback_data=f"pay_balance_{order.id}",
+                    ),
+                    InlineKeyboardButton(
+                        _t("balance.pay_with_qr_button", update),
+                        callback_data=f"pay_qr_{order.id}",
+                    ),
+                ]
             ]
-        ])
+        )
         state_manager.update_user_state(
             user_id,
             pending_order_id=order.id,
@@ -1003,7 +1172,10 @@ async def _create_qr_for_order(
         # Determine payment provider (default: payos)
         payment_provider = os.getenv("PAYMENT_PROVIDER_DEFAULT", "payos").lower()
         try:
-            from config.config import PAYMENT_PROVIDER_DEFAULT as _PAYMENT_PROVIDER_DEFAULT
+            from config.config import (
+                PAYMENT_PROVIDER_DEFAULT as _PAYMENT_PROVIDER_DEFAULT,
+            )
+
             if _PAYMENT_PROVIDER_DEFAULT:
                 payment_provider = str(_PAYMENT_PROVIDER_DEFAULT).lower()
         except ModuleNotFoundError:
@@ -1022,13 +1194,21 @@ async def _create_qr_for_order(
                     PAYOS_CANCEL_URL,
                 )
             except ModuleNotFoundError:
-                PAYOS_BASE_URL = os.getenv("PAYOS_BASE_URL", "https://api-merchant.payos.vn")
+                PAYOS_BASE_URL = os.getenv(
+                    "PAYOS_BASE_URL", "https://api-merchant.payos.vn"
+                )
                 PAYOS_PARTNER_CODE = os.getenv("PAYOS_PARTNER_CODE", "")
                 PAYOS_CLIENT_ID = os.getenv("PAYOS_CLIENT_ID", "")
                 PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
                 PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
-                PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
-                PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
+                PAYOS_RETURN_URL = os.getenv(
+                    "PAYOS_RETURN_URL",
+                    os.getenv("REDIRECT_URL", "https://t.me/your_bot"),
+                )
+                PAYOS_CANCEL_URL = os.getenv(
+                    "PAYOS_CANCEL_URL",
+                    os.getenv("REDIRECT_URL", "https://t.me/your_bot"),
+                )
 
             if not PAYOS_CLIENT_ID or not PAYOS_API_KEY or not PAYOS_CHECKSUM_KEY:
                 err = (
@@ -1060,7 +1240,9 @@ async def _create_qr_for_order(
             if order.payos_order_code and order.payos_checkout_url:
                 payos_order_code = order.payos_order_code
                 qr_payload = order.payos_qr_code or order.payos_checkout_url
-                logger.info(f"Reusing existing PayOS link for order {order.id} (code={payos_order_code})")
+                logger.info(
+                    f"Reusing existing PayOS link for order {order.id} (code={payos_order_code})"
+                )
             else:
                 # Assign PayOS identifiers — reuse existing code if one was already
                 # committed to avoid orphaning it on a concurrent double-tap.
@@ -1094,7 +1276,9 @@ async def _create_qr_for_order(
                 order_prefix = os.getenv("ORDER_PREFIX", "MTK")
                 description = f"{order_prefix}{order.id}"[:9]
                 expired_at = int(time.time()) + PAYMENT_EXPIRE_MINUTES * 60
-                logger.info(f"Creating PayOS payment link for order {order.id} with {PAYMENT_EXPIRE_MINUTES}-min expiration")
+                logger.info(
+                    f"Creating PayOS payment link for order {order.id} with {PAYMENT_EXPIRE_MINUTES}-min expiration"
+                )
 
                 try:
                     payos_resp = payos.create_payment_link(
@@ -1121,8 +1305,12 @@ async def _create_qr_for_order(
                 qr_payload = qr_code or checkout_url
 
                 try:
-                    order.payos_payment_link_id = str(payment_link_id) if payment_link_id else None
-                    order.payos_checkout_url = str(checkout_url) if checkout_url else None
+                    order.payos_payment_link_id = (
+                        str(payment_link_id) if payment_link_id else None
+                    )
+                    order.payos_checkout_url = (
+                        str(checkout_url) if checkout_url else None
+                    )
                     order.payos_qr_code = str(qr_code) if qr_code else None
                     session.commit()
                 except Exception as e:
@@ -1131,30 +1319,47 @@ async def _create_qr_for_order(
             state_manager.update_user_state(user_id, pending_order_id=order.id)
 
             payment_message, caption = format_payment_message(order, update, session)
-            rendered_pm, pm_parse_mode = render_emoji(payment_message, EmojiPlaceholderService(session))
-            rendered_caption, caption_parse_mode = render_emoji(caption, EmojiPlaceholderService(session))
+            rendered_pm, pm_parse_mode = render_emoji(
+                payment_message, EmojiPlaceholderService(session)
+            )
+            rendered_caption, caption_parse_mode = render_emoji(
+                caption, EmojiPlaceholderService(session)
+            )
 
-            cancel_keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
-            ])
+            cancel_keyboard = InlineKeyboardMarkup(
+                [
+                    [
+                        InlineKeyboardButton(
+                            "❌ Cancel Order", callback_data=f"cancel_order_{order.id}"
+                        )
+                    ]
+                ]
+            )
 
             # Edit the picker/confirmation message into the text payment message
             if reply_to_query:
                 from telegram.error import BadRequest as TgBadRequest
+
                 try:
-                    await reply_to_query.edit_message_text(rendered_pm, parse_mode=pm_parse_mode)
+                    await reply_to_query.edit_message_text(
+                        rendered_pm, parse_mode=pm_parse_mode
+                    )
                 except TgBadRequest as exc:
                     if "is not modified" not in str(exc):
                         raise
                 text_message_id = reply_to_query.message.message_id
             else:
-                sent_text = await context.bot.send_message(chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode)
+                sent_text = await context.bot.send_message(
+                    chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode
+                )
                 text_message_id = sent_text.message_id
 
             if qr_payload:
                 try:
                     qr_image = make_qr_png_bytes(str(qr_payload))
-                    logger.info(f"QR image generated: {qr_image.getbuffer().nbytes} bytes for order {order.id}")
+                    logger.info(
+                        f"QR image generated: {qr_image.getbuffer().nbytes} bytes for order {order.id}"
+                    )
                     sent_message = await context.bot.send_photo(
                         chat_id=user_id,
                         photo=qr_image,
@@ -1175,7 +1380,10 @@ async def _create_qr_for_order(
                 except Exception as e:
                     logger.error(f"Failed to send PayOS QR image: {e}", exc_info=True)
                     fallback = await context.bot.send_message(
-                        chat_id=user_id, text=rendered_pm, reply_markup=cancel_keyboard, parse_mode=pm_parse_mode,
+                        chat_id=user_id,
+                        text=rendered_pm,
+                        reply_markup=cancel_keyboard,
+                        parse_mode=pm_parse_mode,
                     )
                     message_ids = [text_message_id, fallback.message_id]
                     state_manager.update_user_state(
@@ -1187,7 +1395,10 @@ async def _create_qr_for_order(
                     session.commit()
             else:
                 fallback = await context.bot.send_message(
-                    chat_id=user_id, text=rendered_pm, reply_markup=cancel_keyboard, parse_mode=pm_parse_mode,
+                    chat_id=user_id,
+                    text=rendered_pm,
+                    reply_markup=cancel_keyboard,
+                    parse_mode=pm_parse_mode,
                 )
                 message_ids = [text_message_id, fallback.message_id]
                 state_manager.update_user_state(
@@ -1222,7 +1433,11 @@ async def _create_qr_for_order(
 
         from src.pay2s import create_payment
 
-        if not PAY2S_ENDPOINT or PAY2S_ENDPOINT == '...' or not PAY2S_ENDPOINT.startswith(('http://', 'https://')):
+        if (
+            not PAY2S_ENDPOINT
+            or PAY2S_ENDPOINT == "..."
+            or not PAY2S_ENDPOINT.startswith(("http://", "https://"))
+        ):
             error_msg = (
                 "❌ Payment configuration error.\n\n"
                 "The Pay2S endpoint is not configured correctly.\n"
@@ -1236,7 +1451,12 @@ async def _create_qr_for_order(
             logger.error(f"Invalid PAY2S_ENDPOINT: {repr(PAY2S_ENDPOINT)}")
             return
 
-        if not ACCESS_KEY or ACCESS_KEY == '...' or not SECRET_KEY or SECRET_KEY == '...':
+        if (
+            not ACCESS_KEY
+            or ACCESS_KEY == "..."
+            or not SECRET_KEY
+            or SECRET_KEY == "..."
+        ):
             error_msg = (
                 "❌ Payment configuration error.\n\n"
                 "ACCESS_KEY or SECRET_KEY is not configured correctly.\n"
@@ -1262,15 +1482,23 @@ async def _create_qr_for_order(
             logger.error("DEFAULT_BANK_ACCOUNTS not configured")
             return
 
-        logger.info(f"Bank accounts type: {type(DEFAULT_BANK_ACCOUNTS)}, value: {DEFAULT_BANK_ACCOUNTS}")
+        logger.info(
+            f"Bank accounts type: {type(DEFAULT_BANK_ACCOUNTS)}, value: {DEFAULT_BANK_ACCOUNTS}"
+        )
 
         validated_bank_accounts = []
         for bank in DEFAULT_BANK_ACCOUNTS:
-            if isinstance(bank, dict) and "account_number" in bank and "bank_id" in bank:
-                validated_bank_accounts.append({
-                    "account_number": str(bank["account_number"]),
-                    "bank_id": str(bank["bank_id"]).upper()
-                })
+            if (
+                isinstance(bank, dict)
+                and "account_number" in bank
+                and "bank_id" in bank
+            ):
+                validated_bank_accounts.append(
+                    {
+                        "account_number": str(bank["account_number"]),
+                        "bank_id": str(bank["bank_id"]).upper(),
+                    }
+                )
             else:
                 logger.warning(f"Invalid bank account format: {bank}")
 
@@ -1291,7 +1519,9 @@ async def _create_qr_for_order(
         bank_accounts_to_use = validated_bank_accounts
         logger.info(f"Using validated bank accounts: {bank_accounts_to_use}")
 
-        ipn_url = os.getenv("IPN_URL", f"http://localhost:{os.getenv('IPN_PORT', '5001')}/ipn")
+        ipn_url = os.getenv(
+            "IPN_URL", f"http://localhost:{os.getenv('IPN_PORT', '5001')}/ipn"
+        )
         redirect_url = os.getenv("REDIRECT_URL", "https://t.me/your_bot")
 
         order_prefix = os.getenv("ORDER_PREFIX", "MTK")
@@ -1299,7 +1529,9 @@ async def _create_qr_for_order(
 
         request_id = str(int(time.time() * 1000))
 
-        logger.info(f"Creating payment: endpoint={PAY2S_ENDPOINT}, order_id={order.id}, amount={order.total_amount}, order_info={order_info}, request_id={request_id}")
+        logger.info(
+            f"Creating payment: endpoint={PAY2S_ENDPOINT}, order_id={order.id}, amount={order.total_amount}, order_info={order_info}, request_id={request_id}"
+        )
         logger.debug(f"Bank accounts: {DEFAULT_BANK_ACCOUNTS}")
         logger.debug(f"IPN URL: {ipn_url}, Redirect URL: {redirect_url}")
 
@@ -1318,10 +1550,14 @@ async def _create_qr_for_order(
         )
 
         logger.info(f"Payment response keys: {payment_response.keys()}")
-        logger.info(f"Payment response resultCode type: {type(payment_response.get('resultCode'))}, value: {payment_response.get('resultCode')}")
+        logger.info(
+            f"Payment response resultCode type: {type(payment_response.get('resultCode'))}, value: {payment_response.get('resultCode')}"
+        )
 
         result_code = payment_response.get("resultCode")
-        is_success = (result_code == 0 or result_code == "0") and payment_response.get("payUrl")
+        is_success = (result_code == 0 or result_code == "0") and payment_response.get(
+            "payUrl"
+        )
 
         if is_success:
             payment_url = payment_response["payUrl"]
@@ -1336,14 +1572,20 @@ async def _create_qr_for_order(
                     order.status,
                     payment_transaction_id=transaction_id,
                 )
-                logger.info(f"Updated order {order.id} with transaction_id: {transaction_id}")
+                logger.info(
+                    f"Updated order {order.id} with transaction_id: {transaction_id}"
+                )
             else:
                 logger.warning(f"No transId in payment response for order {order.id}")
 
             state_manager.update_user_state(user_id, pending_order_id=order.id)
 
-            payment_message, caption_base = format_payment_message(order, update, session)
-            rendered_pm, pm_parse_mode = render_emoji(payment_message, EmojiPlaceholderService(session))
+            payment_message, caption_base = format_payment_message(
+                order, update, session
+            )
+            rendered_pm, pm_parse_mode = render_emoji(
+                payment_message, EmojiPlaceholderService(session)
+            )
 
             qr_code_data = None
             qr_list = payment_response.get("qrList", [])
@@ -1361,15 +1603,26 @@ async def _create_qr_for_order(
                 qr_image = BytesIO(qr_code_data)
                 qr_image.name = "qr_code.png"
 
-                cancel_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
-                ])
+                cancel_keyboard = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "❌ Cancel Order",
+                                callback_data=f"cancel_order_{order.id}",
+                            )
+                        ]
+                    ]
+                )
 
                 if reply_to_query:
-                    await reply_to_query.edit_message_text(rendered_pm, parse_mode=pm_parse_mode)
+                    await reply_to_query.edit_message_text(
+                        rendered_pm, parse_mode=pm_parse_mode
+                    )
                     text_message_id = reply_to_query.message.message_id
                 else:
-                    sent_text = await context.bot.send_message(chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode)
+                    sent_text = await context.bot.send_message(
+                        chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode
+                    )
                     text_message_id = sent_text.message_id
 
                 bank_info = (
@@ -1395,7 +1648,7 @@ async def _create_qr_for_order(
                 state_manager.update_user_state(
                     user_id,
                     payment_message_id=sent_message.message_id,
-                    payment_message_ids=message_ids
+                    payment_message_ids=message_ids,
                 )
 
                 order.payment_message_ids = json.dumps(message_ids)
@@ -1411,20 +1664,36 @@ async def _create_qr_for_order(
                         f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
                     )
                 # Render AFTER appending bank_info and payment_url to preserve escape-order
-                full_payment_message = payment_message + f"{bank_info}\n\n🔗 Payment link:\n{payment_url}"
+                full_payment_message = (
+                    payment_message + f"{bank_info}\n\n🔗 Payment link:\n{payment_url}"
+                )
                 rendered_full_pm, full_pm_parse_mode = render_emoji(
                     full_payment_message, EmojiPlaceholderService(session)
                 )
-                cancel_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
-                ])
+                cancel_keyboard = InlineKeyboardMarkup(
+                    [
+                        [
+                            InlineKeyboardButton(
+                                "❌ Cancel Order",
+                                callback_data=f"cancel_order_{order.id}",
+                            )
+                        ]
+                    ]
+                )
 
                 if reply_to_query:
                     text_message_id = reply_to_query.message.message_id
-                    edited_message = await reply_to_query.edit_message_text(rendered_full_pm, reply_markup=cancel_keyboard, parse_mode=full_pm_parse_mode)
+                    edited_message = await reply_to_query.edit_message_text(
+                        rendered_full_pm,
+                        reply_markup=cancel_keyboard,
+                        parse_mode=full_pm_parse_mode,
+                    )
                 else:
                     edited_message = await context.bot.send_message(
-                        chat_id=user_id, text=rendered_full_pm, reply_markup=cancel_keyboard, parse_mode=full_pm_parse_mode,
+                        chat_id=user_id,
+                        text=rendered_full_pm,
+                        reply_markup=cancel_keyboard,
+                        parse_mode=full_pm_parse_mode,
                     )
                     text_message_id = edited_message.message_id
 
@@ -1433,11 +1702,13 @@ async def _create_qr_for_order(
                     state_manager.update_user_state(
                         user_id,
                         payment_message_id=edited_message.message_id,
-                        payment_message_ids=message_ids
+                        payment_message_ids=message_ids,
                     )
                     order.payment_message_ids = json.dumps(message_ids)
                     session.commit()
-                    logger.info(f"Stored payment message IDs in database: {message_ids}")
+                    logger.info(
+                        f"Stored payment message IDs in database: {message_ids}"
+                    )
         else:
             error_msg = payment_response.get("message", "Unknown error")
             err_text = f"❌ Payment creation failed: {error_msg}"
@@ -1476,7 +1747,9 @@ async def _create_qr_for_order(
         session.close()
 
 
-async def handle_pay_with_qr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_pay_with_qr(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Callback: pay_qr_{order_id} — user chose to pay via QR transfer.
     Delegates to _create_qr_for_order. Serialized per user to prevent
@@ -1489,7 +1762,9 @@ async def handle_pay_with_qr(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await _create_qr_for_order(order_id, update, context, reply_to_query=query)
 
 
-async def handle_pay_with_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_pay_with_balance(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Callback: pay_balance_{order_id} — user chose to pay using wallet balance.
     Calls BalanceService.pay_order_with_balance atomically, then triggers
@@ -1542,6 +1817,7 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
         # Trigger order fulfillment asynchronously
         try:
             from src.ipn import get_ipn_processor
+
             processor = get_ipn_processor()
             if processor:
                 loop = _asyncio.get_running_loop()
@@ -1552,9 +1828,14 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
                     ),
                 )
             else:
-                logger.warning(f"IPN processor not available for balance-paid order {order_id}")
+                logger.warning(
+                    f"IPN processor not available for balance-paid order {order_id}"
+                )
         except Exception as exc:
-            logger.error(f"Error in fulfillment for balance-paid order {order_id}: {exc}", exc_info=True)
+            logger.error(
+                f"Error in fulfillment for balance-paid order {order_id}: {exc}",
+                exc_info=True,
+            )
 
         # Clear payment-related state
         state = state_manager.get_user_state(user_id)
@@ -1569,6 +1850,7 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
         try:
             from src.database.services.balance_service import BalanceService as _BS
             from src.database.services.bot_user_service import BotUserService as _BUS
+
             _bot_user = _BUS(session2).get_user_by_telegram_id(user_id)
             bal = _BS(session2).get_balance(_bot_user.id) if _bot_user else 0
         finally:
@@ -1580,12 +1862,20 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
             balance=f"{bal:,}",
             total=f"{order_total:,}",
         )
-        keyboard = InlineKeyboardMarkup([
+        keyboard = InlineKeyboardMarkup(
             [
-                InlineKeyboardButton(_t("balance.topup_more_button", update), callback_data="topup_start"),
-                InlineKeyboardButton(_t("balance.pay_with_qr_button", update), callback_data=f"pay_qr_{order_id}"),
+                [
+                    InlineKeyboardButton(
+                        _t("balance.topup_more_button", update),
+                        callback_data="topup_start",
+                    ),
+                    InlineKeyboardButton(
+                        _t("balance.pay_with_qr_button", update),
+                        callback_data=f"pay_qr_{order_id}",
+                    ),
+                ]
             ]
-        ])
+        )
         await query.edit_message_text(insuf_text, reply_markup=keyboard)
 
     elif reason == "already_processed":
@@ -1595,42 +1885,46 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
         await query.edit_message_text(_t("errors.generic", update))
 
 
-async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_cancel_order(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle cancel order callback - cancel a pending order.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer("Processing cancellation...")
-    
+
     # Parse order ID from callback data (format: "cancel_order_abc12345")
     order_id = query.data.replace("cancel_order_", "")
     user_id = query.from_user.id
-    
+
     # Get services
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         order_service = OrderService(session)
-        
+
         # Get order and validate ownership
         order = order_service.get_order_by_id(order_id)
         if not order:
             await query.answer("❌ Order not found.", show_alert=True)
             return
-        
+
         if order.user_id != user_id:
-            await query.answer("❌ You can only cancel your own orders.", show_alert=True)
+            await query.answer(
+                "❌ You can only cancel your own orders.", show_alert=True
+            )
             return
-        
+
         # Cancel the order
         try:
             cancelled_order = order_service.cancel_order(order_id)
-            
+
             # Send confirmation message
             confirmation_message = (
                 f"✅ Order cancelled successfully!\n\n"
@@ -1638,19 +1932,20 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"💰 Amount: {cancelled_order.total_amount:,} VND\n\n"
                 f"Your order has been cancelled. You can place a new order anytime."
             )
-            
+
             # Delete the QR payment message
             user_state = state_manager.get_user_state(user_id)
             if user_state and user_state.payment_message_id:
                 try:
                     await context.bot.delete_message(
-                        chat_id=user_id,
-                        message_id=user_state.payment_message_id
+                        chat_id=user_id, message_id=user_state.payment_message_id
                     )
-                    logger.info(f"Deleted payment message {user_state.payment_message_id} for cancelled order {order_id}")
+                    logger.info(
+                        f"Deleted payment message {user_state.payment_message_id} for cancelled order {order_id}"
+                    )
                 except Exception as e:
                     logger.warning(f"Could not delete payment message: {str(e)}")
-            
+
             # Try to edit the message to remove the cancel button (if it's a callback query message)
             try:
                 await query.edit_message_caption(
@@ -1659,30 +1954,31 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
                         f"💰 Total: {cancelled_order.total_amount:,} VND\n\n"
                         f"❌ Order cancelled"
                     ),
-                    reply_markup=None
+                    reply_markup=None,
                 )
             except Exception as e:
                 # If editing fails (e.g., message already edited), just send new message
                 logger.warning(f"Could not edit message: {str(e)}")
-            
+
             # Send confirmation message
-            await context.bot.send_message(
-                chat_id=user_id,
-                text=confirmation_message
-            )
-            
+            await context.bot.send_message(chat_id=user_id, text=confirmation_message)
+
             # Clear pending order and payment message from user state
-            state_manager.update_user_state(user_id, pending_order_id=None, payment_message_id=None)
-            
+            state_manager.update_user_state(
+                user_id, pending_order_id=None, payment_message_id=None
+            )
+
         except ValueError as e:
             # Order cannot be cancelled (not PENDING)
             await query.answer(f"❌ {str(e)}", show_alert=True)
             logger.warning(f"Cannot cancel order {order_id}: {str(e)}")
-    
+
     except Exception as e:
         logger.error(f"Error cancelling order: {str(e)}", exc_info=True)
-        await query.answer("❌ Error cancelling order. Please try again later.", show_alert=True)
-    
+        await query.answer(
+            "❌ Error cancelling order. Please try again later.", show_alert=True
+        )
+
     finally:
         session.close()
 
@@ -1706,7 +2002,7 @@ def _build_order_history_message_and_keyboard(orders, page, update):
     total_pages = max(1, (total + _ORDERS_PER_PAGE - 1) // _ORDERS_PER_PAGE)
     page = max(1, min(page, total_pages))
     start = (page - 1) * _ORDERS_PER_PAGE
-    page_orders = orders[start: start + _ORDERS_PER_PAGE]
+    page_orders = orders[start : start + _ORDERS_PER_PAGE]
 
     title = t("order_history.title", update)
     if total == 0:
@@ -1714,31 +2010,51 @@ def _build_order_history_message_and_keyboard(orders, page, update):
     else:
         body = t("order_history.count", update, count=total)
         if total_pages > 1:
-            body += f"\n{t('order_history.page', update, current=page, total=total_pages)}"
+            body += (
+                f"\n{t('order_history.page', update, current=page, total=total_pages)}"
+            )
 
     message = f"{title}\n\n{body}"
 
     keyboard = []
     for order in page_orders:
-        status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+        status_val = (
+            order.status.value if hasattr(order.status, "value") else str(order.status)
+        )
         emoji = _STATUS_EMOJI.get(status_val, "❓")
         label = f"#{order.id} | {emoji} | {order.total_amount:,}đ"
-        keyboard.append([InlineKeyboardButton(label, callback_data=f"order_detail_{order.id}_from_{page}")])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    label, callback_data=f"order_detail_{order.id}_from_{page}"
+                )
+            ]
+        )
 
     nav_row = []
     if page > 1:
         prev_text = t("buttons.prev", update)
-        nav_row.append(InlineKeyboardButton(prev_text, callback_data=f"order_history_page_{page - 1}"))
+        nav_row.append(
+            InlineKeyboardButton(
+                prev_text, callback_data=f"order_history_page_{page - 1}"
+            )
+        )
     if page < total_pages:
         next_text = t("buttons.next", update)
-        nav_row.append(InlineKeyboardButton(next_text, callback_data=f"order_history_page_{page + 1}"))
+        nav_row.append(
+            InlineKeyboardButton(
+                next_text, callback_data=f"order_history_page_{page + 1}"
+            )
+        )
     if nav_row:
         keyboard.append(nav_row)
 
     return message, InlineKeyboardMarkup(keyboard)
 
 
-async def handle_order_history_page(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_order_history_page(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle order_history and order_history_page_<N> callbacks."""
     from src.bot.utils.language import t
 
@@ -1760,8 +2076,12 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
 
     try:
         order_service = OrderService(session)
-        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
-        message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
+        orders = order_service.get_user_orders(
+            user_id, status=OrderStatus.DELIVERED, limit=200
+        )
+        message, reply_markup = _build_order_history_message_and_keyboard(
+            orders, page, update
+        )
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"Error in handle_order_history_page: {str(e)}", exc_info=True)
@@ -1770,7 +2090,9 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
         session.close()
 
 
-async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_order_detail(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle order_detail_<order_id>_from_<page> callbacks."""
     import html
     from src.bot.utils.language import t
@@ -1807,6 +2129,7 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         status_label = t(status_key, update)
 
         from datetime import datetime
+
         try:
             dt = datetime.fromisoformat(details["created_at"])
             date_str = dt.strftime("%d/%m/%Y %H:%M")
@@ -1816,7 +2139,11 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         lines = [
             t("order_history.detail_title", update),
             "",
-            t("order_history.order_id", update, order_id=html.escape(str(details["id"]))),
+            t(
+                "order_history.order_id",
+                update,
+                order_id=html.escape(str(details["id"])),
+            ),
             t("order_history.date", update, date=html.escape(str(date_str))),
             t("order_history.status", update, status=html.escape(str(status_label))),
             "",
@@ -1828,16 +2155,20 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             variation_name = item["variation"]["name"] if item.get("variation") else "?"
             qty = item["quantity"]
             subtotal = item["subtotal"]
-            lines.append(t(
-                "order_history.item_line",
-                update,
-                product=html.escape(str(product_name)),
-                variation=html.escape(str(variation_name)),
-                qty=qty,
-                subtotal=f"{subtotal:,}đ",
-            ))
+            lines.append(
+                t(
+                    "order_history.item_line",
+                    update,
+                    product=html.escape(str(product_name)),
+                    variation=html.escape(str(variation_name)),
+                    qty=qty,
+                    subtotal=f"{subtotal:,}đ",
+                )
+            )
             if item.get("bonus_quantity"):
-                lines.append(t("order_history.item_bonus", update, bonus=item["bonus_quantity"]))
+                lines.append(
+                    t("order_history.item_bonus", update, bonus=item["bonus_quantity"])
+                )
 
             delivered_products = item.get("delivered_products") or []
             if delivered_products:
@@ -1847,11 +2178,13 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
                     if not display_text:
                         continue
                     escaped = html.escape(str(display_text))
-                    lines.append(t(
-                        "order_history.delivered_line",
-                        update,
-                        data=f"<code>{escaped}</code>",
-                    ))
+                    lines.append(
+                        t(
+                            "order_history.delivered_line",
+                            update,
+                            data=f"<code>{escaped}</code>",
+                        )
+                    )
 
         lines.append("")
         total = details["total_amount"]
@@ -1867,13 +2200,21 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         txn_id = details.get("payment_transaction_id")
         if txn_id:
-            lines.append(t("order_history.transaction", update, txn_id=html.escape(str(txn_id))))
+            lines.append(
+                t("order_history.transaction", update, txn_id=html.escape(str(txn_id)))
+            )
 
         message = "\n".join(lines)
         message = substitute_tokens(message, EmojiPlaceholderService(session))
 
         back_text = t("order_history.back_to_list", update)
-        keyboard = [[InlineKeyboardButton(back_text, callback_data=f"back_to_order_history_{from_page}")]]
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    back_text, callback_data=f"back_to_order_history_{from_page}"
+                )
+            ]
+        ]
         await query.edit_message_text(
             message,
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -1886,7 +2227,9 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         session.close()
 
 
-async def handle_back_to_order_history(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_back_to_order_history(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """Handle back_to_order_history and back_to_order_history_<N> callbacks."""
     from src.bot.utils.language import t
 
@@ -1908,8 +2251,12 @@ async def handle_back_to_order_history(update: Update, context: ContextTypes.DEF
 
     try:
         order_service = OrderService(session)
-        orders = order_service.get_user_orders(user_id, status=OrderStatus.DELIVERED, limit=200)
-        message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
+        orders = order_service.get_user_orders(
+            user_id, status=OrderStatus.DELIVERED, limit=200
+        )
+        message, reply_markup = _build_order_history_message_and_keyboard(
+            orders, page, update
+        )
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"Error in handle_back_to_order_history: {str(e)}", exc_info=True)
@@ -1918,46 +2265,55 @@ async def handle_back_to_order_history(update: Update, context: ContextTypes.DEF
         session.close()
 
 
-async def handle_language_selection(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def handle_language_selection(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
     """
     Handle language selection callback.
-    
+
     Args:
         update: Telegram update object
         context: Bot context
     """
     query = update.callback_query
     await query.answer()
-    
+
     # Parse language from callback data (format: "lang_en" or "lang_vi")
     language_code = query.data.replace("lang_", "")
-    
+
     if language_code not in ["en", "vi"]:
         await query.answer("❌ Invalid language selection.", show_alert=True)
         return
-    
+
     user_id = query.from_user.id
-    
+
     session_factory = get_session_factory()
     session = session_factory()
-    
+
     try:
         from src.database.services.user_preference_service import UserPreferenceService
         from src.bot.utils.language import t
-        
+
         preference_service = UserPreferenceService(session)
         preference_service.set_user_language(user_id, language_code)
-        
+
         # Get language display name
-        lang_display = t('languages.en', update) if language_code == 'en' else t('languages.vi', update)
-        
+        lang_display = (
+            t("languages.en", update)
+            if language_code == "en"
+            else t("languages.vi", update)
+        )
+
         # Send confirmation message
-        confirmation = t('commands.language.changed', update, lang_name=lang_display)
+        confirmation = t("commands.language.changed", update, lang_name=lang_display)
         await query.edit_message_text(confirmation)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error setting language: {str(e)}", exc_info=True)
-        await query.answer("❌ Error changing language. Please try again.", show_alert=True)
+        await query.answer(
+            "❌ Error changing language. Please try again.", show_alert=True
+        )
     finally:
         session.close()
