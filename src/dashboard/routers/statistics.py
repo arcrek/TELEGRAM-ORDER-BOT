@@ -16,25 +16,39 @@ def _resolve_range(
     from_: Optional[str],
     to_: Optional[str],
 ):
-    """Resolve (start_date, end_date) from range shorthand or explicit ISO dates."""
-    now = datetime.now(timezone.utc)
+    """Resolve (start_date, end_date) as naive UTC datetimes.
+
+    Returns naive UTC tuples so they compare correctly against the naive-UTC
+    columns in the DB.  Unknown/None/all → (None, None) = all-time.
+    The primary path for all non-all-time ranges is range_=='custom' with
+    explicit ISO from/to sent by the frontend.
+    """
+    def _to_naive_utc(dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            return dt  # assume already UTC-naive
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+    now_utc_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+
     if range_ == "today":
-        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        return start, now
+        start = now_utc_naive.replace(hour=0, minute=0, second=0, microsecond=0)
+        return start, now_utc_naive
     if range_ == "7d":
-        return now - timedelta(days=7), now
+        return now_utc_naive - timedelta(days=7), now_utc_naive
     if range_ == "30d":
-        return now - timedelta(days=30), now
+        return now_utc_naive - timedelta(days=30), now_utc_naive
     if range_ == "90d":
-        return now - timedelta(days=90), now
+        return now_utc_naive - timedelta(days=90), now_utc_naive
     if range_ == "custom":
         if not from_ or not to_:
             raise HTTPException(status_code=422, detail="from and to required for custom range")
         try:
-            return datetime.fromisoformat(from_).replace(tzinfo=timezone.utc), \
-                   datetime.fromisoformat(to_).replace(tzinfo=timezone.utc)
+            start = _to_naive_utc(datetime.fromisoformat(from_.replace("Z", "+00:00")))
+            end = _to_naive_utc(datetime.fromisoformat(to_.replace("Z", "+00:00")))
+            return start, end
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=f"Invalid date: {exc}") from exc
+    # unknown / 'all' / None → all-time
     return None, None
 
 

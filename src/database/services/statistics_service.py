@@ -5,43 +5,56 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract
-from src.database.models import Order, OrderItem, Product, BotUser
-from src.database.models.enums import OrderStatus
+from src.database.models import Order, OrderItem, Product, BotUser, TopupOrder
+from src.database.models.enums import OrderStatus, TopupStatus
+from src.utils.datetime_format import resolve_tz
 
 
 class StatisticsService:
     """Service for order and sales statistics."""
-    
+
     def __init__(self, session: Session):
         """
         Initialize statistics service.
-        
+
         Args:
             session: Database session
         """
         self.session = session
-    
+
+    def _app_tz(self):
+        """Return the configured app timezone as a ZoneInfo object."""
+        from src.database.services.app_settings_service import AppSettingsService
+        tz_name = AppSettingsService(self.session).get_settings().timezone
+        return resolve_tz(tz_name)
+
     def _get_date_range(self, period: str) -> Tuple[Optional[datetime], Optional[datetime]]:
         """
-        Get date range for period filter.
-        
+        Get date range for period filter, computed in the app timezone and returned
+        as naive UTC datetimes for comparison against naive-UTC DB columns.
+
         Args:
             period: Period string ('today', 'this_week', 'this_month', None for all time)
-        
+
         Returns:
-            Tuple of (start_date, end_date) or (None, None) for all time
+            Tuple of (start_date, end_date) as naive UTC, or (None, None) for all time
         """
-        now = datetime.now(timezone.utc)
-        
+        tz = self._app_tz()
+        now_local = datetime.now(tz=tz)
+
+        def to_naive_utc(dt_aware: datetime) -> datetime:
+            return dt_aware.astimezone(timezone.utc).replace(tzinfo=None)
+
         if period == "today":
-            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            return start, now
+            # Midnight in app tz → naive UTC
+            start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+            return to_naive_utc(start_local), to_naive_utc(now_local)
         elif period == "this_week":
-            start = now - timedelta(days=7)
-            return start, now
+            start_local = now_local - timedelta(days=7)
+            return to_naive_utc(start_local), to_naive_utc(now_local)
         elif period == "this_month":
-            start = now - timedelta(days=30)
-            return start, now
+            start_local = now_local - timedelta(days=30)
+            return to_naive_utc(start_local), to_naive_utc(now_local)
         else:
             return None, None
     
@@ -85,6 +98,8 @@ class StatisticsService:
         """
         Get total revenue (sum of paid and delivered orders).
 
+        Date window is applied to Order.updated_at (payment time).
+
         Args:
             period: Period filter ('today', 'this_week', 'this_month', None for all time)
             start_date: Explicit range start (overrides period)
@@ -99,16 +114,69 @@ class StatisticsService:
 
         if start_date or end_date:
             if start_date:
-                query = query.filter(Order.created_at >= start_date)
+                query = query.filter(Order.updated_at >= start_date)
             if end_date:
-                query = query.filter(Order.created_at <= end_date)
+                query = query.filter(Order.updated_at <= end_date)
         elif period:
             sd, ed = self._get_date_range(period)
             if sd and ed:
-                query = query.filter(and_(Order.created_at >= sd, Order.created_at <= ed))
+                query = query.filter(and_(Order.updated_at >= sd, Order.updated_at <= ed))
 
         result = query.scalar()
         return int(result) if result else 0
+
+    def get_vendor_revenue(
+        self,
+        period: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> int:
+        """
+        Get vendor cash revenue = QR-paid orders + PAID topups, excluding balance payments.
+
+        QR orders: payment_provider in ('payos', 'pay2s'), status PAID/DELIVERED.
+        Topups: TopupOrder where status=PAID.
+        Both windowed on updated_at.
+
+        Args:
+            period: Period filter ('today', 'this_week', 'this_month', None for all time)
+            start_date: Explicit range start (overrides period)
+            end_date: Explicit range end (overrides period)
+
+        Returns:
+            Total vendor revenue in VND
+        """
+        # Resolve time window (naive UTC)
+        if start_date or end_date:
+            sd: Optional[datetime] = start_date
+            ed: Optional[datetime] = end_date
+        elif period:
+            sd, ed = self._get_date_range(period)
+        else:
+            sd, ed = None, None
+
+        # QR orders revenue
+        qr_query = self.session.query(func.sum(Order.total_amount)).filter(
+            Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
+            Order.payment_provider.in_(["payos", "pay2s"]),
+        )
+        if sd:
+            qr_query = qr_query.filter(Order.updated_at >= sd)
+        if ed:
+            qr_query = qr_query.filter(Order.updated_at <= ed)
+
+        # Paid topups revenue
+        topup_query = self.session.query(func.sum(TopupOrder.amount)).filter(
+            TopupOrder.status == TopupStatus.PAID,
+        )
+        if sd:
+            topup_query = topup_query.filter(TopupOrder.updated_at >= sd)
+        if ed:
+            topup_query = topup_query.filter(TopupOrder.updated_at <= ed)
+
+        qr_result = qr_query.scalar() or 0
+        topup_result = topup_query.scalar() or 0
+        return int(qr_result) + int(topup_result)
 
     def get_orders_by_status(
         self,
@@ -572,6 +640,8 @@ class StatisticsService:
             "total_revenue_today": self.get_total_revenue("today"),
             "total_revenue_this_week": self.get_total_revenue("this_week"),
             "total_revenue_this_month": self.get_total_revenue("this_month"),
+            "vendor_revenue": self.get_vendor_revenue(start_date=start_date, end_date=end_date),
+            "vendor_revenue_today": self.get_vendor_revenue("today"),
             "orders_by_status": self.get_orders_by_status(start_date, end_date),
             "orders_by_product": self.get_orders_by_product(),
             "top_selling_products": self.get_top_selling_products(limit=10, start_date=start_date, end_date=end_date),

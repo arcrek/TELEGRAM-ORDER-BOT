@@ -4,6 +4,10 @@
     "totalProducts": "Tổng Sản phẩm",
     "totalOrders": "Tổng Đơn hàng",
     "totalRevenue": "Tổng Doanh thu",
-    "pendingOrders": "Đơn hàng Đang chờ"
+    "pendingOrders": "Đơn hàng Đang chờ",
+    "todayRevenue": "Hôm nay",
+    "vendorRevenue": "Thực nhận",
+    "vendorRevenueToday": "Cổng TT",
+    "vendorRevenueHint": "QR + nạp tiền, không tính số dư"
   }
 }

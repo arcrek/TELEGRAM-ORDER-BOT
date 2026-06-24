@@ -9,7 +9,7 @@ export interface DateRange {
   to: Date | null
 }
 
-export type RangePreset = 'today' | '7d' | '30d' | 'this-month' | 'last-month' | 'custom'
+export type RangePreset = 'today' | '7d' | '30d' | 'this-month' | 'last-month' | 'custom' | 'all'
 
 export interface DateRangePickerProps {
   value: DateRange
@@ -27,9 +27,10 @@ const PRESET_LABELS: Record<RangePreset, string> = {
   'this-month': 'Tháng này',
   'last-month': 'Tháng trước',
   custom: 'Tuỳ chỉnh',
+  all: 'Toàn thời gian',
 }
 
-function resolvePreset(preset: RangePreset): DateRange {
+export function resolvePreset(preset: RangePreset): DateRange {
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const todayEnd = new Date(today.getTime() + 86400000 - 1)
@@ -51,6 +52,8 @@ function resolvePreset(preset: RangePreset): DateRange {
       const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
       return { from: start, to: end }
     }
+    case 'all':
+      return { from: null, to: null }
     default:
       return { from: null, to: null }
   }
@@ -67,7 +70,7 @@ function formatRange(range: DateRange): string {
 export function DateRangePicker({
   value,
   onChange,
-  presets = ['today', '7d', '30d', 'this-month', 'last-month', 'custom'],
+  presets = ['today', '7d', '30d', 'this-month', 'last-month', 'custom', 'all'],
   placeholder = 'Chọn khoảng thời gian',
   size = 'md',
   className = '',
@@ -90,6 +93,7 @@ export function DateRangePicker({
       onChange(resolvePreset(preset), preset)
       setOpen(false)
     }
+    // 'custom' stays open so the date inputs are revealed
   }
 
   const handleCustomApply = () => {

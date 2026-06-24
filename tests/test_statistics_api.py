@@ -251,3 +251,54 @@ def test_get_total_sold_all_products(client, auth_token):
     assert "total_sold" in data
     assert isinstance(data["total_sold"], int)
 
+
+def test_get_statistics_overview_includes_vendor_revenue(client, auth_token):
+    """Test that the overview endpoint includes vendor_revenue keys."""
+    response = client.get(
+        "/api/statistics/overview",
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "vendor_revenue" in data
+    assert "vendor_revenue_today" in data
+    assert isinstance(data["vendor_revenue"], int)
+    assert isinstance(data["vendor_revenue_today"], int)
+
+
+def test_get_statistics_overview_all_time(client, auth_token):
+    """No range params → all-time (returns all data)."""
+    response = client.get(
+        "/api/statistics/overview",
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_revenue" in data
+
+
+def test_get_statistics_overview_custom_range(client, auth_token):
+    """Custom range sends from/to ISO datetimes."""
+    import datetime as dt
+    now = dt.datetime.utcnow()
+    from_iso = (now - dt.timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    to_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    response = client.get(
+        f"/api/statistics/overview?range=custom&from={from_iso}&to={to_iso}",
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_revenue" in data
+
+
+def test_get_statistics_overview_all_preset(client, auth_token):
+    """'all' range preset → all-time (same as no params)."""
+    response = client.get(
+        "/api/statistics/overview?range=all",
+        headers={"Authorization": f"Bearer {auth_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "total_revenue" in data
+

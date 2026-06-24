@@ -14,7 +14,7 @@ import { Badge } from '../shared/components/Badge'
 import type { OrderStatus } from '../shared/components/Badge'
 import { IconButton } from '../shared/components/IconButton'
 import { Tabs } from '../shared/components/Tabs'
-import { DateRangePicker, type DateRange, type RangePreset } from '../shared/components/DateRangePicker'
+import { DateRangePicker, resolvePreset, type DateRange, type RangePreset } from '../shared/components/DateRangePicker'
 import { useToast } from '../shared/components/Toast'
 import { apiClient } from '../shared/lib/api'
 import { useFormat } from '../shared/lib/format'
@@ -41,6 +41,8 @@ interface StatisticsData {
   total_sold_all_products: number
   total_orders_today: number
   total_revenue_today: number
+  vendor_revenue: number
+  vendor_revenue_today: number
   orders_by_status: Record<string, number>
   revenue_over_time_daily: Array<{ date: string; revenue: number }>
   revenue_over_time_weekly: Array<{ date: string; revenue: number }>
@@ -91,7 +93,7 @@ export function StatisticsPage() {
   const { resolvedTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<StatisticsData | null>(null)
-  const [range, setRange] = useState<DateRange>({ from: null, to: null })
+  const [range, setRange] = useState<DateRange>(() => resolvePreset('30d'))
   const [rangePreset, setRangePreset] = useState<RangePreset>('30d')
   const [revTab, setRevTab] = useState('daily')
 
@@ -102,8 +104,8 @@ export function StatisticsPage() {
     setLoading(true)
     try {
       const params: Record<string, string> = {}
-      if (rangePreset !== 'custom') {
-        params.range = rangePreset
+      if (rangePreset === 'all') {
+        // no params → all-time
       } else if (range.from && range.to) {
         params.range = 'custom'
         params.from = range.from.toISOString()
@@ -247,6 +249,19 @@ export function StatisticsPage() {
           <span className="stats-vitals__label">{t('statistics.todayRevenue', 'Hôm nay')}</span>
           {loading ? <div className="stats-vitals__skeleton" /> : (
             <span className="stats-vitals__value">{fmt.currency(data?.total_revenue_today ?? 0)}</span>
+          )}
+          {!loading && data?.vendor_revenue_today != null && (
+            <span className="stats-vitals__sub">
+              {t('statistics.vendorRevenueToday', 'Cổng TT')}: {fmt.currency(data.vendor_revenue_today)}
+            </span>
+          )}
+        </div>
+
+        {/* Vendor revenue (payment gateway cash) */}
+        <div className="stats-vitals__item">
+          <span className="stats-vitals__label">{t('statistics.vendorRevenue', 'Thực nhận')} <span className="stats-vitals__hint">(cổng TT)</span></span>
+          {loading ? <div className="stats-vitals__skeleton" /> : (
+            <span className="stats-vitals__value">{fmt.currency(data?.vendor_revenue ?? 0)}</span>
           )}
         </div>
 

@@ -5,8 +5,8 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from src.database.connection import create_engine_instance, get_session_factory, init_database
-from src.database.models import Order, OrderItem, Product, ProductVariation
-from src.database.models.enums import OrderStatus, DeliveryType
+from src.database.models import Order, OrderItem, Product, ProductVariation, TopupOrder, AppSettings
+from src.database.models.enums import OrderStatus, DeliveryType, TopupStatus
 from src.database.services.statistics_service import StatisticsService
 
 
@@ -218,9 +218,182 @@ class TestStatisticsService:
         """Test getting statistics overview."""
         service = StatisticsService(db_session)
         overview = service.get_statistics_overview()
-        
+
         assert "total_orders" in overview
         assert "total_revenue" in overview
         assert "orders_by_status" in overview
         assert "recent_orders" in overview
+
+
+class TestStatisticsServiceNewBehaviors:
+    """Tests for timezone fixes, updated_at revenue dating, and vendor revenue."""
+
+    def _seed_app_settings(self, db_session: Session, tz: str = "Asia/Ho_Chi_Minh") -> None:
+        """Seed AppSettings so _app_tz() returns a specific timezone."""
+        db_session.add(AppSettings(id="global", timezone=tz))
+        db_session.commit()
+
+    def _make_order(
+        self,
+        db_session: Session,
+        order_id: str,
+        status: OrderStatus,
+        amount: int,
+        payment_provider: str | None,
+        created_at: datetime,
+        updated_at: datetime,
+    ) -> Order:
+        order = Order(
+            id=order_id,
+            user_id=100,
+            status=status,
+            total_amount=amount,
+            payment_provider=payment_provider,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+        db_session.add(order)
+        return order
+
+    def _make_topup(
+        self,
+        db_session: Session,
+        topup_id: str,
+        amount: int,
+        status: TopupStatus,
+        updated_at: datetime,
+    ) -> TopupOrder:
+        topup = TopupOrder(
+            id=topup_id,
+            user_id=100,
+            bot_user_id="botuser_1",
+            amount=amount,
+            status=status,
+            updated_at=updated_at,
+            created_at=updated_at,
+        )
+        db_session.add(topup)
+        return topup
+
+    def test_get_date_range_today_uses_app_tz(self, db_session: Session):
+        """_get_date_range('today') window start should be local midnight converted to naive UTC."""
+        from zoneinfo import ZoneInfo
+        self._seed_app_settings(db_session, "Asia/Ho_Chi_Minh")
+        service = StatisticsService(db_session)
+        sd, ed = service._get_date_range("today")
+
+        tz = ZoneInfo("Asia/Ho_Chi_Minh")
+        now_local = datetime.now(tz=tz)
+        expected_start_utc = now_local.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).astimezone(timezone.utc).replace(tzinfo=None)
+
+        # Allow 1-second tolerance for execution time
+        diff = abs((sd - expected_start_utc).total_seconds())
+        assert diff < 2, f"Expected ~{expected_start_utc}, got {sd}"
+        assert sd.tzinfo is None, "Should be naive UTC"
+        assert ed.tzinfo is None, "Should be naive UTC"
+
+    def test_total_revenue_uses_updated_at(self, db_session: Session):
+        """An order created yesterday but updated (paid) today counts in today's revenue."""
+        self._seed_app_settings(db_session)
+        now = datetime.utcnow()
+        yesterday = now - timedelta(days=1)
+        # created yesterday, paid (updated) today
+        self._make_order(
+            db_session, "order_upd_test", OrderStatus.PAID, 50000, "payos",
+            created_at=yesterday, updated_at=now,
+        )
+        # created and updated yesterday → should NOT appear in today window
+        self._make_order(
+            db_session, "order_old", OrderStatus.PAID, 30000, "payos",
+            created_at=yesterday, updated_at=yesterday,
+        )
+        db_session.commit()
+
+        service = StatisticsService(db_session)
+        today_revenue = service.get_total_revenue(period="today")
+        # Only the order updated today should be in today's window
+        assert today_revenue == 50000
+
+    def test_total_revenue_all_time_no_filter(self, db_session: Session):
+        """All-time revenue sums all PAID/DELIVERED orders regardless of date."""
+        self._seed_app_settings(db_session)
+        now = datetime.utcnow()
+        self._make_order(db_session, "r1", OrderStatus.PAID, 10000, "payos", now, now)
+        self._make_order(db_session, "r2", OrderStatus.DELIVERED, 20000, "balance", now, now)
+        self._make_order(db_session, "r3", OrderStatus.PENDING, 5000, None, now, now)
+        db_session.commit()
+
+        service = StatisticsService(db_session)
+        assert service.get_total_revenue() == 30000  # PAID + DELIVERED, not PENDING
+
+    def test_get_vendor_revenue_excludes_balance_orders(self, db_session: Session):
+        """Vendor revenue excludes orders paid via balance."""
+        self._seed_app_settings(db_session)
+        now = datetime.utcnow()
+        self._make_order(db_session, "v_payos", OrderStatus.PAID, 100000, "payos", now, now)
+        self._make_order(db_session, "v_pay2s", OrderStatus.DELIVERED, 80000, "pay2s", now, now)
+        self._make_order(db_session, "v_balance", OrderStatus.PAID, 60000, "balance", now, now)
+        self._make_order(db_session, "v_null", OrderStatus.PAID, 40000, None, now, now)
+        db_session.commit()
+
+        service = StatisticsService(db_session)
+        vendor = service.get_vendor_revenue()
+        # Only payos (100k) + pay2s (80k) = 180k; balance and null excluded
+        assert vendor == 180000
+
+    def test_get_vendor_revenue_includes_paid_topups(self, db_session: Session):
+        """Vendor revenue includes PAID topups."""
+        self._seed_app_settings(db_session)
+        now = datetime.utcnow()
+        self._make_topup(db_session, "TU_paid", 50000, TopupStatus.PAID, now)
+        self._make_topup(db_session, "TU_pending", 30000, TopupStatus.PENDING, now)
+        self._make_topup(db_session, "TU_cancelled", 20000, TopupStatus.CANCELLED, now)
+        db_session.commit()
+
+        service = StatisticsService(db_session)
+        vendor = service.get_vendor_revenue()
+        # Only PAID topup (50k) included
+        assert vendor == 50000
+
+    def test_get_vendor_revenue_combined(self, db_session: Session):
+        """Vendor revenue = QR orders + PAID topups."""
+        self._seed_app_settings(db_session)
+        now = datetime.utcnow()
+        self._make_order(db_session, "combo_qr", OrderStatus.PAID, 70000, "payos", now, now)
+        self._make_order(db_session, "combo_bal", OrderStatus.PAID, 30000, "balance", now, now)
+        self._make_topup(db_session, "combo_tu", 25000, TopupStatus.PAID, now)
+        db_session.commit()
+
+        service = StatisticsService(db_session)
+        vendor = service.get_vendor_revenue()
+        assert vendor == 95000  # 70k QR + 25k topup
+
+    def test_get_vendor_revenue_windowed_today(self, db_session: Session):
+        """Vendor revenue period filter windows on updated_at."""
+        self._seed_app_settings(db_session)
+        now = datetime.utcnow()
+        yesterday = now - timedelta(days=2)
+
+        self._make_order(db_session, "vr_today", OrderStatus.PAID, 50000, "payos",
+                         created_at=yesterday, updated_at=now)
+        self._make_order(db_session, "vr_old", OrderStatus.PAID, 40000, "payos",
+                         created_at=yesterday, updated_at=yesterday)
+        db_session.commit()
+
+        service = StatisticsService(db_session)
+        vendor_today = service.get_vendor_revenue(period="today")
+        assert vendor_today == 50000
+
+    def test_overview_includes_vendor_revenue_keys(self, db_session: Session):
+        """Statistics overview includes vendor_revenue and vendor_revenue_today."""
+        self._seed_app_settings(db_session)
+        service = StatisticsService(db_session)
+        overview = service.get_statistics_overview()
+
+        assert "vendor_revenue" in overview
+        assert "vendor_revenue_today" in overview
+        assert isinstance(overview["vendor_revenue"], int)
+        assert isinstance(overview["vendor_revenue_today"], int)
 
