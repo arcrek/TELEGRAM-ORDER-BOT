@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Copy, RefreshCw } from 'lucide-react'
+import { Plus, Trash2, Copy, Check, RefreshCw, Smile } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
 import { Button } from '../shared/components/Button'
 import { IconButton } from '../shared/components/IconButton'
+import { Input } from '../shared/components/Input'
+import { Badge } from '../shared/components/Badge'
+import { Table, type ColumnDef } from '../shared/components/Table'
 import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
 import { EmojiPreview, type EmojiUnit } from '../shared/components/EmojiPreview'
+import './EmojiPlaceholdersPage.css'
 
 interface EmojiPlaceholder {
   id: number
@@ -15,6 +19,30 @@ interface EmojiPlaceholder {
   raw_text: string | null
   token: string
   units: EmojiUnit[]
+}
+
+function CopyableCode({ text, ms = 1500 }: { text: string; ms?: number }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), ms)
+    })
+  }
+  return (
+    <div className="emoji-page__code-cell">
+      <code className="emoji-page__code">{text}</code>
+      <button
+        type="button"
+        className={`emoji-page__copy-btn ${copied ? 'emoji-page__copy-btn--copied' : ''}`}
+        onClick={copy}
+        aria-label={copied ? 'Đã sao chép' : 'Sao chép'}
+      >
+        {copied ? <Check size={11} /> : <Copy size={11} />}
+        {copied ? 'Đã chép' : 'Chép'}
+      </button>
+    </div>
+  )
 }
 
 export function EmojiPlaceholdersPage() {
@@ -67,13 +95,71 @@ export function EmojiPlaceholdersPage() {
     }
   }
 
-  const copyToken = (token: string) => {
-    navigator.clipboard?.writeText(token)
-    toast.success(t('emoji.copied', 'Token copied'))
-  }
+  const columns: ColumnDef<EmojiPlaceholder>[] = [
+    {
+      id: 'id',
+      header: 'ID',
+      mono: true,
+      width: 56,
+      cell: row => row.id,
+    },
+    {
+      id: 'name',
+      header: t('emoji.colName', 'Name'),
+      cell: row => row.name,
+    },
+    {
+      id: 'token',
+      header: t('emoji.colToken', 'Token'),
+      cell: row => <CopyableCode text={row.token} />,
+    },
+    {
+      id: 'setup',
+      header: t('emoji.colSetup', 'Setup command'),
+      cell: row => <CopyableCode text={`/set_emo ${row.id}`} />,
+    },
+    {
+      id: 'status',
+      header: t('emoji.colStatus', 'Status'),
+      width: 120,
+      cell: row => (
+        <Badge variant={row.configured ? 'success' : 'neutral'} size="sm">
+          {row.configured ? t('emoji.configured', 'Configured') : t('emoji.emptyBadge', 'Empty')}
+        </Badge>
+      ),
+    },
+    {
+      id: 'preview',
+      header: t('emoji.colPreview', 'Preview'),
+      cell: row => (
+        <div className="emoji-page__preview-cell">
+          {row.configured && row.units && row.units.length > 0
+            ? <EmojiPreview units={row.units} />
+            : <span className="emoji-page__no-preview">—</span>
+          }
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: '',
+      width: 48,
+      cell: row => (
+        <div className="emoji-page__actions">
+          <IconButton
+            icon={<Trash2 size={14} />}
+            aria-label={t('common.delete', 'Delete')}
+            variant="destructive"
+            size="sm"
+            onClick={() => handleDelete(row.id)}
+          />
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div className="emoji-placeholders-page">
+    <div className="emoji-page">
       <PageHeader
         title={t('emoji.title', 'Emoji Placeholders')}
         description={t('emoji.description', 'Manage custom emoji placeholders for the bot')}
@@ -90,17 +176,18 @@ export function EmojiPlaceholdersPage() {
       />
 
       {error && (
-        <div className="emoji-placeholders-page__error" role="alert">{error}</div>
+        <div className="emoji-page__error" role="alert">{error}</div>
       )}
 
-      <div className="emoji-placeholders-page__create">
-        <input
-          className="emoji-placeholders-page__input"
+      <div className="emoji-page__create">
+        <Input
+          className="emoji-page__create-input"
           value={newName}
           onChange={e => setNewName(e.target.value)}
           placeholder={t('emoji.namePlaceholder', 'Name (e.g. Header banner)')}
           onKeyDown={e => { if (e.key === 'Enter') handleCreate() }}
           disabled={creating}
+          size="sm"
         />
         <Button
           variant="primary"
@@ -114,75 +201,18 @@ export function EmojiPlaceholdersPage() {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="emoji-placeholders-page__loading" aria-live="polite">…</div>
-      ) : items.length === 0 ? (
-        <div className="emoji-placeholders-page__empty">
-          {t('emoji.empty', 'No placeholders yet. Create one above.')}
-        </div>
-      ) : (
-        <div className="emoji-placeholders-page__table-wrap">
-          <table className="emoji-placeholders-page__table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>{t('emoji.colName', 'Name')}</th>
-                <th>{t('emoji.colToken', 'Token')}</th>
-                <th>{t('emoji.colStatus', 'Status')}</th>
-                <th>{t('emoji.colPreview', 'Preview')}</th>
-                <th aria-label={t('common.actions', 'Actions')}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map(item => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>{item.name}</td>
-                  <td className="emoji-placeholders-page__token-cell">
-                    <code className="emoji-placeholders-page__token">{item.token}</code>
-                    <IconButton
-                      icon={<Copy size={12} />}
-                      aria-label={t('emoji.copyToken', 'Copy token')}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToken(item.token)}
-                    />
-                  </td>
-                  <td>
-                    <span
-                      className={`emoji-placeholders-page__badge ${item.configured ? 'emoji-placeholders-page__badge--configured' : 'emoji-placeholders-page__badge--empty'}`}
-                    >
-                      {item.configured ? `${t('emoji.configured', 'Configured')} ✓` : t('emoji.emptyBadge', 'Empty')}
-                    </span>
-                  </td>
-                  <td className="emoji-placeholders-page__preview-cell">
-                    {item.configured && item.units && item.units.length > 0
-                      ? <EmojiPreview units={item.units} />
-                      : (
-                        <span
-                          className="emoji-placeholders-page__hint"
-                          title={t('emoji.setHint', 'Run /set_emo {id} in the bot and send your premium emoji').replace('{id}', String(item.id))}
-                        >
-                          — <em>{t('emoji.setHint', 'Run /set_emo {id} in the bot').replace('{id}', String(item.id))}</em>
-                        </span>
-                      )
-                    }
-                  </td>
-                  <td>
-                    <IconButton
-                      icon={<Trash2 size={14} />}
-                      aria-label={t('common.delete', 'Delete')}
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(item.id)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <div className="emoji-page__table-card">
+        <Table<EmojiPlaceholder>
+          columns={columns}
+          data={items}
+          keyFn={row => String(row.id)}
+          loading={loading}
+          skeletonRows={4}
+          emptyIcon={<Smile size={40} />}
+          emptyTitle={t('emoji.emptyTitle', 'No placeholders yet')}
+          emptyDescription={t('emoji.emptyDesc', 'Create a placeholder above, then use /set_emo in the bot to assign emojis.')}
+        />
+      </div>
     </div>
   )
 }
