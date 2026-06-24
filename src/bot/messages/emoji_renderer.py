@@ -110,6 +110,16 @@ def split_icon(text: str, service) -> Tuple[str, Optional[str]]:
     return text.strip() or "​", icon_id
 
 
+def substitute_plain(text: str, service) -> str:
+    """Replace {emo:<id>} tokens with the placeholder's plain fallback unicode
+    emoji. For plain-text contexts that cannot render <tg-emoji> custom emoji —
+    e.g. a <pre> tap-to-copy block — where leaking the literal token is worse
+    than showing the standard emoji char."""
+    if not _TOKEN_RE.search(text):
+        return text
+    return _TOKEN_RE.sub(lambda m: service.get_plain_text(int(m.group(1))), text)
+
+
 def substitute_tokens(html_text: str, service) -> str:
     """Replace {emo:<id>} tokens with placeholder <tg-emoji> HTML WITHOUT
     escaping the surrounding text. Use ONLY on strings that are ALREADY

@@ -31,7 +31,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
-from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.messages.emoji_renderer import render as render_emoji, substitute_plain
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.admin_check import is_admin
 from src.bot.utils.language import t
@@ -165,11 +165,12 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                 )
 
         # Expand {emo:id} placeholders in the human-facing header (product/variation
-        # names may contain them). The <pre> copy block below intentionally keeps the
-        # raw header — custom emoji can't render inside a monospace code block.
-        rendered_header, header_parse_mode = render_emoji(
-            header, EmojiPlaceholderService(session)
-        )
+        # names may contain them). For the <pre> copy block below, custom emoji can't
+        # render in a monospace block, so substitute the plain fallback char instead
+        # of leaking the literal token into the admin's tap-to-copy text.
+        _emoji_service = EmojiPlaceholderService(session)
+        rendered_header, header_parse_mode = render_emoji(header, _emoji_service)
+        plain_header = substitute_plain(header, _emoji_service)
 
         done_button_label = get_translation("upgrade.done_button", "vi")
         done_prompt_text = get_translation("upgrade.done_prompt", "vi", order_id=order.id)
@@ -216,7 +217,7 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                     # Send a code-block copy of the full notification (header + account
                     # info) so admins can tap-to-copy the entire context in one go.
                     if customer_text:
-                        full_content = f"{header}\n{customer_text}"
+                        full_content = f"{plain_header}\n{customer_text}"
                         code_kwargs: dict = {
                             "chat_id": chat_id,
                             "text": f"<pre>{html_module.escape(full_content)}</pre>",

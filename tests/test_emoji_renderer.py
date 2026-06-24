@@ -5,6 +5,7 @@ from src.bot.messages.emoji_renderer import (
     parse_emoji_units,
     render,
     split_icon,
+    substitute_plain,
     substitute_tokens,
 )
 
@@ -183,6 +184,23 @@ def test_split_icon_first_is_icon_rest_are_plain():
     text, icon = split_icon("{emo:1} hot {emo:2}", svc)
     assert icon == "111"
     assert text == "hot 🔥"
+
+
+# --- substitute_plain tests (plain fallback for <pre>/monospace contexts) ---
+
+
+def test_substitute_plain_no_token_passthrough():
+    assert substitute_plain("hello", FakeIconService()) == "hello"
+
+
+def test_substitute_plain_replaces_with_fallback_char():
+    svc = FakeIconService(plain={2: "⚡"})
+    assert substitute_plain("{emo:2} ADOBE 14d", svc) == "⚡ ADOBE 14d"
+
+
+def test_substitute_plain_uppercased_token():
+    svc = FakeIconService(plain={2: "⚡"})
+    assert substitute_plain("{EMO:2} ADOBE", svc) == "⚡ ADOBE"
 
 
 def test_split_icon_icon_only_keeps_non_empty_button_text():
