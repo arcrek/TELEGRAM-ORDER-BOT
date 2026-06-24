@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from src.database.models.base import Base
 from src.database.services.block_service import BlockService
+from src.i18n.bot_translations import get_translation
 
 
 @pytest.fixture
@@ -45,8 +46,11 @@ def test_blocked_user_cannot_create_order(session_factory):
     ):
         asyncio.run(callbacks.handle_payment(update, MagicMock()))
 
+    # The gate must have fired: verify the exact block message was shown.
+    # (conftest patches language DB so t() always falls back to "vi".)
+    expected = get_translation("errors.user_blocked", "vi")
+    query.edit_message_text.assert_awaited_once_with(expected)
     create_order.assert_not_called()
-    query.edit_message_text.assert_awaited()  # block message shown
 
 
 def test_blocked_by_username_cannot_create_order(session_factory):
@@ -76,4 +80,7 @@ def test_blocked_by_username_cannot_create_order(session_factory):
     ):
         asyncio.run(callbacks.handle_payment(update, MagicMock()))
 
+    # The gate must have fired: verify the exact block message was shown.
+    expected = get_translation("errors.user_blocked", "vi")
+    query.edit_message_text.assert_awaited_once_with(expected)
     create_order.assert_not_called()
