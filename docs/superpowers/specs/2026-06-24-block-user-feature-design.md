@@ -79,10 +79,20 @@ otherwise strip a leading `@` and lowercase → `username`. Empty/invalid → er
 Each gate calls `BlockService.is_blocked(...)` and, when blocked, returns the
 "not allowed to create an order" message **before** any order/topup row is created.
 
-- **Order (bot):** in `handle_payment()` (`src/bot/handlers/callbacks.py`, ~line 907)
-  *before* `order_service.create_order(...)`. This fires when the user reaches the
+- **Order (bot):** in `handle_payment()` (`src/bot/handlers/callbacks.py`)
+  *before* `order_service.create_order(...)`. Placed **fail-fast** — right after
+  the DB session opens (~line 860), before the variation/stock/bonus lookups —
+  so a blocked user sees the block message rather than an incidental
+  "insufficient stock" error. This fires when the user reaches the
   payment-method picker — matching the requested behaviour ("return ... when
   blocked user select to payment").
+
+**Identifier passed to `is_blocked`:** every gate passes **both**
+`telegram_user_id` **and** `username` — a username-only block row has
+`telegram_user_id = NULL`, so a gate that passed only the numeric id would let
+username-blocked users through. Where a live Telegram username is available
+(`query.from_user.username` / `update.effective_user.username`) it is preferred
+over the stored `BotUser.username`, which can be stale.
 - **Topup (bot):** before `topup_svc.create_topup(...)` in the balance handlers
   (`src/bot/handlers/balance.py`, ~line 512-519).
 - **Public API v1:** in the `/api/v1` order-creation endpoint
@@ -122,6 +132,14 @@ fulfillment, existing payment processing (IPN), notifications, statistics, and
 all other commands remain fully available to blocked users. The block check
 exists **only** at the order-creation and topup-creation entry points listed
 above.
+
+## Known Limitation (accepted)
+
+Blocking is enforced at order/topup **creation**. A user who already has a
+PENDING order or topup created *before* being blocked can still complete payment
+on that existing order (the `pay_balance_*` / `pay_qr_*` callbacks act on an
+already-created order and are intentionally not gated). The existing 30-minute
+auto-cancel job closes this window. This is an accepted trade-off, not a gap.
 
 ## Testing
 
