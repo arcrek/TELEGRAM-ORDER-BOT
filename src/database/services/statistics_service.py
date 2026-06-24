@@ -640,25 +640,36 @@ class StatisticsService:
             for user_id, first_name, last_name, username, total_spent, order_count in results
         ]
 
-    def get_todo_items(self) -> Dict[str, Any]:
+    def _upgrade_orders_query(self):
+        from sqlalchemy import select
         from src.database.models.order import Order
         from src.database.models.order_item import OrderItem
         from src.database.models.product import Product
         from src.database.models.enums import DeliveryType, OrderStatus
+
+        # Orders that contain at least one UPGRADE-delivery product. Use a
+        # subquery on order ids rather than a join: joining through OrderItem
+        # multiplies rows for multi-item orders, and the DISTINCT needed to
+        # dedup them (DISTINCT ON (orders.id)) conflicts with
+        # ORDER BY created_at on PostgreSQL. The subquery sidesteps both.
+        upgrade_order_ids = (
+            select(OrderItem.order_id)
+            .join(Product, Product.id == OrderItem.product_id)
+            .where(Product.delivery_type == DeliveryType.UPGRADE)
+        )
+        return (
+            self.session.query(Order)
+            .filter(
+                Order.status.in_([OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.PROCESSING]),
+                Order.id.in_(upgrade_order_ids),
+            )
+            .order_by(Order.created_at.asc())
+        )
+
+    def get_todo_items(self) -> Dict[str, Any]:
         from src.database.services.pre_uploaded_service import PreUploadedService
 
-        rows = (
-            self.session.query(Order)
-            .join(OrderItem, OrderItem.order_id == Order.id)
-            .join(Product, Product.id == OrderItem.product_id)
-            .filter(
-                Product.delivery_type == DeliveryType.UPGRADE,
-                Order.status.in_([OrderStatus.PENDING, OrderStatus.PAID, OrderStatus.PROCESSING])
-            )
-            .distinct(Order.id)
-            .order_by(Order.created_at.asc())
-            .all()
-        )
+        rows = self._upgrade_orders_query().all()
         upgrade_orders = [
             {
                 "id": o.id,
