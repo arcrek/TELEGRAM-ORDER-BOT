@@ -33,6 +33,7 @@ class UserState:
     export_product_id: Optional[str] = None              # product chosen in step 1
     export_variations: list = field(default_factory=list)  # [{"id","name"}] of that product
     export_selected_variation_ids: set = field(default_factory=set)  # toggled variants
+    export_target_user_id: Optional[int] = None          # admin-proxy: target user's telegram_user_id
 
     # /set_emo flow state
     awaiting_emoji_input: bool = False

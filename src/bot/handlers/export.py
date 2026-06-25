@@ -7,6 +7,7 @@ Selection menus edit in place; the .txt files are sent as new documents.
 """
 import logging
 from io import BytesIO
+from typing import Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -15,9 +16,11 @@ from src.bot.handlers.commands import state_manager
 from src.bot.messages.emoji_renderer import render as render_emoji, split_icon
 from src.bot.messages.export_formatter import build_variant_file
 from src.bot.states.state_manager import UserState
+from src.bot.utils.admin_check import is_admin
 from src.bot.utils.language import t
 from src.database.connection import get_session_factory
 from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.bot_user_service import BotUserService
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.services.export_service import ExportService
 from src.utils.datetime_format import resolve_tz
@@ -98,10 +101,24 @@ def _variant_view(text: str, variations: list, selected: set, update: Update):
         session.close()
 
 
-async def _render_product_list(update: Update, user_id: int, *, edit: bool) -> None:
+async def _render_product_list(
+    update: Update,
+    data_user_id: int,
+    *,
+    edit: bool,
+    state_user_id: Optional[int] = None,
+) -> None:
+    """Render the product-selection step.
+
+    data_user_id  — whose delivered orders to show (target user in admin-proxy mode).
+    state_user_id — whose session state to write; defaults to data_user_id (always the
+                    caller/admin in proxy mode so callbacks can find the state).
+    """
+    sid = state_user_id if state_user_id is not None else data_user_id
+
     session = get_session_factory()()
     try:
-        products = ExportService(session).get_exportable_products(user_id)
+        products = ExportService(session).get_exportable_products(data_user_id)
     finally:
         session.close()
 
@@ -111,15 +128,15 @@ async def _render_product_list(update: Update, user_id: int, *, edit: bool) -> N
             await update.callback_query.edit_message_text(text)
         else:
             await update.message.reply_text(text)
-        state_manager.clear_user_state(user_id)
+        state_manager.clear_user_state(sid)
         return
 
-    state = state_manager.get_user_state(user_id) or UserState()
+    state = state_manager.get_user_state(sid) or UserState()
     state.export_products = products
     state.export_product_id = None
     state.export_variations = []
     state.export_selected_variation_ids = set()
-    state_manager.set_user_state(user_id, state)
+    state_manager.set_user_state(sid, state)
 
     text = t("commands.export.choose_product", update)
     kb = _product_list_keyboard_emoji(products, update)
@@ -129,11 +146,44 @@ async def _render_product_list(update: Update, user_id: int, *, edit: bool) -> N
         await update.message.reply_text(text, reply_markup=kb)
 
 
+def _resolve_user_arg(arg: str):
+    """Look up a BotUser by numeric Telegram ID or @username. Returns the BotUser or None."""
+    session = get_session_factory()()
+    try:
+        svc = BotUserService(session)
+        if arg.lstrip("@").isdigit():
+            return svc.get_user_by_telegram_id(int(arg.lstrip("@")))
+        return svc.get_user_by_username(arg)
+    finally:
+        session.close()
+
+
 async def export_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/export entry point."""
+    """/export entry point. Admins may pass /export {id|@username} to proxy another user."""
     if not update.message:
         return
-    await _render_product_list(update, update.effective_user.id, edit=False)
+    caller_id = update.effective_user.id
+
+    if context.args:
+        if not is_admin(caller_id):
+            await update.message.reply_text(t("commands.export.no_permission", update))
+            return
+        target_user = _resolve_user_arg(context.args[0])
+        if target_user is None:
+            await update.message.reply_text(t("commands.export.admin_not_found", update))
+            return
+        target_user_id = target_user.telegram_user_id
+        state = state_manager.get_user_state(caller_id) or UserState()
+        state.export_target_user_id = target_user_id
+        state_manager.set_user_state(caller_id, state)
+    else:
+        target_user_id = caller_id
+        state = state_manager.get_user_state(caller_id) or UserState()
+        state.export_target_user_id = None
+        state_manager.set_user_state(caller_id, state)
+
+    state_user_id = caller_id if context.args else None
+    await _render_product_list(update, target_user_id, edit=False, state_user_id=state_user_id)
 
 
 async def handle_export_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -159,9 +209,10 @@ async def handle_export_product(update: Update, context: ContextTypes.DEFAULT_TY
         await query.edit_message_text(t("commands.export.expired", update))
         return
 
+    data_user_id = state.export_target_user_id or user_id
     session = get_session_factory()()
     try:
-        variations = ExportService(session).get_exportable_variations(user_id, product["id"])
+        variations = ExportService(session).get_exportable_variations(data_user_id, product["id"])
     finally:
         session.close()
 
@@ -208,7 +259,13 @@ async def handle_export_back(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Callback export_back — return to the product list."""
     query = update.callback_query
     await query.answer()
-    await _render_product_list(update, query.from_user.id, edit=True)
+    caller_id = query.from_user.id
+    state = state_manager.get_user_state(caller_id)
+    target_user_id = (state.export_target_user_id if state else None) or caller_id
+    proxy = state is not None and state.export_target_user_id is not None
+    await _render_product_list(
+        update, target_user_id, edit=True, state_user_id=caller_id if proxy else None
+    )
 
 
 async def handle_export_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -233,6 +290,7 @@ async def handle_export_generate(update: Update, context: ContextTypes.DEFAULT_T
     labels = _export_labels(update)
     product_id = state.export_product_id
     selected = list(state.export_selected_variation_ids)
+    data_user_id = state.export_target_user_id or user_id
 
     session = get_session_factory()()
     sent = 0
@@ -240,7 +298,7 @@ async def handle_export_generate(update: Update, context: ContextTypes.DEFAULT_T
         service = ExportService(session)
         tz = resolve_tz(AppSettingsService(session).get_settings().timezone)
         for variation_id in selected:
-            data = service.get_variant_export(user_id, product_id, variation_id)
+            data = service.get_variant_export(data_user_id, product_id, variation_id)
             if data is None:
                 continue
             filename, content = build_variant_file(data, labels, tz)

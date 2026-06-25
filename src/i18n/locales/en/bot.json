@@ -71,7 +71,9 @@
       "file_price": "Price:",
       "file_qty": "Qty:",
       "file_delivered": "Delivered:",
-      "file_vnd": "VND"
+      "file_vnd": "VND",
+      "no_permission": "⛔ You don't have permission to use this command.",
+      "admin_not_found": "❌ User not found."
     }
   },
   "products": {

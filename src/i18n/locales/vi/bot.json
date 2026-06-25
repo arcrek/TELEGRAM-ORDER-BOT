@@ -71,7 +71,9 @@
       "file_price": "Giá:",
       "file_qty": "SL:",
       "file_delivered": "Dữ liệu đã giao:",
-      "file_vnd": "VND"
+      "file_vnd": "VND",
+      "no_permission": "⛔ Bạn không có quyền dùng lệnh này.",
+      "admin_not_found": "❌ Không tìm thấy người dùng này."
     }
   },
   "products": {
