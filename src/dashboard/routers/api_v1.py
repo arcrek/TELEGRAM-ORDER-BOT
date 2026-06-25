@@ -322,6 +322,16 @@ async def create_order(
     7. If delivery fails after payment: return 502 with charged=true.
     8. On success: return full order details including delivered content.
     """
+    from src.database.services.block_service import BlockService
+
+    if BlockService(db).is_blocked(
+        current_user.telegram_user_id, current_user.username
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is blocked and cannot create orders.",
+        )
+
     variation_id = payload.variation_id
     quantity = payload.quantity
 
