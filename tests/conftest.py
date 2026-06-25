@@ -40,6 +40,7 @@ def patch_language_db(request):
 
     patches = [
         patch("src.bot.utils.language.get_session_factory", return_value=mock_session_factory),
+        patch("src.bot.utils.admin_check._get_session", return_value=mock_session),
         patch("src.bot.handlers.commands.get_session_factory", return_value=mock_session_factory),
         patch("src.bot.handlers.callbacks.get_session_factory", return_value=mock_session_factory),
     ]
