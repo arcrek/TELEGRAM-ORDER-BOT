@@ -95,11 +95,11 @@ export function BlockedUsersPage() {
     try {
       await apiClient.post('/api/blocked-users', { identifier })
       setAddValue('')
-      toast.success(t('blockedUsers.added', 'Đã khóa người dùng'))
+      toast.success(t('blockedUsers.added', 'Đã chặn người dùng'))
       setParam({ page: null })
       fetchRows()
     } catch (err) {
-      toast.error(formatApiError(err, t('blockedUsers.addError', 'Không thể khóa người dùng')))
+      toast.error(formatApiError(err, t('blockedUsers.addError', 'Không thể chặn người dùng')))
     } finally {
       setAdding(false)
     }
@@ -108,17 +108,17 @@ export function BlockedUsersPage() {
   const handleRemove = useCallback(async (row: BlockedUserRow) => {
     const label = row.username ? `@${row.username}` : String(row.telegram_user_id)
     const ok = await confirm({
-      title: t('blockedUsers.confirmTitle', 'Mở khóa người dùng?'),
-      description: t('blockedUsers.confirmMessage', { defaultValue: 'Bỏ khóa {{label}}?', label }),
+      title: t('blockedUsers.confirmTitle', 'Mở chặn người dùng?'),
+      description: t('blockedUsers.confirmMessage', { defaultValue: 'Bỏ chặn {{label}}?', label }),
       variant: 'destructive',
     })
     if (!ok) return
     try {
       await apiClient.delete(`/api/blocked-users/${row.id}`)
-      toast.success(t('blockedUsers.removed', 'Đã mở khóa'))
+      toast.success(t('blockedUsers.removed', 'Đã mở chặn'))
       fetchRows()
     } catch (err) {
-      toast.error(formatApiError(err, t('blockedUsers.removeError', 'Không thể mở khóa')))
+      toast.error(formatApiError(err, t('blockedUsers.removeError', 'Không thể mở chặn')))
     }
   }, [confirm, t, toast, fetchRows])
 
@@ -140,7 +140,7 @@ export function BlockedUsersPage() {
     },
     {
       id: 'created_at',
-      header: t('blockedUsers.colBlockedAt', 'Thời gian khóa'),
+      header: t('blockedUsers.colBlockedAt', 'Thời gian chặn'),
       width: 180,
       cell: row => row.created_at ? fmt.dateTime(row.created_at) : '—',
     },
@@ -150,10 +150,10 @@ export function BlockedUsersPage() {
       width: 64,
       align: 'right',
       cell: row => (
-        <Tooltip content={t('blockedUsers.unblock', 'Mở khóa')}>
+        <Tooltip content={t('blockedUsers.unblock', 'Mở chặn')}>
           <IconButton
             icon={<Trash2 size={14} />}
-            aria-label={t('blockedUsers.unblock', 'Mở khóa')}
+            aria-label={t('blockedUsers.unblock', 'Mở chặn')}
             size="sm"
             variant="ghost"
             onClick={e => { e.stopPropagation(); handleRemove(row) }}
@@ -166,8 +166,8 @@ export function BlockedUsersPage() {
   return (
     <div className="blocked-users-page">
       <PageHeader
-        title={t('nav.blockedUsers', 'Người dùng bị khóa')}
-        description={t('blockedUsers.description', 'Người dùng bị khóa không thể tạo đơn hàng hoặc nạp tiền')}
+        title={t('nav.blockedUsers', 'Người dùng bị chặn')}
+        description={t('blockedUsers.description', 'Người dùng bị chặn không thể tạo đơn hàng hoặc nạp tiền')}
         actions={
           <IconButton
             icon={<RefreshCw size={14} />}
@@ -195,7 +195,7 @@ export function BlockedUsersPage() {
           onClick={handleAdd}
           disabled={adding || !addValue.trim()}
         >
-          {t('blockedUsers.addButton', 'Khóa')}
+          {t('blockedUsers.addButton', 'Chặn')}
         </Button>
       </div>
 
@@ -227,8 +227,8 @@ export function BlockedUsersPage() {
           skeletonRows={perPage}
           stickyHeader
           emptyIcon={<Ban size={40} />}
-          emptyTitle={t('blockedUsers.empty', 'Chưa có người dùng bị khóa')}
-          emptyDescription={t('blockedUsers.emptyDesc', 'Thêm Telegram ID hoặc @username phía trên để khóa')}
+          emptyTitle={t('blockedUsers.empty', 'Chưa có người dùng bị chặn')}
+          emptyDescription={t('blockedUsers.emptyDesc', 'Thêm Telegram ID hoặc @username phía trên để chặn')}
         />
         <Pagination
           page={urlPage}

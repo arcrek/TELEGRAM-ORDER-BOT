@@ -31,10 +31,10 @@
     },
     "block": {
       "no_permission": "⛔ Bạn không có quyền dùng lệnh này.",
-      "usage": "⚙️ Cách dùng:\n/block <id|@username> — Khóa người dùng\n/unblock <id|@username> — Mở khóa người dùng",
-      "blocked": "✅ Đã khóa người dùng: {target}",
-      "unblocked": "✅ Đã mở khóa người dùng: {target}",
-      "not_blocked": "ℹ️ {target} hiện không bị khóa."
+      "usage": "⚙️ Cách dùng:\n/block <id|@username> — Chặn người dùng\n/unblock <id|@username> — Mở chặn người dùng",
+      "blocked": "✅ Đã chặn người dùng: {target}",
+      "unblocked": "✅ Đã mở chặn người dùng: {target}",
+      "not_blocked": "ℹ️ {target} hiện không bị chặn."
     },
     "set_emo": {
       "no_permission": "⛔ Bạn không có quyền dùng lệnh này.",
@@ -193,7 +193,7 @@
     "not_found": "❌ Không tìm thấy.",
     "unauthorized": "❌ Không có quyền truy cập.",
     "validation": "❌ Lỗi: {error}",
-    "user_blocked": "⛔ Tài khoản của bạn đã bị khóa nên không thể tạo đơn hàng hoặc nạp tiền. Vui lòng liên hệ admin để được hỗ trợ."
+    "user_blocked": "⛔ Tài khoản của bạn đã bị chặn nên không thể tạo đơn hàng hoặc nạp tiền. Vui lòng liên hệ admin để được hỗ trợ."
   },
   "order_history": {
     "title": "📋 LỊCH SỬ ĐƠN HÀNG",
