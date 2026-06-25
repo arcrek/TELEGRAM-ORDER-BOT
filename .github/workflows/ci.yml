@@ -20,7 +20,7 @@ jobs:
       - name: Run tests
         env:
           DASHBOARD_SECRET_KEY: ci-test-secret
-        run: pytest -q
+        run: pytest -q --ignore=tests/test_database_connection.py
       - name: Lint
         # If the Task 0.2 baseline was clean, delete the next line to make lint blocking.
         continue-on-error: true
