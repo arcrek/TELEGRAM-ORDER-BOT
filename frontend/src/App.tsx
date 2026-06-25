@@ -22,6 +22,7 @@ import { BotUiSettingsPage } from './pages/BotUiSettingsPage'
 import { GeneralSettingsPage } from './pages/GeneralSettingsPage'
 import { InventoryUpdatePage } from './pages/InventoryUpdatePage'
 import { BalancesPage } from './pages/BalancesPage'
+import { BlockedUsersPage } from './pages/BlockedUsersPage'
 import { ManualsPage } from './pages/ManualsPage'
 import { EmojiPlaceholdersPage } from './pages/EmojiPlaceholdersPage'
 
@@ -76,6 +77,7 @@ export function AppRoutes() {
           <Route path="manuals" element={<ManualsPage />} />
           <Route path="bonus-summary" element={<BonusSummaryPage />} />
           <Route path="balances" element={<BalancesPage />} />
+          <Route path="blocked-users" element={<BlockedUsersPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />
