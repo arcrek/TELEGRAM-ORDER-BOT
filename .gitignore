@@ -47,3 +47,7 @@ Thumbs.db
 
 *.db
 data/*
+
+.agents
+.claude
+.codex
