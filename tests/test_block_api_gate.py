@@ -1,6 +1,5 @@
 """A blocked user's API token cannot create an order (HTTP 403)."""
 
-from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
