@@ -514,6 +514,14 @@ async def handle_balance_topup_amount(update: Update, context: ContextTypes.DEFA
             await query.edit_message_text(t("errors.not_found", update))
             return
 
+        from src.database.services.block_service import BlockService
+
+        if BlockService(session).is_blocked(
+            bot_user.telegram_user_id, query.from_user.username or bot_user.username
+        ):
+            await query.edit_message_text(t("errors.user_blocked", update))
+            return
+
         topup_svc = TopupService(session)
         try:
             topup = topup_svc.create_topup(bot_user=bot_user, amount=amount)
@@ -606,6 +614,15 @@ async def handle_topup_amount_text(update: Update, context: ContextTypes.DEFAULT
         bot_user = await _get_bot_user(session, user_id)
         if not bot_user:
             await update.message.reply_text(t("errors.not_found", update))
+            return
+
+        from src.database.services.block_service import BlockService
+
+        if BlockService(session).is_blocked(
+            bot_user.telegram_user_id,
+            update.effective_user.username or bot_user.username,
+        ):
+            await update.message.reply_text(t("errors.user_blocked", update))
             return
 
         topup_svc = TopupService(session)
