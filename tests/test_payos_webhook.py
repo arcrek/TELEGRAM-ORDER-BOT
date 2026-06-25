@@ -59,9 +59,14 @@ def client(monkeypatch):
     # Ensure checksum key is configured for signature verification
     monkeypatch.setenv("PAYOS_CHECKSUM_KEY", "test_checksum_key")
 
+    previous = app.dependency_overrides.get(get_db)
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
-    app.dependency_overrides.clear()
+    # Restore only the one key we changed, not all overrides
+    if previous is None:
+        app.dependency_overrides.pop(get_db, None)
+    else:
+        app.dependency_overrides[get_db] = previous
 
 
 @pytest.fixture(autouse=True, scope="function")
@@ -92,7 +97,7 @@ def test_payos_webhook_success_calls_processor(client, monkeypatch):
         bot = None
         supplier_bot = None
 
-        def process_payment_success(self, order_id: str, transaction_id: str, amount: int) -> bool:
+        def process_payment_success(self, order_id: str, transaction_id: str, amount: int, request_loop=None) -> bool:
             calls["order_id"] = order_id
             calls["transaction_id"] = transaction_id
             calls["amount"] = amount

@@ -292,9 +292,9 @@ class TestOrderService:
         order_service.update_order_status(order.id, OrderStatus.PAID)
         
         # Try to cancel - should raise ValueError
-        with pytest.raises(ValueError, match="can only be cancelled"):
+        with pytest.raises(ValueError, match="not in PENDING status"):
             order_service.cancel_order(order.id)
-        
+
         # Verify order is still PAID
         retrieved = order_service.get_order_by_id(order.id)
         assert retrieved.status == OrderStatus.PAID
@@ -311,7 +311,7 @@ class TestOrderService:
         order_service.cancel_order(order.id)
         
         # Try to cancel again - should raise ValueError
-        with pytest.raises(ValueError, match="can only be cancelled"):
+        with pytest.raises(ValueError, match="not in PENDING status"):
             order_service.cancel_order(order.id)
 
     def test_cancel_order_processing(self, order_service, sample_variation):
@@ -324,7 +324,7 @@ class TestOrderService:
         
         order_service.update_order_status(order.id, OrderStatus.PROCESSING)
         
-        with pytest.raises(ValueError, match="can only be cancelled"):
+        with pytest.raises(ValueError, match="not in PENDING status"):
             order_service.cancel_order(order.id)
 
     def test_cancel_order_delivered(self, order_service, sample_variation):
@@ -337,7 +337,7 @@ class TestOrderService:
         
         order_service.update_order_status(order.id, OrderStatus.DELIVERED)
         
-        with pytest.raises(ValueError, match="can only be cancelled"):
+        with pytest.raises(ValueError, match="not in PENDING status"):
             order_service.cancel_order(order.id)
 
     def test_cancel_order_nonexistent(self, order_service):

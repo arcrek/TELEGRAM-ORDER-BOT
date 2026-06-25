@@ -25,10 +25,15 @@ def get_user_language(update: Update) -> str:
     if not user:
         # No user context; fall back to global default (Vietnamese)
         return DEFAULT_LANGUAGE
-    
-    session_factory = get_session_factory()
-    session = session_factory()
-    
+
+    try:
+        session_factory = get_session_factory()
+        session = session_factory()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"DB unavailable for language lookup: {e}")
+        return DEFAULT_LANGUAGE
+
     try:
         preference_service = UserPreferenceService(session)
 

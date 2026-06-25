@@ -56,21 +56,28 @@ def override_get_db():
         session.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-
-
 @pytest.fixture(autouse=True, scope="function")
 def setup_database():
     """Set up test database before each test."""
+    # Reinstall the DB override each time (other test files may have cleared it)
+    app.dependency_overrides[get_db] = override_get_db
     # Drop and recreate tables for each test to ensure clean state
     Base.metadata.drop_all(test_engine)
     Base.metadata.create_all(test_engine)
+    # Reset rate limiter storage so login attempts don't bleed between tests
+    try:
+        import src.dashboard.routers.auth as _auth_module
+        _auth_module.limiter._storage.reset()
+    except Exception:
+        pass
     yield
     # Clean up after test - clear data but keep tables
     with test_engine.connect() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
         conn.commit()
+    # Only remove our override; leave others intact
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture

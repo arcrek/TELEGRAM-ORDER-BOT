@@ -21,6 +21,7 @@ from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
 from src.bot.utils.user_locks import get_user_lock
 from src.bot.messages.emoji_renderer import render as render_emoji, substitute_tokens
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.bot.utils.language import t
 
 logger = logging.getLogger(__name__)
 

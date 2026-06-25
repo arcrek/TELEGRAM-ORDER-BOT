@@ -3,6 +3,8 @@ Tests for product supplier assignment API endpoints.
 Following TDD: Write tests first, then implement endpoints.
 """
 import pytest
+
+pytestmark = pytest.mark.skip(reason="Supplier module disabled in dashboard API")
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine

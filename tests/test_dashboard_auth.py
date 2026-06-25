@@ -4,11 +4,11 @@ Tests for dashboard authentication.
 import pytest
 from datetime import datetime, timedelta, timezone
 from jose import jwt
+import src.dashboard.auth as _auth_module
 from src.dashboard.auth import (
     verify_password,
     get_password_hash,
     create_access_token,
-    SECRET_KEY,
     ALGORITHM,
 )
 
@@ -66,7 +66,7 @@ class TestJWTToken:
         data = {"sub": "testuser"}
         token = create_access_token(data)
         
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _auth_module.SECRET_KEY, algorithms=[ALGORITHM])
         assert payload["sub"] == "testuser"
 
     def test_token_expiration(self):
@@ -75,7 +75,7 @@ class TestJWTToken:
         expires_delta = timedelta(minutes=15)
         token = create_access_token(data, expires_delta=expires_delta)
         
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, _auth_module.SECRET_KEY, algorithms=[ALGORITHM])
         assert "exp" in payload
         
         # Check expiration is approximately correct
@@ -93,7 +93,7 @@ class TestJWTToken:
         token = create_access_token(data, expires_delta=expires_delta)
 
         with pytest.raises(jwt.ExpiredSignatureError):
-            jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            jwt.decode(token, _auth_module.SECRET_KEY, algorithms=[ALGORITHM])
 
 
 def test_create_access_token_requires_secret_key(monkeypatch):

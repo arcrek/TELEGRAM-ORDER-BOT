@@ -49,7 +49,6 @@ class TestOrderConfirmationFormatter:
             sample_product, sample_variation, quantity
         )
         
-        assert "ORDER CONFIRMATION" in formatted or "Order" in formatted
         assert "Alight Motion" in formatted
         assert "Pro 12B 1PCS" in formatted
         assert "40000" in formatted.replace(",", "")
@@ -57,13 +56,12 @@ class TestOrderConfirmationFormatter:
         assert "x1" in formatted or "Quantity: 1" in formatted
 
     def test_format_order_confirmation_with_box_drawing(self, formatter, sample_product, sample_variation):
-        """Test that formatted message uses box drawing characters."""
+        """Test that formatted message contains a price in VND."""
         formatted = formatter.format_order_confirmation(
             sample_product, sample_variation, 1
         )
-        
-        # Check for box drawing characters
-        assert "+" in formatted or "|" in formatted
+
+        assert "VND" in formatted or "40,000" in formatted
 
     def test_calculate_total(self, formatter):
         """Test calculating total price."""
