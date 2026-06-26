@@ -25,6 +25,7 @@ import { BalancesPage } from './pages/BalancesPage'
 import { BlockedUsersPage } from './pages/BlockedUsersPage'
 import { ManualsPage } from './pages/ManualsPage'
 import { EmojiPlaceholdersPage } from './pages/EmojiPlaceholdersPage'
+import { RefundsPage } from './pages/RefundsPage'
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -77,6 +78,7 @@ export function AppRoutes() {
           <Route path="manuals" element={<ManualsPage />} />
           <Route path="bonus-summary" element={<BonusSummaryPage />} />
           <Route path="balances" element={<BalancesPage />} />
+          <Route path="refunds" element={<RefundsPage />} />
           <Route path="blocked-users" element={<BlockedUsersPage />} />
           <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
