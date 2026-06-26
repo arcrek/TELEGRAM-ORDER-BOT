@@ -96,7 +96,13 @@ class BalanceService:
         return True, "ok"
 
     def refund_order(
-        self, order_id: str, refund_amount: int, telegram_admin_id: int
+        self,
+        order_id: str,
+        refund_amount: int,
+        telegram_admin_id: int | None = None,
+        *,
+        admin_id: str | None = None,
+        reason: str | None = None,
     ) -> tuple[bool, str]:
         """
         Atomically mark order REFUNDED and credit buyer's balance.
@@ -107,7 +113,9 @@ class BalanceService:
         Args:
             order_id: Order.id (string).
             refund_amount: Amount to credit (VND). Must be > 0.
-            telegram_admin_id: Telegram user ID of the admin issuing the refund.
+            telegram_admin_id: Telegram user ID of the admin issuing the refund (bot path).
+            admin_id: Dashboard Admin.id for dashboard-initiated refunds.
+            reason: Optional override for the audit row reason string.
 
         Returns:
             (success, reason) where reason is one of:
@@ -154,6 +162,11 @@ class BalanceService:
         ).scalar_one()
 
         # 6. Append audit record.
+        if reason is None:
+            if admin_id is not None:
+                reason = f"Refund via dashboard by admin:{admin_id}"
+            else:
+                reason = f"Refund via /rf by tg:{telegram_admin_id}"
         self.session.add(
             BalanceTransaction(
                 bot_user_id=bot_user.id,
@@ -161,10 +174,36 @@ class BalanceService:
                 balance_after=new_balance,
                 kind=BalanceTxKind.REFUND,
                 reference_id=order_id,
-                admin_id=None,
-                reason=f"Refund via /rf by tg:{telegram_admin_id}",
+                admin_id=admin_id,
+                reason=reason,
             )
         )
+        self.session.commit()
+        return True, "ok"
+
+    def mark_order_refunded(self, order_id: str) -> tuple[bool, str]:
+        """Mark an order REFUNDED without crediting balance or writing a tx.
+
+        Same atomic eligibility guard as refund_order. Idempotent — a second
+        call on a REFUNDED order returns (False, 'ineligible').
+
+        Returns (success, reason) in {'ok','not_found','ineligible'}.
+        """
+        order = self.session.execute(
+            select(Order).where(Order.id == order_id)
+        ).scalar_one_or_none()
+        if order is None:
+            return False, "not_found"
+
+        eligible = (OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.DELIVERED)
+        result = self.session.execute(
+            update(Order)
+            .where(Order.id == order_id, Order.status.in_(eligible))
+            .values(status=OrderStatus.REFUNDED, refunded_at=func.now())
+        )
+        if result.rowcount == 0:
+            return False, "ineligible"
+
         self.session.commit()
         return True, "ok"
 
