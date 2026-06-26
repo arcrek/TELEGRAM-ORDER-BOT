@@ -87,10 +87,9 @@ describe('Routing', () => {
       </MemoryRouter>
     )
 
-    // RefundsPage mounts a PageHeader which renders an <h1 class="page-header__title">
-    // There are two h1s (topbar + page header), both showing the i18n key literal
-    // in jsdom (no i18n provider) — assert there is at least one heading present.
-    const headings = screen.getAllByRole('heading', { level: 1 })
-    expect(headings.length).toBeGreaterThan(0)
+    // Without an i18n provider, keys render literally. The topbar shows "refunds"
+    // (nav key) while the page header shows "refunds.title" (unique to RefundsPage).
+    // This assertion fails if the route is missing or renders the wrong component.
+    expect(screen.getByText('refunds.title')).toBeInTheDocument()
   })
 })

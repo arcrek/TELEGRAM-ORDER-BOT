@@ -29,6 +29,7 @@
     "failed": "Failed",
     "confirmCreditMsg": "Refund and credit balance for the selected orders?",
     "confirmStatusMsg": "Mark the selected orders as refunded (no balance credit)?",
-    "noEligibleSelected": "No eligible orders selected"
+    "noEligibleSelected": "No eligible orders selected",
+    "successSummary": "Refunded {{ok}}/{{total}} orders"
   }
 }

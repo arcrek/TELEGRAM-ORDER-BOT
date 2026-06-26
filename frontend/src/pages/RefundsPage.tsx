@@ -133,7 +133,7 @@ export function RefundsPage() {
         return next
       })
       const ok = res.results.filter(r => r.success).length
-      toast.success(`${ok}/${res.results.length}`)
+      toast.success(t('refunds.successSummary', { ok, total: res.results.length }))
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : String(e))
     }

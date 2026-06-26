@@ -29,6 +29,7 @@
     "failed": "Thất bại",
     "confirmCreditMsg": "Hoàn tiền và cộng vào số dư cho các đơn đã chọn?",
     "confirmStatusMsg": "Đánh dấu các đơn đã chọn là đã hoàn (không cộng số dư)?",
-    "noEligibleSelected": "Chưa chọn đơn đủ điều kiện nào"
+    "noEligibleSelected": "Chưa chọn đơn đủ điều kiện nào",
+    "successSummary": "Đã hoàn {{ok}}/{{total}} đơn"
   }
 }
