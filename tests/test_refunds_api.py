@@ -104,3 +104,37 @@ def test_orders_user_not_found(client, headers, seeded):
 def test_orders_requires_auth(client, seeded):
     r = client.get("/api/refunds/orders", params={"search": "777"})
     assert r.status_code == 401
+
+
+def test_preview_recomputes_server_side(client, headers, seeded, db):
+    # Make the paid order 15 days old against a 30-day duration → ~half refund.
+    from datetime import datetime, timedelta
+    o = db.query(Order).get("ordP")
+    o.created_at = datetime.utcnow() - timedelta(days=15)
+    db.commit()
+
+    r = client.post("/api/refunds/preview", headers=headers,
+                    json={"items": [{"order_id": "ordP", "days": 0, "months": 1, "years": 0}]})
+    assert r.status_code == 200
+    body = r.json()
+    row = body["rows"][0]
+    assert row["duration_days"] == 30
+    assert row["elapsed"] == 15
+    assert row["refund_amount"] == 50000
+    assert body["total_refund"] == 50000
+
+
+def test_preview_ineligible_is_zero(client, headers, seeded):
+    r = client.post("/api/refunds/preview", headers=headers,
+                    json={"items": [{"order_id": "ordX", "days": 30}]})
+    assert r.status_code == 200
+    row = r.json()["rows"][0]
+    assert row["eligible"] is False
+    assert row["refund_amount"] == 0
+
+
+def test_preview_unknown_order(client, headers, seeded):
+    r = client.post("/api/refunds/preview", headers=headers,
+                    json={"items": [{"order_id": "ghost", "days": 30}]})
+    assert r.status_code == 200
+    assert r.json()["rows"][0]["refund_amount"] == 0

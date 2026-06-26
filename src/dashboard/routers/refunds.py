@@ -15,6 +15,7 @@ from src.database.models.enums import OrderStatus
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.order_service import OrderService
 from src.utils.datetime_format import to_utc_iso
+from src.utils.refund_calc import combine_duration, compute_refund
 
 router = APIRouter()
 
@@ -56,6 +57,32 @@ class RefundUser(BaseModel):
 class RefundOrdersResponse(BaseModel):
     user: RefundUser
     orders: list[RefundOrderRow]
+
+
+class PreviewItem(BaseModel):
+    order_id: str
+    days: int = 0
+    months: int = 0
+    years: int = 0
+
+
+class PreviewRequest(BaseModel):
+    items: list[PreviewItem]
+
+
+class PreviewRow(BaseModel):
+    order_id: str
+    duration_days: int
+    elapsed: int
+    remaining: int
+    daily_rate: int
+    refund_amount: int
+    eligible: bool
+
+
+class PreviewResponse(BaseModel):
+    rows: list[PreviewRow]
+    total_refund: int
 
 
 # --------------------------------------------------------------------------- #
@@ -132,3 +159,35 @@ async def list_user_orders(
         ),
         orders=rows,
     )
+
+
+@router.post("/preview", response_model=PreviewResponse)
+async def preview_refunds(
+    payload: PreviewRequest,
+    db: Session = Depends(get_db),
+    _admin: Admin = Depends(require_viewer_or_admin),
+):
+    order_service = OrderService(db)
+    rows: list[PreviewRow] = []
+    total = 0
+    for item in payload.items:
+        order = order_service.get_order_by_id(item.order_id)
+        duration_days = combine_duration(item.days, item.months, item.years)
+        if order is None:
+            rows.append(PreviewRow(order_id=item.order_id, duration_days=duration_days,
+                                   elapsed=0, remaining=0, daily_rate=0,
+                                   refund_amount=0, eligible=False))
+            continue
+        eligible = order.status in _ELIGIBLE
+        elapsed, remaining, refund = compute_refund(
+            order.total_amount, duration_days, order.created_at
+        )
+        if not eligible:
+            refund = 0
+        daily_rate = round(order.total_amount / duration_days) if duration_days > 0 else 0
+        total += refund
+        rows.append(PreviewRow(order_id=item.order_id, duration_days=duration_days,
+                               elapsed=elapsed, remaining=remaining,
+                               daily_rate=daily_rate, refund_amount=refund,
+                               eligible=eligible))
+    return PreviewResponse(rows=rows, total_refund=total)
