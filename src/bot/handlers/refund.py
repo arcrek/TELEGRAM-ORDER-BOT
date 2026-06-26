@@ -9,8 +9,6 @@ decision to diverge from i18n for admin-only flows).
 """
 
 import logging
-import re
-from datetime import datetime
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
@@ -23,70 +21,12 @@ from src.database.services.balance_service import BalanceService
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.order_service import OrderService
 from src.utils.datetime_format import format_local, resolve_tz
+from src.utils.refund_calc import compute_refund as _compute_refund, parse_duration_to_days
 
 logger = logging.getLogger(__name__)
 
 # Statuses eligible for a refund.
 _ELIGIBLE = {OrderStatus.PAID, OrderStatus.PROCESSING, OrderStatus.DELIVERED}
-
-# Regex for duration argument: <n><unit?>  (e.g. "30", "4w", "2months")
-_DURATION_RE = re.compile(r"^(\d+)\s*([a-z]*)$", re.IGNORECASE)
-
-# Unit → multiplier (fixed approximations; documented in parse_duration_to_days).
-_UNIT_MAP: dict[str, int] = {
-    "": 1,
-    "d": 1,
-    "day": 1,
-    "days": 1,
-    "w": 7,
-    "wk": 7,
-    "wks": 7,
-    "week": 7,
-    "weeks": 7,
-    "m": 30,
-    "mo": 30,
-    "mon": 30,
-    "month": 30,
-    "months": 30,
-    "y": 365,
-    "yr": 365,
-    "yrs": 365,
-    "year": 365,
-    "years": 365,
-}
-
-
-def parse_duration_to_days(text: str) -> int | None:
-    """Parse a human duration string into a number of days.
-
-    Supported units (fixed conversions):
-      bare number / d / day / days  → n days
-      w / wk / wks / week / weeks   → n * 7
-      m / mo / mon / month / months → n * 30
-      y / yr / yrs / year / years   → n * 365
-
-    Returns None if the input is invalid or n <= 0.
-    """
-    m = _DURATION_RE.match(text.strip())
-    if not m:
-        return None
-    n = int(m.group(1))
-    unit = m.group(2).lower()
-    if n <= 0 or unit not in _UNIT_MAP:
-        return None
-    return n * _UNIT_MAP[unit]
-
-
-def _compute_refund(
-    order_total: int, duration_days: int, created_at: datetime
-) -> tuple[int, int, int]:
-    """Compute refund amount and return (elapsed_days, remaining_days, refund_amount)."""
-    elapsed = max(0, (datetime.utcnow() - created_at).days)
-    remaining = max(0, duration_days - elapsed)
-    refund = round(order_total / duration_days * remaining)
-    # Cap at total_amount to guard floating-point edge cases.
-    refund = min(refund, order_total)
-    return elapsed, remaining, refund
 
 
 async def refund_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
