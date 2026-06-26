@@ -3,15 +3,16 @@
 Admin-facing strings are Vietnamese (consistent with admin-only flows).
 """
 
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.dashboard.auth import get_db, require_viewer_or_admin
+from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
 from src.database.models.admin import Admin
 from src.database.models.enums import OrderStatus
+from src.database.services.balance_service import BalanceService
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.order_service import OrderService
 from src.utils.datetime_format import to_utc_iso
@@ -83,6 +84,30 @@ class PreviewRow(BaseModel):
 class PreviewResponse(BaseModel):
     rows: list[PreviewRow]
     total_refund: int
+
+
+class ConfirmItem(BaseModel):
+    order_id: str
+    days: int = 0
+    months: int = 0
+    years: int = 0
+    mode: Literal["credit", "status"]
+
+
+class ConfirmRequest(BaseModel):
+    items: list[ConfirmItem]
+
+
+class ConfirmResult(BaseModel):
+    order_id: str
+    success: bool
+    reason: str
+    refund_amount: Optional[int] = None
+    new_balance: Optional[int] = None
+
+
+class ConfirmResponse(BaseModel):
+    results: list[ConfirmResult]
 
 
 # --------------------------------------------------------------------------- #
@@ -191,3 +216,49 @@ async def preview_refunds(
                                daily_rate=daily_rate, refund_amount=refund,
                                eligible=eligible))
     return PreviewResponse(rows=rows, total_refund=total)
+
+
+@router.post("/confirm", response_model=ConfirmResponse)
+async def confirm_refunds(
+    payload: ConfirmRequest,
+    db: Session = Depends(get_db),
+    current_admin: Admin = Depends(require_admin_role),
+):
+    order_service = OrderService(db)
+    balance_service = BalanceService(db)
+    user_service = BotUserService(db)
+    results: list[ConfirmResult] = []
+
+    for item in payload.items:
+        order = order_service.get_order_by_id(item.order_id)
+        if order is None:
+            results.append(ConfirmResult(order_id=item.order_id, success=False,
+                                         reason="not_found"))
+            continue
+
+        if item.mode == "status":
+            ok, reason = balance_service.mark_order_refunded(item.order_id)
+            results.append(ConfirmResult(order_id=item.order_id, success=ok, reason=reason))
+            continue
+
+        # mode == "credit": recompute amount server-side.
+        duration_days = combine_duration(item.days, item.months, item.years)
+        _, _, refund = compute_refund(order.total_amount, duration_days, order.created_at)
+        if refund <= 0:
+            results.append(ConfirmResult(order_id=item.order_id, success=False,
+                                         reason="no_refund", refund_amount=0))
+            continue
+
+        ok, reason = balance_service.refund_order(
+            item.order_id, refund, admin_id=str(current_admin.id)
+        )
+        new_balance = None
+        if ok:
+            buyer = user_service.get_user_by_telegram_id(order.user_id)
+            new_balance = buyer.balance if buyer else None
+        results.append(ConfirmResult(
+            order_id=item.order_id, success=ok, reason=reason,
+            refund_amount=refund if ok else None, new_balance=new_balance,
+        ))
+
+    return ConfirmResponse(results=results)

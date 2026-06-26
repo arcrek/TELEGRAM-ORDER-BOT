@@ -138,3 +138,64 @@ def test_preview_unknown_order(client, headers, seeded):
                     json={"items": [{"order_id": "ghost", "days": 30}]})
     assert r.status_code == 200
     assert r.json()["rows"][0]["refund_amount"] == 0
+
+
+def test_confirm_credit_moves_money(client, headers, seeded, db):
+    from datetime import datetime, timedelta
+    o = db.query(Order).get("ordP")
+    o.created_at = datetime.utcnow() - timedelta(days=15)
+    db.commit()
+
+    r = client.post("/api/refunds/confirm", headers=headers, json={"items": [
+        {"order_id": "ordP", "days": 0, "months": 1, "years": 0, "mode": "credit"}
+    ]})
+    assert r.status_code == 200
+    res = r.json()["results"][0]
+    assert res["success"] is True
+    assert res["refund_amount"] == 50000
+    assert res["new_balance"] == 50000
+    assert db.query(Order).get("ordP").status == OrderStatus.REFUNDED
+    bt = db.query(BotUser).filter_by(telegram_user_id=777).one()
+    assert bt.balance == 50000
+
+
+def test_confirm_status_only(client, headers, seeded, db):
+    r = client.post("/api/refunds/confirm", headers=headers, json={"items": [
+        {"order_id": "ordP", "mode": "status"}
+    ]})
+    assert r.status_code == 200
+    assert r.json()["results"][0]["success"] is True
+    assert db.query(Order).get("ordP").status == OrderStatus.REFUNDED
+    assert db.query(BotUser).filter_by(telegram_user_id=777).one().balance == 0
+
+
+def test_confirm_mixed_eligibility(client, headers, seeded):
+    r = client.post("/api/refunds/confirm", headers=headers, json={"items": [
+        {"order_id": "ordX", "days": 30, "mode": "credit"},  # pending → ineligible
+        {"order_id": "ghost", "mode": "status"},             # missing
+    ]})
+    res = {x["order_id"]: x for x in r.json()["results"]}
+    assert res["ordX"]["success"] is False
+    assert res["ghost"]["success"] is False
+    assert res["ghost"]["reason"] == "not_found"
+
+
+def test_confirm_zero_refund_skipped(client, headers, seeded, db):
+    from datetime import datetime, timedelta
+    o = db.query(Order).get("ordP")
+    o.created_at = datetime.utcnow() - timedelta(days=400)  # expired
+    db.commit()
+    r = client.post("/api/refunds/confirm", headers=headers, json={"items": [
+        {"order_id": "ordP", "days": 30, "mode": "credit"}
+    ]})
+    res = r.json()["results"][0]
+    assert res["success"] is False
+    assert res["reason"] == "no_refund"
+    assert db.query(Order).get("ordP").status == OrderStatus.PAID  # unchanged
+
+
+def test_confirm_requires_admin_role(client, seeded):
+    r = client.post("/api/refunds/confirm", json={"items": [
+        {"order_id": "ordP", "mode": "status"}
+    ]})
+    assert r.status_code == 401
