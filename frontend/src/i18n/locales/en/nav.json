@@ -15,6 +15,7 @@
     "preUploaded": "Inventory",
     "inventoryUpdate": "Stock Update",
     "balances": "Balances",
+    "refunds": "Refunds",
     "blockedUsers": "Blocked Users",
     "apiDocs": "API",
     "logout": "Logout",

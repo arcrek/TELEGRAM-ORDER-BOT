@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   BarChart2, Package, Layers, Star, ShoppingCart, Bell, Upload,
   Database, Gift, Settings, Users, Boxes, Wallet, BookOpen, Smile,
-  Bot, PanelLeftClose, PanelLeft, Ban,
+  Bot, PanelLeftClose, PanelLeft, Ban, RotateCcw,
 } from 'lucide-react'
 import { Tooltip } from '../../shared/components/Tooltip'
 import { ROUTE_GROUPS, routesByGroup } from '../routes'
@@ -12,7 +12,7 @@ import './Sidebar.css'
 
 const ICON_MAP: Record<string, LucideIcon> = {
   BarChart2, Package, Layers, Star, ShoppingCart, Bell,
-  Upload, Database, Gift, Settings, Users, Boxes, Wallet, BookOpen, Smile, Ban,
+  Upload, Database, Gift, Settings, Users, Boxes, Wallet, BookOpen, Smile, Ban, RotateCcw,
 }
 
 export interface NavBadgeCounts {
