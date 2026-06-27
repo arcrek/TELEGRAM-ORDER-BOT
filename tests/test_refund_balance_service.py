@@ -40,7 +40,7 @@ def test_refund_order_credits_balance_and_sets_admin_id(session):
     assert tx.kind == BalanceTxKind.REFUND
     assert tx.admin_id == "admin_1"
     assert "admin_1" in (tx.reason or "")
-    assert session.query(Order).get("ord1").status == OrderStatus.REFUNDED
+    assert session.get(Order, "ord1").status == OrderStatus.REFUNDED
 
 
 def test_refund_order_bot_path_unchanged(session):
@@ -61,7 +61,7 @@ def test_mark_order_refunded_status_only(session):
     session.refresh(user)
     assert user.balance == 5000  # untouched
     assert session.query(BalanceTransaction).count() == 0  # no audit row
-    order = session.query(Order).get("ord1")
+    order = session.get(Order, "ord1")
     assert order.status == OrderStatus.REFUNDED
     assert order.refunded_at is not None
 

@@ -246,7 +246,7 @@ async def confirm_refunds(
         _, _, refund = compute_refund(order.total_amount, duration_days, order.created_at)
         if refund <= 0:
             results.append(ConfirmResult(order_id=item.order_id, success=False,
-                                         reason="no_refund", refund_amount=0))
+                                         reason="no_refund", refund_amount=None))
             continue
 
         ok, reason = balance_service.refund_order(

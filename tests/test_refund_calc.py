@@ -1,5 +1,5 @@
 """Tests for the shared prorated-refund calculation util."""
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from src.utils.refund_calc import (
     MONTH_DAYS,

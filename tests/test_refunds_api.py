@@ -1,5 +1,7 @@
 """Tests for the /api/refunds router."""
-import tempfile, os, atexit
+import atexit
+import os
+import tempfile
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -17,7 +19,9 @@ from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
 from src.database.models.enums import OrderStatus, DeliveryType
 
-_f = tempfile.NamedTemporaryFile(delete=False, suffix=".db"); _path = _f.name; _f.close()
+_f = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
+_path = _f.name
+_f.close()
 atexit.register(lambda: os.path.exists(_path) and os.unlink(_path))
 engine = create_engine(f"sqlite:///{_path}", connect_args={"check_same_thread": False})
 Base.metadata.create_all(engine)
@@ -58,7 +62,8 @@ def headers(db: Session):
     admin = Admin(id="admin_1", username="adm", email="a@x.com",
                   password_hash=get_password_hash("pw"), full_name="A",
                   role=AdminRole.ADMIN, is_active=True)
-    db.add(admin); db.commit()
+    db.add(admin)
+    db.commit()
     return {"Authorization": f"Bearer {create_access_token(data={'sub': 'adm'})}"}
 
 
@@ -70,9 +75,11 @@ def seeded(db: Session):
     var = ProductVariation(id="v1", product_id="p1", name="1 tháng", price=100000, stock=5, is_active=True)
     paid = Order(id="ordP", user_id=777, status=OrderStatus.PAID, total_amount=100000)
     pending = Order(id="ordX", user_id=777, status=OrderStatus.PENDING, total_amount=50000)
-    db.add_all([user, prod, var, paid, pending]); db.commit()
+    db.add_all([user, prod, var, paid, pending])
+    db.commit()
     db.add(OrderItem(id="oi1", order_id="ordP", product_id="p1", variation_id="v1",
-                     quantity=1, unit_price=100000, subtotal=100000)); db.commit()
+                     quantity=1, unit_price=100000, subtotal=100000))
+    db.commit()
     return user
 
 
@@ -109,7 +116,7 @@ def test_orders_requires_auth(client, seeded):
 def test_preview_recomputes_server_side(client, headers, seeded, db):
     # Make the paid order 15 days old against a 30-day duration → ~half refund.
     from datetime import datetime, timedelta
-    o = db.query(Order).get("ordP")
+    o = db.get(Order, "ordP")
     o.created_at = datetime.utcnow() - timedelta(days=15)
     db.commit()
 
@@ -137,12 +144,14 @@ def test_preview_unknown_order(client, headers, seeded):
     r = client.post("/api/refunds/preview", headers=headers,
                     json={"items": [{"order_id": "ghost", "days": 30}]})
     assert r.status_code == 200
-    assert r.json()["rows"][0]["refund_amount"] == 0
+    row = r.json()["rows"][0]
+    assert row["refund_amount"] == 0
+    assert row["eligible"] is False
 
 
 def test_confirm_credit_moves_money(client, headers, seeded, db):
     from datetime import datetime, timedelta
-    o = db.query(Order).get("ordP")
+    o = db.get(Order, "ordP")
     o.created_at = datetime.utcnow() - timedelta(days=15)
     db.commit()
 
@@ -154,7 +163,7 @@ def test_confirm_credit_moves_money(client, headers, seeded, db):
     assert res["success"] is True
     assert res["refund_amount"] == 50000
     assert res["new_balance"] == 50000
-    assert db.query(Order).get("ordP").status == OrderStatus.REFUNDED
+    assert db.get(Order, "ordP").status == OrderStatus.REFUNDED
     bt = db.query(BotUser).filter_by(telegram_user_id=777).one()
     assert bt.balance == 50000
 
@@ -165,7 +174,7 @@ def test_confirm_status_only(client, headers, seeded, db):
     ]})
     assert r.status_code == 200
     assert r.json()["results"][0]["success"] is True
-    assert db.query(Order).get("ordP").status == OrderStatus.REFUNDED
+    assert db.get(Order, "ordP").status == OrderStatus.REFUNDED
     assert db.query(BotUser).filter_by(telegram_user_id=777).one().balance == 0
 
 
@@ -182,7 +191,7 @@ def test_confirm_mixed_eligibility(client, headers, seeded):
 
 def test_confirm_zero_refund_skipped(client, headers, seeded, db):
     from datetime import datetime, timedelta
-    o = db.query(Order).get("ordP")
+    o = db.get(Order, "ordP")
     o.created_at = datetime.utcnow() - timedelta(days=400)  # expired
     db.commit()
     r = client.post("/api/refunds/confirm", headers=headers, json={"items": [
@@ -191,7 +200,7 @@ def test_confirm_zero_refund_skipped(client, headers, seeded, db):
     res = r.json()["results"][0]
     assert res["success"] is False
     assert res["reason"] == "no_refund"
-    assert db.query(Order).get("ordP").status == OrderStatus.PAID  # unchanged
+    assert db.get(Order, "ordP").status == OrderStatus.PAID  # unchanged
 
 
 def test_confirm_requires_admin_role(client, seeded):
@@ -199,3 +208,15 @@ def test_confirm_requires_admin_role(client, seeded):
         {"order_id": "ordP", "mode": "status"}
     ]})
     assert r.status_code == 401
+
+
+def test_confirm_forbidden_for_viewer(client, seeded, db: Session):
+    viewer = Admin(id="viewer_1", username="vwr", email="v@x.com",
+                   password_hash=get_password_hash("pw"), full_name="V",
+                   role=AdminRole.VIEWER, is_active=True)
+    db.add(viewer)
+    db.commit()
+    viewer_headers = {"Authorization": f"Bearer {create_access_token(data={'sub': 'vwr'})}"}
+    r = client.post("/api/refunds/confirm", headers=viewer_headers,
+                    json={"items": [{"order_id": "ordP", "mode": "status"}]})
+    assert r.status_code == 403
