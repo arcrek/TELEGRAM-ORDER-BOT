@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { LucideIcon } from 'lucide-react'
 import {
   Search, BarChart2, Package, Layers, Star, ShoppingCart, Bell, Upload,
-  Database, Gift, Settings,
+  Database, Gift, Settings, RotateCcw,
 } from 'lucide-react'
 import { useFocusTrap } from '../../shared/hooks/useFocusTrap'
 import { ROUTES } from '../routes'
@@ -13,7 +13,7 @@ import './CommandPalette.css'
 
 const ICON_MAP: Record<string, LucideIcon> = {
   BarChart2, Package, Layers, Star, ShoppingCart, Bell,
-  Upload, Database, Gift, Settings,
+  Upload, Database, Gift, Settings, RotateCcw,
 }
 
 interface CommandPaletteProps {

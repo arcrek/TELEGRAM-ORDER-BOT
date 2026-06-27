@@ -33,6 +33,7 @@ from src.dashboard.routers import (
     emoji_placeholders,
     emoji_thumbnails,
     blocked_users,
+    refunds,
 )
 from src.dashboard.routers import api_v1
 
@@ -116,6 +117,7 @@ app.include_router(
 app.include_router(payos_webhook.router, prefix="/api/payos", tags=["payos"])
 app.include_router(iotd.router, prefix="/api/iotd", tags=["iotd"])
 app.include_router(balances.router, prefix="/api/balances", tags=["balances"])
+app.include_router(refunds.router, prefix="/api/refunds", tags=["refunds"])
 app.include_router(
     blocked_users.router, prefix="/api/blocked-users", tags=["blocked-users"]
 )

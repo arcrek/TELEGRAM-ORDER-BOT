@@ -24,6 +24,7 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/bonus-summary', key: 'bonusSummary', labelKey: 'nav.bonusSummary', group: 'operations', iconName: 'Gift' },
   // Operations (continued)
   { path: '/balances', key: 'balances', labelKey: 'nav.balances', group: 'operations', iconName: 'Wallet' },
+  { path: '/refunds', key: 'refunds', labelKey: 'nav.refunds', group: 'operations', iconName: 'RotateCcw' },
   { path: '/blocked-users', key: 'blockedUsers', labelKey: 'nav.blockedUsers', group: 'operations', iconName: 'Ban' },
   { path: '/suppliers', key: 'suppliers', labelKey: 'nav.suppliers', group: 'operations', iconName: 'Users' },
   // Settings
