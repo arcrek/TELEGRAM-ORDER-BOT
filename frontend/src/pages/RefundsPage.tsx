@@ -10,6 +10,7 @@ import { Badge, type OrderStatus } from '../shared/components/Badge/Badge'
 import { Checkbox } from '../shared/components/Checkbox'
 import { useToast } from '../shared/components/Toast'
 import { useConfirm } from '../shared/components/ConfirmDialog'
+import { useFormat } from '../shared/lib/format'
 import {
   fetchUserOrders,
   previewRefunds,
@@ -34,6 +35,9 @@ export function RefundsPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const confirm = useConfirm()
+  const fmt = useFormat()
+
+  const fmtBuyDate = (s: string | null) => (s ? fmt.dateTime(s) : '—')
 
   const [phase, setPhase] = useState<Phase>('search')
   const [search, setSearch] = useState('')
@@ -189,6 +193,16 @@ export function RefundsPage() {
       ),
     },
     {
+      id: 'buyDate',
+      header: t('refunds.buyDate'),
+      width: 170,
+      cell: row => (
+        <span style={{ opacity: row.eligible ? 1 : 0.45, color: 'var(--text-muted)', fontSize: 13 }}>
+          {fmtBuyDate(row.created_at)}
+        </span>
+      ),
+    },
+    {
       id: 'status',
       header: t('refunds.status'),
       width: 200,
@@ -225,6 +239,14 @@ export function RefundsPage() {
       align: 'right',
       width: 140,
       cell: row => fmtVnd(row.total_amount),
+    },
+    {
+      id: 'buyDate',
+      header: t('refunds.buyDate'),
+      width: 170,
+      cell: row => (
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{fmtBuyDate(row.created_at)}</span>
+      ),
     },
     {
       id: 'days',
