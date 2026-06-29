@@ -6,6 +6,7 @@ import secrets
 import uuid
 from typing import Optional, List, Dict
 from sqlalchemy import update
+from sqlalchemy.sql import func
 from sqlalchemy.orm import Session
 from src.database.models import Order, OrderItem
 from src.database.models.enums import OrderStatus
@@ -351,6 +352,8 @@ class OrderService:
             return None
 
         order.status = status
+        if status == OrderStatus.PAID and order.paid_at is None:
+            order.paid_at = func.now()
         if payment_transaction_id:
             order.payment_transaction_id = payment_transaction_id
 
