@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Sidebar, type NavBadgeCounts } from './Sidebar'
 import { Topbar } from './Topbar'
 import { MobileDrawer } from './MobileDrawer'
@@ -7,6 +7,9 @@ import { CommandPalette } from './CommandPalette'
 import { useDisclosure } from '../../shared/hooks/useDisclosure'
 import { useMediaQuery } from '../../shared/hooks/useMediaQuery'
 import { apiClient } from '../../shared/lib/api'
+import { useTranslation } from 'react-i18next'
+import { useToast } from '../../shared/components/Toast'
+import { buildToastParams, pickNewOrders, type PaidOrder } from './newOrderToast'
 import './AppShell.css'
 
 function readCollapsed(): boolean {
@@ -31,6 +34,47 @@ export function AppShell() {
   }, [collapsed])
 
   useEffect(() => { drawer.close() }, [])
+
+  const { toast } = useToast()
+  const { t } = useTranslation()  // single 'translation' namespace; key path is 'orders.newOrderToast'
+  const sinceRef = useRef<string | null>(null)
+  const seenRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    let cancelled = false
+    const LOOKBACK_MS = 30_000
+
+    const poll = async () => {
+      try {
+        const since = sinceRef.current
+        const qs = since
+          ? `?since=${encodeURIComponent(new Date(new Date(since).getTime() - LOOKBACK_MS).toISOString())}`
+          : ''
+        const res = await apiClient.get<{ server_now: string; orders: PaidOrder[] }>(
+          `/api/orders/recent-paid${qs}`,
+        )
+        if (cancelled) return
+        const { server_now, orders } = res.data
+        if (since === null) {
+          // baseline: seed nothing, do not toast history
+          sinceRef.current = server_now
+          return
+        }
+        for (const o of pickNewOrders(orders, seenRef.current)) {
+          toast.success(t('orders.newOrderToast', buildToastParams(o)), { durationMs: 8000 })
+        }
+        // cap memory of the seen-set
+        if (seenRef.current.size > 200) {
+          seenRef.current = new Set(Array.from(seenRef.current).slice(-200))
+        }
+        sinceRef.current = server_now
+      } catch { /* fail silently */ }
+    }
+
+    poll()
+    const interval = setInterval(poll, 10_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [toast, t])
 
   // Fetch todo counts for sidebar badges
   useEffect(() => {
