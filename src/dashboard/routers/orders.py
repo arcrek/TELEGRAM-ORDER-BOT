@@ -3,8 +3,10 @@ Orders router.
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import select, func as sa_func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from src.dashboard.auth import get_current_admin, get_db
@@ -248,6 +250,57 @@ async def export_orders(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=orders_export.csv"},
     )
+
+
+@router.get("/recent-paid")
+async def recent_paid(
+    since: Optional[str] = Query(None, description="ISO8601; return orders paid after this"),
+    current_admin=Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Orders newly paid since `since`, for dashboard toast notifications."""
+    service = OrderService(db)
+    server_now = db.execute(select(sa_func.now())).scalar_one()
+
+    # SQLite returns a string from func.now(); Postgres returns a datetime.
+    # Coerce to datetime before passing to to_utc_iso.
+    if isinstance(server_now, str):
+        server_now = datetime.fromisoformat(server_now)
+
+    orders_out = []
+    if since:
+        try:
+            # URL query params decode '+' as ' '; re-normalize to '+' for timezone offsets.
+            since_normalized = since.replace(" ", "+")
+            since_dt = datetime.fromisoformat(since_normalized)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid 'since' timestamp: {since}",
+            )
+        # Compare naive-to-naive: DB timestamps are naive UTC.
+        if since_dt.tzinfo is not None:
+            since_dt = since_dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+        orders = service.list_recently_paid(since_dt)
+        buyer_map = service.get_buyer_info_map([o.user_id for o in orders])
+        for order in orders:
+            orders_out.append({
+                "id": order.id,
+                "user_id": order.user_id,
+                "buyer_username": buyer_map.get(order.user_id, {}).get("username"),
+                "buyer_name": buyer_map.get(order.user_id, {}).get("name"),
+                "total_amount": order.total_amount,
+                "items": [
+                    {
+                        "product_name": item.product.name if item.product else None,
+                        "variation_name": item.variation.name if item.variation else None,
+                    }
+                    for item in order.items
+                ],
+            })
+
+    return {"server_now": to_utc_iso(server_now), "orders": orders_out}
 
 
 @router.get("/{order_id}")

@@ -69,6 +69,10 @@ class Order(Base):
 
     refunded_at = Column(DateTime, nullable=True)
 
+    # Write-once timestamp of the PENDING->PAID transition. Set in both paid paths
+    # (balance + IPN); never re-bumped on later DELIVERED/PROCESSING/REFUNDED changes.
+    paid_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False

@@ -15,6 +15,7 @@
     "allStatuses": "Tất cả Trạng thái",
     "deliverySearchPlaceholder": "Tìm theo nội dung đã giao...",
     "deliveryDateFrom": "Giao từ ngày",
-    "deliveryDateTo": "Giao đến ngày"
+    "deliveryDateTo": "Giao đến ngày",
+    "newOrderToast": "{{buyer}} vừa mua {{detail}} với giá {{total}}"
   }
 }

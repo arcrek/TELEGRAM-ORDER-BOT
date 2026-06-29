@@ -62,6 +62,7 @@ class BalanceService:
                 status=OrderStatus.PAID,
                 payment_provider="balance",
                 payment_transaction_id=tx_id,
+                paid_at=func.now(),
             )
         )
         if r1.rowcount == 0:
