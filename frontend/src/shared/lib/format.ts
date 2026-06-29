@@ -36,6 +36,11 @@ export function formatCurrency(value: number, locale: string, currency = 'VND'):
   }).format(value)
 }
 
+/** Compact VND for inline copy: 50000 -> "50.000đ" (matches bot/admin phrasing). */
+export function formatVndCompact(value: number): string {
+  return `${value.toLocaleString('vi-VN')}đ`
+}
+
 export function formatNumber(value: number, locale: string): string {
   return new Intl.NumberFormat(locale).format(value)
 }

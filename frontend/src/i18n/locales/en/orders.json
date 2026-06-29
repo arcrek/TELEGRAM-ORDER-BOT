@@ -15,6 +15,7 @@
     "allStatuses": "All Statuses",
     "deliverySearchPlaceholder": "Search by delivered content...",
     "deliveryDateFrom": "Delivered from",
-    "deliveryDateTo": "Delivered until"
+    "deliveryDateTo": "Delivered until",
+    "newOrderToast": "{{buyer}} just bought {{detail}} for {{total}}"
   }
 }
