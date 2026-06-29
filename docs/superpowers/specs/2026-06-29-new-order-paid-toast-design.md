@@ -210,6 +210,20 @@ aria-live variant; 8s gives the admin time to read. Stacked toasts are already s
 - A mocked poll response containing a new order id triggers exactly one `toast.success`;
   a repeated id in the lookback window triggers none.
 
+## Known behavior (accepted)
+
+**One toast on login for a very recent sale.** The poll uses a 30s lookback
+(`since = watermark − 30s`) to close the `func.now()`-vs-commit race (an order
+whose `paid_at` precedes the watermark but whose row commits just after a poll
+must not be skipped). The baseline poll sets the watermark but does not pre-seed
+the seen-set, so an order paid in the ~30s window immediately before an admin
+opens/reloads the dashboard will toast **once** on the first non-baseline poll.
+This is bounded to 30s, deduped thereafter by the seen-set, and always a genuine
+recent sale — accepted rather than fixed. (A zero-history-on-login alternative
+would require a second baseline fetch at `since = server_now − 30s` to seed the
+seen-set without toasting; deliberately not implemented — not worth the extra
+round-trip.)
+
 ## Out of scope (YAGNI)
 
 - SSE / websockets (polling chosen).

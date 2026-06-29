@@ -42,6 +42,11 @@ export function AppShell() {
 
   useEffect(() => {
     let cancelled = false
+    // Re-query the last 30s every tick so an order whose paid_at precedes the
+    // watermark but commits after a poll is never skipped; the seen-set dedups
+    // the overlap. Known, accepted edge: a sale paid in the ~30s before login
+    // toasts once on the first non-baseline poll (bounded, deduped after, always
+    // a real recent sale) — see the design spec's "Known behavior" note.
     const LOOKBACK_MS = 30_000
 
     const poll = async () => {
