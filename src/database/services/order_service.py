@@ -623,8 +623,6 @@ class OrderService:
 
     def list_recently_paid(self, since: datetime, limit: int = 50) -> list:
         """Orders paid after `since`, ascending by paid_at, items eager-loaded."""
-        from src.database.models.order_item import OrderItem
-
         stmt = (
             select(Order)
             .where(Order.paid_at.isnot(None), Order.paid_at > since)

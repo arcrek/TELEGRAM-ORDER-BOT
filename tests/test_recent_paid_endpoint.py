@@ -85,9 +85,11 @@ def test_recent_paid_without_since_is_empty(client):
 def test_recent_paid_requires_auth():
     # Do NOT override get_current_admin -> real auth runs -> 401/403
     app.dependency_overrides[get_db] = _override_get_db
-    resp = TestClient(app).get("/api/orders/recent-paid?since=2026-06-29T10:00:00+00:00")
-    assert resp.status_code in (401, 403)
-    app.dependency_overrides.clear()
+    try:
+        resp = TestClient(app).get("/api/orders/recent-paid?since=2026-06-29T10:00:00+00:00")
+        assert resp.status_code in (401, 403)
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_list_recently_paid_compiles_for_postgres():

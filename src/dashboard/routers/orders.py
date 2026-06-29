@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, func as sa_func
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from src.dashboard.auth import get_current_admin, get_db
@@ -259,8 +259,6 @@ async def recent_paid(
     db: Session = Depends(get_db),
 ):
     """Orders newly paid since `since`, for dashboard toast notifications."""
-    from sqlalchemy import func as sa_func
-
     service = OrderService(db)
     server_now = db.execute(select(sa_func.now())).scalar_one()
 
