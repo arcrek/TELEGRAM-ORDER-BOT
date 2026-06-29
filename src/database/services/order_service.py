@@ -4,10 +4,11 @@ Order service layer for business logic.
 
 import secrets
 import uuid
+from datetime import datetime
 from typing import Optional, List, Dict
-from sqlalchemy import update
+from sqlalchemy import update, select
 from sqlalchemy.sql import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from src.database.models import Order, OrderItem
 from src.database.models.enums import OrderStatus
 from src.database.models.bot_user import BotUser
@@ -619,6 +620,22 @@ class OrderService:
                 "name": " ".join(parts) if parts else None,
             }
         return result
+
+    def list_recently_paid(self, since: datetime, limit: int = 50) -> list:
+        """Orders paid after `since`, ascending by paid_at, items eager-loaded."""
+        from src.database.models.order_item import OrderItem
+
+        stmt = (
+            select(Order)
+            .where(Order.paid_at.isnot(None), Order.paid_at > since)
+            .order_by(Order.paid_at.asc())
+            .limit(limit)
+            .options(
+                joinedload(Order.items).joinedload(OrderItem.product),
+                joinedload(Order.items).joinedload(OrderItem.variation),
+            )
+        )
+        return self.session.execute(stmt).unique().scalars().all()
 
     def get_order_with_details(self, order_id: str) -> Optional[Dict]:
         """
