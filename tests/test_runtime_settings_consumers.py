@@ -73,6 +73,46 @@ async def test_start_uses_runtime_identity_and_support_lines(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_start_keeps_settings_after_track_user_commit(monkeypatch, db_session):
+    AppSettingsService(db_session).update_settings(
+        system_name="Committed Shop",
+        support_line_1="@committed_support",
+        support_line_2="support@committed.example",
+    )
+    monkeypatch.setattr(commands, "get_session_factory", lambda: lambda: db_session)
+    monkeypatch.setattr(commands, "get_persistent_keyboard", lambda _update: MagicMock())
+
+    def translate(key, _update, **kwargs):
+        values = {
+            "commands.start.welcome": "Welcome",
+            "commands.start.description": f"Shop: {kwargs.get('system_name')}",
+            "commands.start.help_hint": "Help",
+            "start_menu.title": "Menu",
+        }
+        return values.get(key, key)
+
+    monkeypatch.setattr(commands, "t", translate)
+    message = SimpleNamespace(reply_text=AsyncMock())
+    update = SimpleNamespace(
+        effective_user=SimpleNamespace(
+            id=456,
+            username="committed_user",
+            first_name="Committed",
+            last_name=None,
+        ),
+        message=message,
+    )
+
+    await commands.start(update, SimpleNamespace())
+
+    welcome = message.reply_text.await_args_list[0].args[0]
+    assert "Shop: Committed Shop" in welcome
+    assert welcome.endswith(
+        "Help\n@committed_support\nsupport@committed.example"
+    )
+
+
+@pytest.mark.asyncio
 async def test_setadmin_mutations_require_configured_owner(monkeypatch):
     owner_check = MagicMock(return_value=True)
     add_admin = MagicMock(return_value=True)

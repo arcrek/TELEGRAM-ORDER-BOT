@@ -135,6 +135,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         settings = AppSettingsService(session).get_settings()
+        system_name = settings.system_name
+        support_line_1 = settings.support_line_1
+        support_line_2 = settings.support_line_2
         try:
             bot_user_service = BotUserService(session)
             bot_user_service.track_user(
@@ -154,11 +157,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     welcome_message = (
         f"{t('commands.start.welcome', update, name=user.first_name or 'User')}\n\n"
-        f"{t('commands.start.description', update, system_name=settings.system_name)}\n"
+        f"{t('commands.start.description', update, system_name=system_name)}\n"
         f"{t('commands.start.help_hint', update)}"
     )
     support_lines = "\n".join(
-        line for line in (settings.support_line_1, settings.support_line_2) if line
+        line for line in (support_line_1, support_line_2) if line
     )
     if support_lines:
         welcome_message += f"\n{support_lines}"
