@@ -3,8 +3,11 @@ Database connection setup.
 """
 
 import os
-from sqlalchemy import create_engine, Engine
-from sqlalchemy.orm import sessionmaker, Session
+
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.engine import URL
+from sqlalchemy.orm import Session, sessionmaker
+
 from src.database.models.base import Base
 
 # Module-level singletons — one engine, one pool, shared across all requests/handlers.
@@ -12,7 +15,7 @@ _engine: Engine | None = None
 _SessionLocal: sessionmaker | None = None
 
 
-def get_database_url() -> str:
+def get_database_url() -> str | URL:
     """Get database URL for PostgreSQL.
 
     Priority:
@@ -32,7 +35,18 @@ def get_database_url() -> str:
     password = os.getenv("DB_PASSWORD")
 
     if host and name and user and password:
-        return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+        try:
+            port_number = int(port)
+        except ValueError:
+            raise RuntimeError("DB_PORT must be an integer") from None
+        return URL.create(
+            "postgresql+psycopg2",
+            username=user,
+            password=password,
+            host=host,
+            port=port_number,
+            database=name,
+        )
 
     raise RuntimeError(
         "Database configuration is missing. "
@@ -40,11 +54,15 @@ def get_database_url() -> str:
     )
 
 
-def _is_sqlite(url: str) -> bool:
-    return url.startswith("sqlite")
+def _is_sqlite(url: str | URL) -> bool:
+    return (
+        url.drivername.startswith("sqlite")
+        if isinstance(url, URL)
+        else url.startswith("sqlite")
+    )
 
 
-def create_engine_instance(database_url: str | None = None) -> Engine:
+def create_engine_instance(database_url: str | URL | None = None) -> Engine:
     """Create SQLAlchemy engine. Call once; reuse the returned instance."""
     if database_url is None:
         database_url = get_database_url()

@@ -609,6 +609,26 @@ def test_setup_creates_atomic_private_env_and_bootstraps_over_stdin(
     assert "PayOS merchant dashboard" in result.stdout
 
 
+def test_setup_uses_generic_database_and_order_prefix_defaults(
+    tmp_path: Path,
+) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    deployment = deployment_answers()
+    deployment[6:8] = ["", ""]
+    bootstrap = bootstrap_answers()
+    bootstrap[5] = ""
+
+    result = run_setup(root, environment(bin_dir, tmp_path), deployment + bootstrap)
+
+    assert result.returncode == 0, result.stderr
+    parsed = fake_compose_env(root / ".env")
+    payload = json.loads((tmp_path / "bootstrap.json").read_text())
+    assert parsed["DB_NAME"] == "bot_order"
+    assert parsed["DB_USER"] == "bot_order"
+    assert payload["settings"]["order_prefix"] == "ORD"
+
+
 def test_setup_does_not_publish_invalid_temporary_env(tmp_path: Path) -> None:
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)
@@ -766,20 +786,26 @@ def test_update_backs_up_before_pull_and_rebuild(tmp_path: Path) -> None:
     assert "Backup: backups/pre_update_" in result.stdout
 
 
-def test_update_readiness_failure_prints_recovery_evidence(tmp_path: Path) -> None:
+@pytest.mark.parametrize("failure_stage", ["pull", "build", "readiness"])
+def test_update_post_backup_failure_prints_recovery_evidence(
+    tmp_path: Path,
+    failure_stage: str,
+) -> None:
     root, bin_dir = operator_project(tmp_path)
     (root / ".env").write_text("DB_NAME=test\n")
     executable(
         bin_dir / "docker",
         "#!/usr/bin/env bash\n"
         '[[ "$*" == *"pg_dump"* ]] && { printf \'%s\\n\' \'SQL dump\'; exit 0; }\n'
-        '[[ "$*" == *"exec -T api python -c"* ]] && exit 1\n'
+        '[[ "$FAIL_STAGE" == build && "$*" == "compose up -d --build" ]] && exit 1\n'
+        '[[ "$FAIL_STAGE" == readiness && "$*" == *"exec -T api python -c"* ]] && exit 1\n'
         "exit 0\n",
     )
     executable(
         bin_dir / "git",
         "#!/usr/bin/env bash\n"
         '[[ "$*" == "rev-parse HEAD" ]] && printf \'%s\\n\' \'previous-sha\'\n'
+        '[[ "$FAIL_STAGE" == pull && "$*" == "pull --ff-only" ]] && exit 1\n'
         "exit 0\n",
     )
     executable(bin_dir / "sleep", "#!/usr/bin/env bash\nexit 0\n")
@@ -787,12 +813,13 @@ def test_update_readiness_failure_prints_recovery_evidence(tmp_path: Path) -> No
     result = subprocess.run(
         ["/bin/bash", "manage.sh", "update"],
         cwd=root,
-        env=environment(bin_dir, tmp_path),
+        env=environment(bin_dir, tmp_path, FAIL_STAGE=failure_stage),
         text=True,
         capture_output=True,
     )
 
     assert result.returncode != 0
+    assert f"Update failed during {failure_stage}" in result.stderr
     assert "Previous commit: previous-sha" in result.stderr
     assert "Backup: backups/pre_update_" in result.stderr
 
@@ -917,11 +944,49 @@ def test_restore_uses_container_database_environment(tmp_path: Path) -> None:
     assert 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' in commands
     assert 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' in commands
     assert "docker compose up -d api bot frontend" in commands
+    assert "urllib.request.urlopen('http://localhost:8000/ready', timeout=2)" in commands
     assert "DROP DATABASE" not in commands
     assert "CREATE DATABASE" not in commands
     assert "host-user" not in commands
     assert "host-db" not in commands
     assert restored_sql.read_text() == "SELECT 1;\n"
+
+
+def test_restore_fails_when_final_api_database_readiness_fails(
+    tmp_path: Path,
+) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    backup = root / "backup.sql"
+    backup.write_text("SELECT 1;\n")
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf 'docker %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        '[[ "$*" == *"psql -v ON_ERROR_STOP=1"* ]] && cat > "$RESTORE_STDIN"\n'
+        '[[ "$*" == *"exec -T api python -c"* ]] && exit 1\n'
+        "exit 0\n",
+    )
+    executable(bin_dir / "sleep", "#!/usr/bin/env bash\nexit 0\n")
+    restored_sql = tmp_path / "restored.sql"
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/restore_database.sh", str(backup)],
+        cwd=root,
+        env=environment(
+            bin_dir,
+            tmp_path,
+            RESTORE_STDIN=str(restored_sql),
+        ),
+        input="RESTORE\n",
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "API/database readiness failed after restore" in result.stderr
+    assert "docker compose up -d api bot frontend" in Path(
+        environment(bin_dir, tmp_path)["COMMAND_LOG"]
+    ).read_text()
 
 
 def test_restore_requires_exact_confirmation(tmp_path: Path) -> None:

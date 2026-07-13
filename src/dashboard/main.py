@@ -52,8 +52,8 @@ logging.basicConfig(
 )
 
 app = FastAPI(
-    title="MTK Bot Order Dashboard API",
-    description="Admin dashboard API for MTK Bot Order System",
+    title="Bot Order Dashboard API",
+    description="Dashboard API for Bot Order System",
     version="1.0.0",
 )
 

@@ -60,8 +60,8 @@ On the first run, when `.env` does not exist, the wizard asks for these deployme
 4. **Frontend port** — positive host port; defaults to `8082`.
 5. **Telegram bot token** — required and hidden while entered.
 6. **Bot owner Telegram ID** — required positive integer.
-7. **Database name** — defaults to `mtkbot`.
-8. **Database user** — defaults to `mtkbot`.
+7. **Database name** — defaults to `bot_order`.
+8. **Database user** — defaults to `bot_order`.
 9. **Database password** — required and hidden while entered.
 10. **PayOS client ID** — required and hidden while entered.
 11. **PayOS API key** — required and hidden while entered.
@@ -76,14 +76,14 @@ The wizard then asks for runtime identity and the first administrator on every r
 3. **Support line 1** — optional, at most 200 characters.
 4. **Support line 2** — optional, at most 200 characters.
 5. **Timezone** — valid IANA name; defaults to `Asia/Ho_Chi_Minh`.
-6. **Order prefix** — 2–8 uppercase letters or digits and cannot start with `TU`; defaults to `MTK` in the wizard.
+6. **Order prefix** — 2–8 uppercase letters or digits and cannot start with `TU`; defaults to `ORD` in the wizard.
 7. **API documentation URL** — optional absolute HTTPS URL; defaults to the API URL plus `/docs` only when the API URL uses HTTPS, otherwise empty.
 8. **Admin username** — 3–64 letters, digits, dots, underscores, or hyphens.
 9. **Admin full name** — 1–120 characters.
 10. **Admin email** — valid email address.
 11. **Admin password and confirmation** — hidden, matching, and 12–256 characters.
 
-Setup starts `postgres` and `api`, waits up to two minutes for readiness, bootstraps the first administrator and settings in one transaction, and then builds and starts `bot` and `frontend`.
+Setup starts `postgres` and `api`, waits up to two minutes for readiness, bootstraps the first administrator and settings in one transaction, then builds and starts `bot` and `frontend` and verifies final API/database readiness.
 
 ### Safe reruns
 
@@ -129,9 +129,9 @@ Do not enable real payments until both sandbox paths work.
 
 ## 9. Uninstall or preserve data
 
-There is no automated uninstall command. `./manage.sh stop` stops services without deleting data. Persistent state lives under `data/postgres_data/` and `data/delivery_data/`; database dumps live under `backups/`.
+There is no automated uninstall command. `./manage.sh stop` stops services without deleting data. PostgreSQL state lives under `data/postgres_data/`, transient generated delivery files use the project-scoped Docker volume `delivery_data`, and database dumps live under `backups/`.
 
-To uninstall while preserving data, create and verify a backup, stop the system, and copy `backups/` and `data/delivery_data/` to protected off-host storage before removing containers or the checkout. A database dump is the supported portable database copy; do not treat a live PostgreSQL data directory as a backup.
+To uninstall while preserving data, create and verify a database backup and stop the system before removing containers or the checkout. A database dump is the supported portable copy of orders and pre-uploaded inventory; do not treat a live PostgreSQL data directory as a backup. Compose does not delete the `delivery_data` volume on `stop` or ordinary `down`; avoid `down -v` until any interrupted delivery has been resolved.
 
 To remove all data, stop the system, verify that retention is no longer required, and delete the checkout including `data/` and `backups/`. That action permanently removes the database and delivery inventory. Removing Docker containers alone does not remove the host bind-mounted directories.
 

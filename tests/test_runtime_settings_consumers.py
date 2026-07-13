@@ -338,6 +338,11 @@ async def test_dashboard_root_uses_runtime_system_name(monkeypatch):
     }
 
 
+def test_dashboard_openapi_metadata_is_generic():
+    assert dashboard_main.app.title == "Bot Order Dashboard API"
+    assert dashboard_main.app.description == "Dashboard API for Bot Order System"
+
+
 @pytest.mark.asyncio
 async def test_topup_payment_link_uses_runtime_settings(monkeypatch):
     session = MagicMock()

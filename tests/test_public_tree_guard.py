@@ -11,7 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 GUARD = ROOT / "scripts" / "check_public_tree.sh"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 FORBIDDEN_ARTIFACTS = (
-    (".env", ".env"),
+    (".env", ".env*"),
+    (".env.local", ".env*"),
+    (".env.production", ".env*"),
+    (".env.example.local", ".env*"),
     ("database.db", "*.db"),
     ("database.sqlite", "*.sqlite"),
     ("backup.sql", "*.sql"),
@@ -76,6 +79,17 @@ def test_guard_rejects_each_tracked_private_artifact(
     assert result.returncode != 0
     assert f"Tracked private artifact matches: {pattern}" in result.stderr
     assert not Path(env["DOCKER_LOG"]).exists()
+
+
+def test_guard_allows_tracked_env_example(tmp_path: Path) -> None:
+    root, env = public_project(tmp_path)
+    (root / ".env.example").write_text("SAFE_PLACEHOLDER=\n")
+    subprocess.run(["git", "add", "--", ".env.example"], cwd=root, check=True)
+
+    result = run_guard(root, env)
+
+    assert result.returncode == 0, result.stderr
+    assert Path(env["DOCKER_LOG"]).exists()
 
 
 def test_guard_runs_exact_pinned_redacted_gitleaks_scan(tmp_path: Path) -> None:

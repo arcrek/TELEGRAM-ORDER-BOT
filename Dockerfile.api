@@ -44,8 +44,8 @@ COPY scripts ./scripts
 COPY alembic.ini ./alembic.ini
 COPY entrypoint.sh ./entrypoint.sh
 
-# Create non-root user and app data dir with proper ownership
-RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app && \
+# Create non-root user and writable app data directories
+RUN useradd -m appuser && mkdir -p /app/data /app/delivery_data && chown -R appuser:appuser /app && \
     sed -i 's/\r$//' /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 

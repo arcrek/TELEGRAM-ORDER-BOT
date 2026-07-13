@@ -16,7 +16,7 @@ Expected behavior: stop progress and exit `0`. Missing/invalid `.env` or a stop 
 
 ## `./manage.sh restart`
 
-Builds images, force-recreates the services, and waits for API readiness. Persistent bind mounts remain intact.
+Builds images, force-recreates the services, and waits for API readiness. Persistent database and delivery storage remain intact.
 
 Expected behavior: build/recreate output and exit `0` after readiness. A build, start, or readiness failure returns nonzero; the message distinguishes readiness failure after restart. Use it after changing `.env`, Dockerfiles, backend dependencies, or the frontend API build argument.
 
@@ -63,7 +63,7 @@ Restores a non-empty SQL dump into the configured database. This is destructive 
 
 The command requires the exact interactive confirmation `RESTORE`. Any other response prints `Restore cancelled` and exits `0` without changing data. After confirmation it stops `bot` and `api`, starts PostgreSQL, waits up to one minute for database readiness, restores with stop-on-error, and starts `api`, `bot`, and `frontend`.
 
-The command exits `0` only when both the SQL restore and the final start of `api`, `bot`, and `frontend` succeed. It does not perform a final API readiness check. Always run:
+The command exits `0` only when the SQL restore, final start of `api`, `bot`, and `frontend`, and final API/database readiness check succeed. Afterward, run:
 
 ```bash
 ./manage.sh status
@@ -84,7 +84,7 @@ Performs the supported source update path:
 6. Fetch only a fast-forward update from the configured Git upstream.
 7. Rebuild/start the services and wait for readiness.
 
-The backup is created before any network update or rebuild. Exit `0` means the pull, rebuild, and readiness check completed. Dirty tracked files, backup failure, a non-fast-forward pull, build error, or readiness failure returns nonzero. On readiness failure the script prints the previous commit and backup path; it does not roll back automatically. Ignored `.env`, backups, and bind-mounted data are left untouched.
+The backup is created before any network update or rebuild. Exit `0` means the pull, rebuild, and readiness check completed. Dirty tracked files, backup failure, a non-fast-forward pull, build error, or readiness failure returns nonzero. Every pull, build, or readiness failure after the backup prints the previous commit and backup path; the script does not roll back automatically. Ignored `.env`, backups, and bind-mounted data are left untouched.
 
 Read release notes and verify backup retention before running an update. Do not update when the current checkout contains uncommitted operator patches.
 
@@ -96,7 +96,7 @@ Prints the command summary. Missing command, `help`, `-h`, and `--help` all show
 
 The scripts never prune backups. Define a capacity-aware policy and automate it outside the repository. A reasonable minimum for an active installation is seven daily, four weekly, and twelve monthly verified backups, plus the most recent pre-update backup. Regulatory or customer requirements may demand longer retention.
 
-Keep at least one encrypted copy off the application host and restrict access as tightly as `.env`. A database dump contains administrator records, customer/order history, and balance data. Back up `data/delivery_data/` separately when unused delivery inventory must survive host loss; never commit either backup class.
+Keep at least one encrypted copy off the application host and restrict access as tightly as `.env`. A database dump contains administrator records, customer/order history, balances, and pre-uploaded inventory. The Docker-managed `delivery_data` volume contains only transient generated files for interrupted deliveries; it is not the authoritative inventory store and is not included in the SQL dump.
 
 Record the creation time, application commit, size, checksum, encryption location, and last restore result for each retained backup. Delete expired copies securely according to the operator's data-retention policy.
 
@@ -203,4 +203,4 @@ docker compose exec postgres sh -c 'exec psql -U "$POSTGRES_USER" -d "$POSTGRES_
 
 At the `psql` prompt run `\password`, exit, update `DB_PASSWORD` in `.env`, and return immediately to `./manage.sh restart` followed by `./manage.sh doctor`.
 
-Do not use raw Compose to delete bind mounts, skip backups, run schema changes, or start source-tree services outside the supported four-service graph.
+Do not use raw Compose to delete persistent volumes or bind mounts, skip backups, run schema changes, or start source-tree services outside the supported four-service graph.

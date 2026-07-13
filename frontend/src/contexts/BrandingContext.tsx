@@ -20,6 +20,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => { void refresh() }, [refresh])
+  useEffect(() => { document.title = systemName }, [systemName])
 
   const value = useMemo(() => ({ systemName, refresh }), [systemName, refresh])
   return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>

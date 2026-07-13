@@ -30,8 +30,8 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 COPY src ./src
 
-# Create non-root user and app data dir with proper ownership (run as root)
-RUN useradd -m appuser && mkdir -p /app/data && chown -R appuser:appuser /app
+# Create non-root user and writable app data directories (run as root)
+RUN useradd -m appuser && mkdir -p /app/data /app/delivery_data && chown -R appuser:appuser /app
 
 # Switch to non-root user for running the app
 USER appuser

@@ -1710,7 +1710,7 @@ Expected: lint passes; build completes with no TypeScript errors. Fix any prop-n
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /home/arcrek/MTK_BOT_ORDER
+cd "$(git rev-parse --show-toplevel)"
 git add frontend/src/pages/BlockedUsersPage.tsx frontend/src/app/routes.ts frontend/src/App.tsx frontend/src/app/layouts/Sidebar.tsx frontend/src/i18n/locales/vi/nav.json frontend/src/i18n/locales/en/nav.json
 git commit -m "feat(block): add Blocked Users dashboard page"
 ```

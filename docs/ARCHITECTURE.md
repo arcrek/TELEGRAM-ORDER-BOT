@@ -38,12 +38,16 @@ The PayOS webhook is unauthenticated HTTP at the routing layer but accepts payme
 
 ## Persistence and ownership
 
-Compose uses host bind mounts rather than named volumes:
+Compose uses one host bind mount and one Docker-managed named volume:
 
 | Host path | Container path | Services | Ownership and handling |
 | --- | --- | --- | --- |
 | `./data/postgres_data` | `/var/lib/postgresql/data` | `postgres` | PostgreSQL owns the live files inside the container. Do not edit or copy them while live; use `./manage.sh backup` for portable backups. |
-| `./data/delivery_data` | `/app/delivery_data` | `api`, `bot` | Contains sensitive digital delivery inventory. The host operator controls directory access; both application services require read/write access. Never commit, publish, or include it in diagnostics. |
+| Compose volume `delivery_data` | `/app/delivery_data` | `api`, `bot` | Holds transient generated delivery files. Both images create the mount point with non-root application ownership, so a new volume is writable on first start. Files are sensitive and are deleted after successful delivery. |
+
+Pre-uploaded inventory is authoritative in PostgreSQL, not in the delivery
+volume. The volume exists so a generated file can survive container recreation
+during an interrupted delivery; it is not a substitute for a database backup.
 
 `api`, `bot`, and `frontend` otherwise use replaceable image/container filesystems. Database dumps are written atomically to host `backups/` and are not managed by Compose. Removing containers does not remove bind-mounted host data.
 

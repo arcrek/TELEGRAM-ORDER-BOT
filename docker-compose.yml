@@ -31,7 +31,7 @@ services:
       PAYOS_API_KEY: ${PAYOS_API_KEY:?PAYOS_API_KEY is required}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:?PAYOS_CHECKSUM_KEY is required}
     volumes:
-      - ./data/delivery_data:/app/delivery_data
+      - delivery_data:/app/delivery_data
     ports:
       - "${DASHBOARD_PORT:-8001}:8000"
     depends_on:
@@ -61,7 +61,7 @@ services:
       PAYOS_API_KEY: ${PAYOS_API_KEY:?PAYOS_API_KEY is required}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:?PAYOS_CHECKSUM_KEY is required}
     volumes:
-      - ./data/delivery_data:/app/delivery_data
+      - delivery_data:/app/delivery_data
     depends_on:
       api:
         condition: service_healthy
@@ -79,3 +79,6 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+
+volumes:
+  delivery_data:

@@ -152,9 +152,9 @@ else
   telegram_token="$REPLY"
   prompt_positive_int "Bot owner Telegram ID" ""
   owner_id="$REPLY"
-  prompt_default "Database name" "mtkbot"
+  prompt_default "Database name" "bot_order"
   db_name="$REPLY"
-  prompt_default "Database user" "mtkbot"
+  prompt_default "Database user" "bot_order"
   db_user="$REPLY"
   prompt_secret_required "Database password"
   db_password="$REPLY"
@@ -218,7 +218,7 @@ support_line_2="$REPLY"
 prompt_default "Timezone" "Asia/Ho_Chi_Minh"
 timezone="$REPLY"
 while true; do
-  prompt_default "Order prefix" "MTK"
+  prompt_default "Order prefix" "ORD"
   order_prefix="$REPLY"
   if [[ "$order_prefix" == TU* ]]; then
     printf 'Order prefix cannot start with TU.\n' >&2

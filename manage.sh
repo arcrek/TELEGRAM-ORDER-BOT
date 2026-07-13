@@ -112,10 +112,18 @@ update_system() {
   previous="$(git rev-parse HEAD)"
   backup="$(scripts/backup_database.sh "pre_update_$(date -u +%Y%m%d_%H%M%S)")"
   printf 'Backup: %s\nPrevious commit: %s\n' "$backup" "$previous"
-  git pull --ff-only
-  "${COMPOSE[@]}" up -d --build
+  if ! git pull --ff-only; then
+    printf 'Update failed during pull. Previous commit: %s Backup: %s\n' \
+      "$previous" "$backup" >&2
+    return 1
+  fi
+  if ! "${COMPOSE[@]}" up -d --build; then
+    printf 'Update failed during build. Previous commit: %s Backup: %s\n' \
+      "$previous" "$backup" >&2
+    return 1
+  fi
   if ! wait_ready; then
-    printf 'Update failed readiness. Previous commit: %s Backup: %s\n' \
+    printf 'Update failed during readiness. Previous commit: %s Backup: %s\n' \
       "$previous" "$backup" >&2
     return 1
   fi
