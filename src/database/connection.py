@@ -1,6 +1,7 @@
 """
 Database connection setup.
 """
+
 import os
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
@@ -20,6 +21,8 @@ def get_database_url() -> str:
     """
     database_url = os.getenv("DATABASE_URL")
     if database_url:
+        if not database_url.startswith(("postgresql://", "postgresql+")):
+            raise RuntimeError("DATABASE_URL must use PostgreSQL")
         return database_url
 
     host = os.getenv("DB_HOST")
@@ -48,16 +51,18 @@ def create_engine_instance(database_url: str | None = None) -> Engine:
 
     if _is_sqlite(database_url):
         # SQLite: no pool tuning needed; used only in tests
-        return create_engine(database_url, echo=False, connect_args={"check_same_thread": False})
+        return create_engine(
+            database_url, echo=False, connect_args={"check_same_thread": False}
+        )
 
     return create_engine(
         database_url,
         echo=False,
-        pool_size=10,          # persistent connections kept open
-        max_overflow=20,       # extra connections allowed under burst
-        pool_recycle=1800,     # recycle connections older than 30 min (avoids stale TCP)
-        pool_pre_ping=True,    # test connection health before use
-        pool_timeout=30,       # raise after 30 s if no connection available
+        pool_size=10,  # persistent connections kept open
+        max_overflow=20,  # extra connections allowed under burst
+        pool_recycle=1800,  # recycle connections older than 30 min (avoids stale TCP)
+        pool_pre_ping=True,  # test connection health before use
+        pool_timeout=30,  # raise after 30 s if no connection available
     )
 
 
@@ -80,7 +85,9 @@ def get_session_factory(engine: Engine | None = None) -> sessionmaker:
         # Caller supplied an explicit engine (test isolation) — don't cache it.
         return sessionmaker(bind=engine, autocommit=False, autoflush=False)
     if _SessionLocal is None:
-        _SessionLocal = sessionmaker(bind=get_engine(), autocommit=False, autoflush=False)
+        _SessionLocal = sessionmaker(
+            bind=get_engine(), autocommit=False, autoflush=False
+        )
     return _SessionLocal
 
 
@@ -96,4 +103,3 @@ def get_db_session():
         yield session
     finally:
         session.close()
-

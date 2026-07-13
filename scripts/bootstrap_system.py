@@ -42,10 +42,10 @@ class BootstrapPayload(BaseModel):
 def bootstrap_system(session: Session, payload: BootstrapPayload) -> dict[str, bool]:
     admin_service = AdminService(session)
     settings_service = AppSettingsService(session)
-    admin_created = not admin_service.list_admins(include_inactive=True)
-    settings_created = not settings_service.settings_exist()
 
     try:
+        admin_created = not admin_service.list_admins(include_inactive=True)
+        settings_created = not settings_service.settings_exist()
         if admin_created:
             admin_service.create_admin(
                 username=payload.admin.username,
