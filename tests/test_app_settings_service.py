@@ -2,9 +2,7 @@
 Unit tests for AppSettingsService.
 """
 
-import os
 import pytest
-from unittest.mock import patch
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -30,25 +28,16 @@ class TestAppSettingsServiceDefaults:
         assert settings.id == "global"
 
     def test_default_timezone_is_ho_chi_minh(self, db_session):
-        """When APP_TIMEZONE env var is absent, default to Asia/Ho_Chi_Minh."""
-        with patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("APP_TIMEZONE", None)
-            service = AppSettingsService(db_session)
-            settings = service.get_settings()
+        service = AppSettingsService(db_session)
+        settings = service.get_settings()
         assert settings.timezone == "Asia/Ho_Chi_Minh"
 
-    def test_seed_from_env_variable(self, db_session):
-        """APP_TIMEZONE seeds the singleton timezone on first creation."""
-        with patch.dict(os.environ, {"APP_TIMEZONE": "America/New_York"}):
-            service = AppSettingsService(db_session)
-            settings = service.get_settings()
-        assert settings.timezone == "America/New_York"
-
-    def test_invalid_env_variable_falls_back_to_default(self, db_session):
-        """An invalid APP_TIMEZONE triggers a warning and falls back."""
-        with patch.dict(os.environ, {"APP_TIMEZONE": "Not/A/Timezone"}):
-            service = AppSettingsService(db_session)
-            settings = service.get_settings()
+    def test_model_default_is_the_only_initial_timezone_source(
+        self, db_session, monkeypatch
+    ):
+        monkeypatch.setenv("APP_TIMEZONE", "America/New_York")
+        service = AppSettingsService(db_session)
+        settings = service.get_settings()
         assert settings.timezone == "Asia/Ho_Chi_Minh"
 
     def test_singleton_not_recreated_on_second_call(self, db_session):
@@ -81,3 +70,63 @@ class TestAppSettingsServiceUpdate:
         service = AppSettingsService(db_session)
         updated = service.update_settings(timezone="UTC")
         assert updated.timezone == "UTC"
+
+    def test_update_can_flush_without_committing(self, db_session):
+        service = AppSettingsService(db_session)
+        service.get_settings()
+        service.update_settings(timezone="UTC", commit=False)
+        db_session.rollback()
+        assert service.get_settings().timezone == "Asia/Ho_Chi_Minh"
+
+
+def test_default_identity_values_are_generic(db_session):
+    settings = AppSettingsService(db_session).get_settings()
+    assert settings.system_name == "Bot Order System"
+    assert settings.bot_url == ""
+    assert settings.support_line_1 == ""
+    assert settings.support_line_2 == ""
+    assert settings.order_prefix == "ORD"
+    assert settings.api_docs_url == ""
+
+
+def test_update_normalizes_identity_values(db_session):
+    updated = AppSettingsService(db_session).update_settings(
+        system_name="  Example Shop  ",
+        bot_url="https://t.me/example_shop_bot",
+        support_line_1=" @support ",
+        support_line_2=" ",
+        timezone="UTC",
+        order_prefix="abc",
+        api_docs_url="https://shop.example/api",
+    )
+    assert updated.system_name == "Example Shop"
+    assert updated.order_prefix == "ABC"
+    assert updated.support_line_1 == "@support"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("system_name", "", "system_name"),
+        ("bot_url", "http://t.me/example_shop_bot", "bot_url"),
+        ("bot_url", "https://example.com/bot", "bot_url"),
+        ("order_prefix", "TUX", "cannot start with TU"),
+        ("order_prefix", "A-1", "order_prefix"),
+        ("api_docs_url", "http://shop.example/api", "api_docs_url"),
+        ("support_line_1", "x" * 201, "support_line_1"),
+    ],
+)
+def test_invalid_identity_value_fails(db_session, field, value, message):
+    service = AppSettingsService(db_session)
+    valid = {
+        "system_name": "Example Shop",
+        "bot_url": "https://t.me/example_shop_bot",
+        "support_line_1": "Support",
+        "support_line_2": "",
+        "timezone": "UTC",
+        "order_prefix": "ORD",
+        "api_docs_url": "https://shop.example/api",
+    }
+    valid[field] = value
+    with pytest.raises(ValueError, match=message):
+        service.update_settings(**valid)

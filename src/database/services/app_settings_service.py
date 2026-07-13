@@ -2,16 +2,32 @@
 Service layer for global application settings (singleton).
 """
 
-import logging
-import os
+import re
+from urllib.parse import urlsplit
+
 from sqlalchemy.orm import Session
+
 from src.database.models.app_settings import AppSettings
 from src.utils.datetime_format import validate_timezone
 
-logger = logging.getLogger(__name__)
-
-_DEFAULT_TIMEZONE = "Asia/Ho_Chi_Minh"
 _SINGLETON_ID = "global"
+_ORDER_PREFIX_RE = re.compile(r"^[A-Z0-9]{2,8}$")
+_BOT_URL_RE = re.compile(r"^https://t\.me/[A-Za-z0-9_]{5,32}/?$")
+
+
+def _https_url(name: str, value: str, *, required: bool) -> str:
+    value = value.strip()
+    if not value and not required:
+        return ""
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+    ):
+        raise ValueError(f"{name} must be an absolute HTTPS URL")
+    return value
 
 
 class AppSettingsService:
@@ -21,44 +37,69 @@ class AppSettingsService:
         self.session = session
 
     def get_settings(self) -> AppSettings:
-        """Return the singleton settings row, creating it on first access.
-
-        The initial timezone is seeded from the APP_TIMEZONE environment
-        variable (fallback: Asia/Ho_Chi_Minh).
-        """
+        """Return the singleton settings row, creating it on first access."""
         settings = self.session.query(AppSettings).filter_by(id=_SINGLETON_ID).first()
         if settings:
             return settings
 
-        seed_tz = os.getenv("APP_TIMEZONE", _DEFAULT_TIMEZONE)
-        if not validate_timezone(seed_tz):
-            logger.warning(
-                "APP_TIMEZONE=%r is not a valid IANA timezone; defaulting to %s",
-                seed_tz,
-                _DEFAULT_TIMEZONE,
-            )
-            seed_tz = _DEFAULT_TIMEZONE
-
-        settings = AppSettings(
-            id=_SINGLETON_ID,
-            timezone=seed_tz,
-        )
+        settings = AppSettings(id=_SINGLETON_ID)
         self.session.add(settings)
         self.session.commit()
         self.session.refresh(settings)
         return settings
 
-    def update_settings(self, *, timezone: str) -> AppSettings:
-        """Update the global timezone.
-
-        Raises:
-            ValueError: if timezone is not a valid IANA name.
-        """
-        if not validate_timezone(timezone):
-            raise ValueError(f"Invalid IANA timezone: {timezone!r}")
-
+    def update_settings(
+        self,
+        *,
+        system_name: str | None = None,
+        bot_url: str | None = None,
+        support_line_1: str | None = None,
+        support_line_2: str | None = None,
+        timezone: str | None = None,
+        order_prefix: str | None = None,
+        api_docs_url: str | None = None,
+        commit: bool = True,
+    ) -> AppSettings:
         settings = self.get_settings()
-        settings.timezone = timezone
-        self.session.commit()
-        self.session.refresh(settings)
+        if system_name is not None:
+            value = system_name.strip()
+            if not 1 <= len(value) <= 80:
+                raise ValueError("system_name must contain 1-80 characters")
+            settings.system_name = value
+        if bot_url is not None:
+            value = bot_url.strip()
+            if not _BOT_URL_RE.fullmatch(value):
+                raise ValueError("bot_url must be an https://t.me bot URL")
+            settings.bot_url = value.rstrip("/")
+        for name, value in (
+            ("support_line_1", support_line_1),
+            ("support_line_2", support_line_2),
+        ):
+            if value is not None:
+                value = value.strip()
+                if len(value) > 200:
+                    raise ValueError(f"{name} must contain at most 200 characters")
+                setattr(settings, name, value)
+        if timezone is not None:
+            if not validate_timezone(timezone):
+                raise ValueError(f"Invalid IANA timezone: {timezone!r}")
+            settings.timezone = timezone
+        if order_prefix is not None:
+            value = order_prefix.strip().upper()
+            if not _ORDER_PREFIX_RE.fullmatch(value):
+                raise ValueError(
+                    "order_prefix must contain 2-8 uppercase letters or digits"
+                )
+            if value.startswith("TU"):
+                raise ValueError("order_prefix cannot start with TU")
+            settings.order_prefix = value
+        if api_docs_url is not None:
+            settings.api_docs_url = _https_url(
+                "api_docs_url", api_docs_url, required=False
+            )
+        if commit:
+            self.session.commit()
+            self.session.refresh(settings)
+        else:
+            self.session.flush()
         return settings
