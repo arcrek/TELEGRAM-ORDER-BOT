@@ -119,19 +119,10 @@ random_hex() {
 
 dotenv_value() {
   local value="${1//\\/\\\\}"
-  value="${value//\'/\\\'}"
-  printf "'%s'" "$value"
-}
-
-env_value() {
-  local key="$1" value
-  value="$(sed -n "s/^${key}=//p" .env | tail -n 1)"
-  if [[ "$value" == \'*\' ]]; then
-    value="${value:1:${#value}-2}"
-    value="${value//\\\'/\'}"
-    value="${value//\\\\/\\}"
-  fi
-  printf '%s' "$value"
+  value="${value//\"/\\\"}"
+  value="${value//\$/\\\$}"
+  value="${value//$'\t'/\\t}"
+  printf '"%s"' "$value"
 }
 
 if [[ -f .env ]]; then
@@ -188,8 +179,17 @@ else
   chmod 600 .env
 fi
 
-frontend_url="$(env_value FRONTEND_URL)"
-api_url="$(env_value VITE_API_BASE_URL)"
+compose_environment="$(docker compose --env-file .env config --environment)" ||
+  die "Could not read the resolved Compose environment"
+frontend_url=""
+api_url=""
+while IFS= read -r compose_line; do
+  case "$compose_line" in
+    FRONTEND_URL=*) frontend_url="${compose_line#FRONTEND_URL=}" ;;
+    VITE_API_BASE_URL=*) api_url="${compose_line#VITE_API_BASE_URL=}" ;;
+  esac
+done <<< "$compose_environment"
+unset compose_line compose_environment
 
 prompt_required "System name"
 system_name="$REPLY"

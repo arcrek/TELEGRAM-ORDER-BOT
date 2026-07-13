@@ -31,13 +31,60 @@ def fake_tools(bin_dir: Path) -> None:
     executable(bin_dir / "git", "#!/usr/bin/env bash\nexit 0\n")
     executable(
         bin_dir / "docker",
-        """#!/usr/bin/env bash
+        r"""#!/usr/bin/env bash
+decode_compose_value() {
+  local value="$1" output="" char escaped index length="${#1}"
+  if [[ "$value" != \"* ]]; then
+    printf '%s' "$value"
+    return
+  fi
+  for ((index = 1; index < length; index++)); do
+    char="${value:index:1}"
+    if [[ "$char" == '"' ]]; then
+      (( index == length - 1 )) || return 1
+      printf '%s' "$output"
+      return
+    elif [[ "$char" == \\ ]]; then
+      ((++index < length)) || return 1
+      escaped="${value:index:1}"
+      case "$escaped" in
+        \\|'"'|'$') output+="$escaped" ;;
+        t) output+=$'\t' ;;
+        *) return 1 ;;
+      esac
+    elif [[ "$char" == '$' ]]; then
+      return 1
+    else
+      output+="$char"
+    fi
+  done
+  return 1
+}
+
 printf '%s\n' "$*" >> "$COMMAND_LOG"
 if [[ "$*" == *"scripts/bootstrap_system.py"* ]]; then
   cat > "$BOOTSTRAP_STDIN"
 fi
 if [[ "${FAIL_CONFIG:-0}" == 1 && "$*" == *" config -q" ]]; then
   exit 1
+fi
+if [[ "$*" == *"config --environment"* ]]; then
+  env_file=""
+  while (($#)); do
+    if [[ "$1" == --env-file ]]; then
+      env_file="$2"
+      break
+    fi
+    shift
+  done
+  [[ -n "$env_file" ]] || exit 1
+  while IFS= read -r line; do
+    [[ "$line" == *=* ]] || continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    decoded="$(decode_compose_value "$value")" || exit 1
+    printf '%s=%s\n' "$key" "$decoded"
+  done < "$env_file"
 fi
 exit 0
 """,
@@ -58,20 +105,22 @@ def fake_compose_env(path: Path) -> dict[str, str]:
     parsed = {}
     for line in path.read_text().splitlines():
         key, value = line.split("=", 1)
-        assert value.startswith("'"), "missing opening single quote"
+        assert value.startswith('"'), "missing opening double quote"
         decoded = []
         index = 1
         while True:
-            assert index < len(value), "unterminated single-quoted value"
-            if value[index] == "'":
+            assert index < len(value), "unterminated double-quoted value"
+            if value[index] == '"':
                 assert index == len(value) - 1, "garbage after closing quote"
                 break
             if value[index] == "\\":
                 assert index + 1 < len(value), "unterminated escape"
-                assert value[index + 1] in {"\\", "'"}, "unsupported escape"
-                decoded.append(value[index + 1])
+                escaped = value[index + 1]
+                assert escaped in {"\\", '"', "$", "t"}, "unsupported escape"
+                decoded.append("\t" if escaped == "t" else escaped)
                 index += 2
             else:
+                assert value[index] != "$", "unescaped dollar"
                 decoded.append(value[index])
                 index += 1
         parsed[key] = "".join(decoded)
@@ -82,13 +131,14 @@ def fake_compose_env(path: Path) -> dict[str, str]:
     "value",
     [
         "plain",
-        "'unterminated",
-        "'value'garbage",
-        "'unsupported\\q'",
-        "'trailing\\'",
+        '"unterminated',
+        '"value"garbage',
+        '"unsupported\\q"',
+        '"unescaped$value"',
+        '"trailing\\"',
     ],
 )
-def test_fake_compose_env_rejects_invalid_single_quoted_values(
+def test_fake_compose_env_rejects_invalid_double_quoted_values(
     tmp_path: Path,
     value: str,
 ) -> None:
@@ -337,10 +387,11 @@ def test_setup_round_trips_compose_literals_without_logging_secrets(
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)
     answers = deployment_answers()
-    answers[4] = "telegram $VALUE # spaced \"double\" trailing\\"
+    answers[4] = "telegram $VALUE # spaced 'single' trailing\\"
     answers[6] = "shop database #1"
     answers[7] = r"shop$user\\double"
-    answers[8] = "db $VALUE # adjacent\\'quote \"double\""
+    answers[8] = "db $VALUE # adjacent\\\"quote 'single' spaced"
+    answers[9] = "payos\tclient"
     env = environment(bin_dir, tmp_path)
 
     result = run_setup(root, env, answers + bootstrap_answers())
@@ -381,6 +432,7 @@ def test_setup_round_trips_compose_literals_without_logging_secrets(
     )
     secrets = answers[4:5] + answers[7:12] + [bootstrap_answers()[-1]]
     assert all(secret not in output_and_log for secret in secrets)
+    assert "config --environment" in Path(env["COMMAND_LOG"]).read_text()
 
 
 def test_setup_creates_atomic_private_env_and_bootstraps_over_stdin(
