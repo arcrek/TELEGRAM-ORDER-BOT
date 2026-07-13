@@ -52,3 +52,4 @@ data/*
 .claude
 .codex
 .worktrees/
+.superpowers/
