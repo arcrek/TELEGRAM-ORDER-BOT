@@ -4,7 +4,7 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$ROOT_DIR"
 file="${1:-}"
-[[ -n "$file" && -s "$file" ]] || { echo "A non-empty backup file is required" >&2; exit 1; }
+[[ -n "$file" && -f "$file" && -s "$file" ]] || { echo "A non-empty backup file is required" >&2; exit 1; }
 read -r -p "Type RESTORE to replace the current database: " confirmation
 [[ "$confirmation" == "RESTORE" ]] || { echo "Restore cancelled"; exit 0; }
 

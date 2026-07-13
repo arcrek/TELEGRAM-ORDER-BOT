@@ -43,6 +43,16 @@ Commands:
 EOF
 }
 
+all_services_running() {
+  local configured running service
+  configured="$("${COMPOSE[@]}" config --services 2>/dev/null)" || return 1
+  running="$("${COMPOSE[@]}" ps --services --status running 2>/dev/null)" || return 1
+  [[ -n "$configured" ]] || return 1
+  while IFS= read -r service; do
+    [[ -z "$service" ]] || grep -Fxq -- "$service" <<<"$running" || return 1
+  done <<<"$configured"
+}
+
 doctor() {
   local available mode failures=0
 
@@ -77,14 +87,14 @@ doctor() {
   fi
 
   doctor_check "Compose configuration" docker compose config -q
-  available="$(df -Pk "$ROOT_DIR" 2>/dev/null | awk 'END {print $4}')"
+  available="$(df -Pk "$ROOT_DIR" 2>/dev/null | awk 'END {print $4}')" || available=""
   if [[ "$available" =~ ^[0-9]+$ ]] && ((available >= 1048576)); then
     printf '[ok] at least 1 GiB disk space is free\n'
   else
     printf '[fail] at least 1 GiB disk space is free\n'
     failures=1
   fi
-  doctor_check "Compose service state" docker compose ps
+  doctor_check "all configured Compose services are running" all_services_running
   doctor_check "PostgreSQL readiness" docker compose exec -T postgres sh -c \
     'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
   doctor_check "API readiness" docker compose exec -T api python -c \

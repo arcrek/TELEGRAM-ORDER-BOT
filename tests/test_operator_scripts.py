@@ -10,6 +10,18 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SYSTEM_PATH = "/usr/bin:/bin"
+DOCTOR_LABELS = (
+    "Docker CLI",
+    "Docker daemon",
+    "Docker Compose plugin",
+    ".env exists",
+    ".env permissions are 600",
+    "Compose configuration",
+    "at least 1 GiB disk space is free",
+    "all configured Compose services are running",
+    "PostgreSQL readiness",
+    "API readiness",
+)
 
 
 def executable(path: Path, body: str) -> None:
@@ -116,6 +128,18 @@ def environment(bin_dir: Path, tmp_path: Path, **extra: str) -> dict[str, str]:
         "BOOTSTRAP_STDIN": str(tmp_path / "bootstrap.json"),
         **extra,
     }
+
+
+def fake_doctor_docker(bin_dir: Path) -> None:
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "case \"$*\" in\n"
+        "  'compose config --services') printf '%s\\n' postgres api bot frontend ;;\n"
+        "  'compose ps --services --status running') printf '%s\\n' \"$RUNNING_SERVICES\" ;;\n"
+        "esac\n"
+        "exit 0\n",
+    )
 
 
 def fake_compose_env(path: Path) -> dict[str, str]:
@@ -687,8 +711,43 @@ def test_update_backs_up_before_pull_and_rebuild(tmp_path: Path) -> None:
     assert "Backup: backups/pre_update_" in result.stdout
 
 
+def test_update_readiness_failure_prints_recovery_evidence(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    (root / ".env").write_text("DB_NAME=test\n")
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        '[[ "$*" == *"pg_dump"* ]] && { printf \'%s\\n\' \'SQL dump\'; exit 0; }\n'
+        '[[ "$*" == *"exec -T api python -c"* ]] && exit 1\n'
+        "exit 0\n",
+    )
+    executable(
+        bin_dir / "git",
+        "#!/usr/bin/env bash\n"
+        '[[ "$*" == "rev-parse HEAD" ]] && printf \'%s\\n\' \'previous-sha\'\n'
+        "exit 0\n",
+    )
+    executable(bin_dir / "sleep", "#!/usr/bin/env bash\nexit 0\n")
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "update"],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "Previous commit: previous-sha" in result.stderr
+    assert "Backup: backups/pre_update_" in result.stderr
+
+
 def test_backup_uses_container_database_environment_atomically(tmp_path: Path) -> None:
     root, bin_dir = operator_project(tmp_path)
+    backups = root / "backups"
+    backups.mkdir()
+    predictable = backups / "safe_name.sql.tmp"
+    predictable.write_text("do not touch\n")
     executable(
         bin_dir / "docker",
         "#!/usr/bin/env bash\n"
@@ -707,8 +766,11 @@ def test_backup_uses_container_database_environment_atomically(tmp_path: Path) -
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "backups/safe_name.sql"
-    assert (root / "backups" / "safe_name.sql").read_text() == "SQL dump\n"
-    assert not list((root / "backups").glob("*.tmp"))
+    target = backups / "safe_name.sql"
+    assert target.read_text() == "SQL dump\n"
+    assert target.stat().st_mode & 0o777 == 0o600
+    assert predictable.read_text() == "do not touch\n"
+    assert not list(backups.glob(".safe_name.sql.tmp.*"))
     command = Path(env["COMMAND_LOG"]).read_text()
     assert 'pg_dump -U "$POSTGRES_USER"' in command
     assert '"$POSTGRES_DB"' in command
@@ -718,6 +780,10 @@ def test_backup_uses_container_database_environment_atomically(tmp_path: Path) -
 
 def test_backup_removes_partial_dump_on_failure(tmp_path: Path) -> None:
     root, bin_dir = operator_project(tmp_path)
+    backups = root / "backups"
+    backups.mkdir()
+    predictable = backups / "failed.sql.tmp"
+    predictable.write_text("do not touch\n")
     executable(
         bin_dir / "docker",
         "#!/usr/bin/env bash\n"
@@ -734,8 +800,9 @@ def test_backup_removes_partial_dump_on_failure(tmp_path: Path) -> None:
     )
 
     assert result.returncode != 0
-    assert not (root / "backups" / "failed.sql").exists()
-    assert not (root / "backups" / "failed.sql.tmp").exists()
+    assert not (backups / "failed.sql").exists()
+    assert predictable.read_text() == "do not touch\n"
+    assert not list(backups.glob(".failed.sql.tmp.*"))
 
 
 def test_backup_rejects_unsafe_name_without_running_docker(tmp_path: Path) -> None:
@@ -767,9 +834,17 @@ def test_restore_uses_container_database_environment(tmp_path: Path) -> None:
         bin_dir / "docker",
         "#!/usr/bin/env bash\n"
         "printf 'docker %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        '[[ "$*" == *"psql -v ON_ERROR_STOP=1"* ]] && cat > "$RESTORE_STDIN"\n'
         "exit 0\n",
     )
-    env = environment(bin_dir, tmp_path, DB_USER="host-user", DB_NAME="host-db")
+    restored_sql = tmp_path / "restored.sql"
+    env = environment(
+        bin_dir,
+        tmp_path,
+        DB_USER="host-user",
+        DB_NAME="host-db",
+        RESTORE_STDIN=str(restored_sql),
+    )
 
     result = subprocess.run(
         ["/bin/bash", "scripts/restore_database.sh", str(backup)],
@@ -791,6 +866,7 @@ def test_restore_uses_container_database_environment(tmp_path: Path) -> None:
     assert "CREATE DATABASE" not in commands
     assert "host-user" not in commands
     assert "host-db" not in commands
+    assert restored_sql.read_text() == "SELECT 1;\n"
 
 
 def test_restore_requires_exact_confirmation(tmp_path: Path) -> None:
@@ -817,12 +893,63 @@ def test_restore_requires_exact_confirmation(tmp_path: Path) -> None:
     assert not marker.exists()
 
 
+def test_restore_rejects_directory_without_running_docker(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    backup_directory = root / "backup.sql"
+    backup_directory.mkdir()
+    marker = tmp_path / "docker-ran"
+    executable(bin_dir / "docker", f"#!/usr/bin/env bash\ntouch {marker}\n")
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/restore_database.sh", str(backup_directory)],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        input="RESTORE\n",
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "non-empty backup file" in result.stderr
+    assert not marker.exists()
+
+
+def test_restore_psql_failure_keeps_applications_stopped(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    backup = root / "backup.sql"
+    backup.write_text("SELECT broken;\n")
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf 'docker %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        '[[ "$*" == *"psql -v ON_ERROR_STOP=1"* ]] && { cat > "$RESTORE_STDIN"; exit 1; }\n'
+        "exit 0\n",
+    )
+    restored_sql = tmp_path / "restored.sql"
+    env = environment(bin_dir, tmp_path, RESTORE_STDIN=str(restored_sql))
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/restore_database.sh", str(backup)],
+        cwd=root,
+        env=env,
+        input="RESTORE\n",
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    commands = Path(env["COMMAND_LOG"]).read_text()
+    assert "docker compose stop bot api" in commands
+    assert "docker compose up -d api bot frontend" not in commands
+    assert restored_sql.read_text() == "SELECT broken;\n"
+
+
 def test_doctor_reports_each_fake_check(tmp_path: Path) -> None:
     root, bin_dir = operator_project(tmp_path)
     env_file = root / ".env"
     env_file.write_text("DB_NAME=test\n")
     env_file.chmod(0o600)
-    executable(bin_dir / "docker", "#!/usr/bin/env bash\nexit 0\n")
+    fake_doctor_docker(bin_dir)
     executable(
         bin_dir / "df",
         "#!/usr/bin/env bash\n"
@@ -833,11 +960,81 @@ def test_doctor_reports_each_fake_check(tmp_path: Path) -> None:
     result = subprocess.run(
         ["/bin/bash", "manage.sh", "doctor"],
         cwd=root,
-        env=environment(bin_dir, tmp_path),
+        env=environment(
+            bin_dir,
+            tmp_path,
+            RUNNING_SERVICES="postgres\napi\nbot\nfrontend",
+        ),
         text=True,
         capture_output=True,
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.count("[ok]") >= 8
-    assert "[fail]" not in result.stdout
+    assert result.stdout.splitlines() == [f"[ok] {label}" for label in DOCTOR_LABELS]
+
+
+def test_doctor_aggregates_failed_df_and_runs_later_checks(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    env_file = root / ".env"
+    env_file.write_text("DB_NAME=test\n")
+    env_file.chmod(0o600)
+    fake_doctor_docker(bin_dir)
+    executable(bin_dir / "df", "#!/usr/bin/env bash\nexit 1\n")
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "doctor"],
+        cwd=root,
+        env=environment(
+            bin_dir,
+            tmp_path,
+            RUNNING_SERVICES="postgres\napi\nbot\nfrontend",
+        ),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    expected = [f"[ok] {label}" for label in DOCTOR_LABELS]
+    expected[6] = f"[fail] {DOCTOR_LABELS[6]}"
+    assert result.stdout.splitlines() == expected
+
+
+@pytest.mark.parametrize(
+    "running_services",
+    [
+        "postgres\napi\nfrontend",
+        "postgres\napi\nbot",
+    ],
+)
+def test_doctor_fails_when_configured_service_is_not_running(
+    tmp_path: Path,
+    running_services: str,
+) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    env_file = root / ".env"
+    env_file.write_text("DB_NAME=test\n")
+    env_file.chmod(0o600)
+    fake_doctor_docker(bin_dir)
+    executable(
+        bin_dir / "df",
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on'\n"
+        "printf '%s\\n' '/dev/fake 2000000 1 1999999 1% /'\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "doctor"],
+        cwd=root,
+        env=environment(
+            bin_dir,
+            tmp_path,
+            RUNNING_SERVICES=running_services,
+        ),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    expected = [f"[ok] {label}" for label in DOCTOR_LABELS]
+    expected[7] = f"[fail] {DOCTOR_LABELS[7]}"
+    assert result.stdout.splitlines() == expected
