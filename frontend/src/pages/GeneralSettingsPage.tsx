@@ -70,6 +70,7 @@ export function GeneralSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [settings, setSettings] = useState<AppSettingsResponse>(EMPTY_SETTINGS)
+  const formRef = useRef<HTMLFormElement>(null)
   const savedSettingsRef = useRef<AppSettingsResponse>(EMPTY_SETTINGS)
   const dirty = JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current)
 
@@ -91,8 +92,9 @@ export function GeneralSettingsPage() {
     setSaving(true)
     setError(null)
     try {
-      await apiClient.put('/api/app-settings', settings)
-      savedSettingsRef.current = settings
+      const response = await apiClient.put<AppSettingsResponse>('/api/app-settings', settings)
+      setSettings(response.data)
+      savedSettingsRef.current = response.data
       await refresh()
       toast.success(t('generalSettings.saved'))
     } catch (err) {
@@ -108,12 +110,12 @@ export function GeneralSettingsPage() {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 's') {
         event.preventDefault()
-        if (dirty && !saving) void handleSave()
+        if (dirty && !saving) formRef.current?.requestSubmit()
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [dirty, handleSave, saving])
+  }, [dirty, saving])
 
   const updateSetting = (key: keyof AppSettingsResponse, value: string) => {
     setSettings(current => ({ ...current, [key]: value }))
@@ -135,10 +137,11 @@ export function GeneralSettingsPage() {
               disabled={saving}
             />
             <Button
+              type="submit"
+              form="general-settings-form"
               variant="primary"
               size="sm"
               iconLeft={<Save size={14} />}
-              onClick={handleSave}
               loading={saving}
               disabled={!dirty}
             >
@@ -159,7 +162,15 @@ export function GeneralSettingsPage() {
           </div>
         </div>
       ) : (
-        <div className="general-settings-page__form">
+        <form
+          ref={formRef}
+          id="general-settings-form"
+          className="general-settings-page__form"
+          onSubmit={event => {
+            event.preventDefault()
+            void handleSave()
+          }}
+        >
           <FormField
             label={t('generalSettings.systemName')}
             htmlFor="gs-system-name"
@@ -265,7 +276,7 @@ export function GeneralSettingsPage() {
           <p className="general-settings-page__shortcut-hint">
             {t('generalSettings.saveShortcut')}
           </p>
-        </div>
+        </form>
       )}
     </div>
   )
