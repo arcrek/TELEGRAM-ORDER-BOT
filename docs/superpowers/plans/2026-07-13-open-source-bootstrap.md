@@ -22,7 +22,7 @@
 - Database schema changes require Alembic migrations.
 - Preserve historical non-balance QR revenue without retaining a Pay2S runtime branch.
 - Keep all user-facing bot copy in the existing i18n files; operator-entered support lines are data, not translation keys.
-- Prefix all repository commands in this plan with `rtk`, per `/home/arcrek/.codex/RTK.md`.
+- Prefix all repository commands in this plan with `rtk`, following your environment's RTK instructions (typically `~/.codex/RTK.md`).
 
 ## File Responsibility Map
 

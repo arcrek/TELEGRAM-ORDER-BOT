@@ -133,6 +133,12 @@ There is no automated uninstall command. `./manage.sh stop` stops services witho
 
 To uninstall while preserving data, create and verify a database backup and stop the system before removing containers or the checkout. A database dump is the supported portable copy of orders and pre-uploaded inventory; do not treat a live PostgreSQL data directory as a backup. Compose does not delete the `delivery_data` volume on `stop` or ordinary `down`; avoid `down -v` until any interrupted delivery has been resolved.
 
-To remove all data, stop the system, verify that retention is no longer required, and delete the checkout including `data/` and `backups/`. That action permanently removes the database and delivery inventory. Removing Docker containers alone does not remove the host bind-mounted directories.
+To remove all data, first copy any verified backup you intend to retain to protected off-host storage and confirm that no interrupted delivery or other retention requirement remains. Then, from the repository root, run this intentional destructive raw Compose command before deleting the checkout:
+
+```bash
+docker compose down -v
+```
+
+The `-v` flag removes the project-scoped `delivery_data` volume along with the containers. After that command succeeds, delete the checkout including `data/` and `backups/`; this permanently removes the database, delivery inventory, and any backup left inside the checkout. Do not use this remove-all path when preserving data.
 
 Continue with [Configuration](CONFIGURATION.md), [Architecture](ARCHITECTURE.md), and [Operations](../OPERATIONS.md).
