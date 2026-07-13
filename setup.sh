@@ -70,27 +70,20 @@ validate_url() {
   authority="${rest%%[/?#]*}"
   [[ -n "$authority" && "$authority" != *"@"* ]] || return 1
 
-  if [[ "$authority" == \[* ]]; then
-    [[ "$authority" =~ ^\[([0-9A-Fa-f:.]+)\](:([0-9]+))?$ ]] || return 1
-    host="${BASH_REMATCH[1]}"
-    port="${BASH_REMATCH[3]:-}"
-    [[ "$host" == *:* && "$host" != *:::* ]] || return 1
+  [[ "$authority" != \[* && "$authority" != *:*:* ]] || return 1
+  if [[ "$authority" == *:* ]]; then
+    host="${authority%:*}"
+    port="${authority##*:}"
+    [[ -n "$port" ]] || return 1
   else
-    [[ "$authority" != *:*:* ]] || return 1
-    if [[ "$authority" == *:* ]]; then
-      host="${authority%:*}"
-      port="${authority##*:}"
-      [[ -n "$port" ]] || return 1
-    else
-      host="$authority"
-    fi
-    (( ${#host} <= 253 )) || return 1
-    IFS=. read -r -a labels <<< "$host"
-    for label in "${labels[@]}"; do
-      (( ${#label} <= 63 )) || return 1
-      [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
-    done
+    host="$authority"
   fi
+  (( ${#host} <= 253 )) || return 1
+  IFS=. read -r -a labels <<< "$host"
+  for label in "${labels[@]}"; do
+    (( ${#label} <= 63 )) || return 1
+    [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
+  done
 
   if [[ -n "$port" ]]; then
     [[ "$port" =~ ^[0-9]+$ ]] && (( ${#port} <= 5 )) || return 1
@@ -125,7 +118,8 @@ random_hex() {
 }
 
 dotenv_value() {
-  local value="${1//\'/\\\'}"
+  local value="${1//\\/\\\\}"
+  value="${value//\'/\\\'}"
   printf "'%s'" "$value"
 }
 
@@ -135,6 +129,7 @@ env_value() {
   if [[ "$value" == \'*\' ]]; then
     value="${value:1:${#value}-2}"
     value="${value//\\\'/\'}"
+    value="${value//\\\\/\\}"
   fi
   printf '%s' "$value"
 }

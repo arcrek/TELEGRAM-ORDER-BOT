@@ -58,19 +58,45 @@ def fake_compose_env(path: Path) -> dict[str, str]:
     parsed = {}
     for line in path.read_text().splitlines():
         key, value = line.split("=", 1)
-        assert value.startswith("'") and value.endswith("'")
-        value = value[1:-1]
+        assert value.startswith("'"), "missing opening single quote"
         decoded = []
-        index = 0
-        while index < len(value):
-            if value[index : index + 2] == "\\'":
-                decoded.append("'")
+        index = 1
+        while True:
+            assert index < len(value), "unterminated single-quoted value"
+            if value[index] == "'":
+                assert index == len(value) - 1, "garbage after closing quote"
+                break
+            if value[index] == "\\":
+                assert index + 1 < len(value), "unterminated escape"
+                assert value[index + 1] in {"\\", "'"}, "unsupported escape"
+                decoded.append(value[index + 1])
                 index += 2
             else:
                 decoded.append(value[index])
                 index += 1
         parsed[key] = "".join(decoded)
     return parsed
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "plain",
+        "'unterminated",
+        "'value'garbage",
+        "'unsupported\\q'",
+        "'trailing\\'",
+    ],
+)
+def test_fake_compose_env_rejects_invalid_single_quoted_values(
+    tmp_path: Path,
+    value: str,
+) -> None:
+    path = tmp_path / ".env"
+    path.write_text(f"KEY={value}\n")
+
+    with pytest.raises(AssertionError):
+        fake_compose_env(path)
 
 
 def deployment_answers() -> list[str]:
@@ -269,6 +295,9 @@ def test_setup_rejects_malformed_url_authorities_and_ports(tmp_path: Path) -> No
         "https://example..test",
         "https://-example.test",
         "https://example-.test",
+        "https://[1:]",
+        "https://[1::2::3]",
+        "https://[1:2:3:4:5:6:7:8:9]",
     ]
     frontend_url = "https://shop.example:65535/store?x=1#top"
     answers = [
@@ -308,10 +337,10 @@ def test_setup_round_trips_compose_literals_without_logging_secrets(
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)
     answers = deployment_answers()
-    answers[4] = "telegram $VALUE # spaced \\ 'single' \"double\""
+    answers[4] = "telegram $VALUE # spaced \"double\" trailing\\"
     answers[6] = "shop database #1"
-    answers[7] = "shop$user"
-    answers[8] = "db $VALUE # spaced \\ 'single' \"double\""
+    answers[7] = r"shop$user\\double"
+    answers[8] = "db $VALUE # adjacent\\'quote \"double\""
     env = environment(bin_dir, tmp_path)
 
     result = run_setup(root, env, answers + bootstrap_answers())
