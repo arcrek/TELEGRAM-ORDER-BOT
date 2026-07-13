@@ -1,65 +1,65 @@
 services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    volumes:
+      - ./data/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
-    env_file:
-      - .env
     environment:
-      APP_ENV: ${APP_ENV:-dev}
       DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-mtkbot}
-      DB_USER: ${DB_USER:-mtkbot}
-      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
-      # System Name (displayed in messages and delivery files)
-      SYSTEM_NAME: ${SYSTEM_NAME:-MUATAIKHOANPRO}
-      # Telegram Bot Tokens (needed for PayOS webhook fulfillment)
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      # Supplier functionality disabled
-      # SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
-      # Dashboard JWT signing key (required — generate with: python3 -c "import secrets; print(secrets.token_hex(32))")
-      DASHBOARD_SECRET_KEY: ${DASHBOARD_SECRET_KEY}
-      # Comma-separated list of frontend origins allowed to call the API
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
-      # PayOS Configuration (needed for webhook verification)
-      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
-      PAYOS_API_KEY: ${PAYOS_API_KEY:-}
-      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      DASHBOARD_SECRET_KEY: ${DASHBOARD_SECRET_KEY:?DASHBOARD_SECRET_KEY is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:?CORS_ORIGINS is required}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:?PAYOS_CLIENT_ID is required}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:?PAYOS_API_KEY is required}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:?PAYOS_CHECKSUM_KEY is required}
     volumes:
       - ./data/delivery_data:/app/delivery_data
     ports:
-      - "8001:8000"
-    restart: unless-stopped
+      - "${DASHBOARD_PORT:-8001}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
 
   bot:
     build:
       context: .
       dockerfile: Dockerfile.bot
-    env_file:
-      - .env
     environment:
-      APP_ENV: ${APP_ENV:-dev}
       DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-mtkbot}
-      DB_USER: ${DB_USER:-mtkbot}
-      DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
-      # System Name (displayed in messages)
-      SYSTEM_NAME: ${SYSTEM_NAME:-MUATAIKHOANPRO}
-      # PayOS Configuration (needed for payment creation)
-      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
-      PAYOS_API_KEY: ${PAYOS_API_KEY:-}
-      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
-      # Support Contact Information (footer lines)
-      SUPPORT_LINE_1: ${SUPPORT_LINE_1}
-      SUPPORT_LINE_2: ${SUPPORT_LINE_2}
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
+      BOT_OWNER_TELEGRAM_ID: ${BOT_OWNER_TELEGRAM_ID:?BOT_OWNER_TELEGRAM_ID is required}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:?PAYOS_CLIENT_ID is required}
+      PAYOS_API_KEY: ${PAYOS_API_KEY:?PAYOS_API_KEY is required}
+      PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:?PAYOS_CHECKSUM_KEY is required}
     volumes:
       - ./data/delivery_data:/app/delivery_data
     depends_on:
@@ -67,52 +67,15 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Supplier bot disabled
-  # bot_supplier:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.bot-supplier
-  #   env_file:
-  #     - .env
-  #   environment:
-  #     APP_ENV: ${APP_ENV:-dev}
-  #     DB_HOST: postgres
-  #     DB_PORT: 5432
-  #     DB_NAME: ${DB_NAME:-mtkbot}
-  #     DB_USER: ${DB_USER:-mtkbot}
-  #     DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
-  #     # Telegram configuration
-  #     SUPPLIER_TELEGRAM_BOT_TOKEN: ${SUPPLIER_TELEGRAM_BOT_TOKEN}
-  #   volumes:
-  #     - ./data/delivery_data:/app/delivery_data
-  #   depends_on:
-  #     api:
-  #       condition: service_healthy
-  #   restart: unless-stopped
-
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8001}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?VITE_API_BASE_URL is required}
     ports:
-      - "8082:80"
-    restart: unless-stopped
+      - "${FRONTEND_PORT:-8082}:80"
     depends_on:
-      - api
-
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_DB: ${DB_NAME:-mtkbot}
-      POSTGRES_USER: ${DB_USER:-mtkbot}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
-    ports:
-      - "5432:5432"
-    volumes:
-      - ./data/postgres_data:/var/lib/postgresql/data
+      api:
+        condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  postgres_data:

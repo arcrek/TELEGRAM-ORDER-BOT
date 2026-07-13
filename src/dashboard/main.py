@@ -5,8 +5,10 @@ Main FastAPI application for dashboard.
 import logging
 import os
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from src.dashboard.limiter import limiter
@@ -151,3 +153,17 @@ async def root(db=Depends(get_db)):
 async def health():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.get("/ready")
+async def ready(db: Session = Depends(get_db)):
+    """Report whether the database is reachable."""
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:
+        logging.getLogger(__name__).error("Readiness database check failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="database unavailable",
+        ) from exc
+    return {"status": "ready"}
