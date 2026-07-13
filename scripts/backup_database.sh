@@ -1,35 +1,19 @@
-#!/bin/bash
-#
-#
-# PostgreSQL Database Backup Script for MTK Bot Order System
-# Usage: ./scripts/backup_database.sh [backup_name]
-#
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-BACKUP_DIR="./backups"
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_NAME="${1:-backup_${TIMESTAMP}}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+cd "$ROOT_DIR"
+mkdir -p backups
+name="${1:-backup_$(date -u +%Y%m%d_%H%M%S)}"
+[[ "$name" =~ ^[A-Za-z0-9._-]+$ ]] || { echo "Invalid backup name" >&2; exit 1; }
+target="backups/${name}.sql"
+tmp="${target}.tmp"
+trap 'rm -f "$tmp"' EXIT
 
-DB_NAME="${DB_NAME:-mtkbot}"
-DB_USER="${DB_USER:-mtkbot}"
-SERVICE="postgres"
-
-mkdir -p "$BACKUP_DIR"
-
-echo "=== MTK Bot Order System - PostgreSQL Backup ==="
-echo "Service: $SERVICE"
-echo "Database: $DB_NAME"
-echo "Backup: $BACKUP_DIR/${BACKUP_NAME}.sql"
-echo
-
-docker compose exec "$SERVICE" pg_dump -U "$DB_USER" --clean --if-exists "$DB_NAME" > "${BACKUP_DIR}/${BACKUP_NAME}.sql"
-
-if [ $? -eq 0 ]; then
-    BACKUP_SIZE=$(du -h "${BACKUP_DIR}/${BACKUP_NAME}.sql" | cut -f1)
-    echo "Backup completed successfully!"
-    echo "File: ${BACKUP_DIR}/${BACKUP_NAME}.sql"
-    echo "Size: $BACKUP_SIZE"
-else
-    echo "Error: Backup failed!"
-    exit 1
-fi
+docker compose exec -T postgres sh -c \
+  'exec pg_dump -U "$POSTGRES_USER" --clean --if-exists "$POSTGRES_DB"' \
+  >"$tmp"
+[[ -s "$tmp" ]] || { echo "Backup is empty" >&2; exit 1; }
+mv "$tmp" "$target"
+trap - EXIT
+printf '%s\n' "$target"

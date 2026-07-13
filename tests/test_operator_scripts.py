@@ -27,6 +27,18 @@ def project(tmp_path: Path) -> tuple[Path, Path]:
     return root, bin_dir
 
 
+def operator_project(tmp_path: Path) -> tuple[Path, Path]:
+    root, bin_dir = project(tmp_path)
+    scripts = root / "scripts"
+    scripts.mkdir()
+    for name in ("backup_database.sh", "restore_database.sh"):
+        shutil.copy(ROOT / "scripts" / name, scripts / name)
+    manage = ROOT / "manage.sh"
+    if manage.exists():
+        shutil.copy(manage, root / "manage.sh")
+    return root, bin_dir
+
+
 def fake_tools(bin_dir: Path) -> None:
     executable(bin_dir / "git", "#!/usr/bin/env bash\nexit 0\n")
     executable(
@@ -536,3 +548,296 @@ def test_setup_does_not_publish_invalid_temporary_env(tmp_path: Path) -> None:
     assert secret not in result.stdout + result.stderr
     assert not (root / ".env").exists()
     assert not list(root.glob(".env.tmp.*"))
+
+
+def test_manage_help_lists_supported_commands(tmp_path: Path) -> None:
+    root, _ = operator_project(tmp_path)
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "help"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    for command in (
+        "start",
+        "stop",
+        "restart",
+        "status",
+        "logs",
+        "doctor",
+        "backup",
+        "restore",
+        "update",
+    ):
+        assert command in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        (["start"], "docker compose up -d"),
+        (["stop"], "docker compose stop"),
+        (["restart"], "docker compose up -d --build --force-recreate"),
+        (["status"], "docker compose ps"),
+        (["logs", "api"], "docker compose logs --tail=200 -f api"),
+    ],
+)
+def test_manage_dispatches_lifecycle_commands(
+    tmp_path: Path,
+    arguments: list[str],
+    expected: str,
+) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    (root / ".env").write_text("DB_NAME=test\n")
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf 'docker %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", *arguments],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert expected in Path(environment(bin_dir, tmp_path)["COMMAND_LOG"]).read_text()
+
+
+def test_manage_logs_rejects_unknown_service(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    (root / ".env").write_text("DB_NAME=test\n")
+    executable(bin_dir / "docker", "#!/usr/bin/env bash\nexit 0\n")
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "logs", "database"],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "unknown service" in result.stderr
+
+
+def test_update_refuses_dirty_tracked_worktree(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    (root / ".env").write_text("DB_NAME=test\n")
+    executable(bin_dir / "docker", "#!/usr/bin/env bash\nexit 0\n")
+    executable(
+        bin_dir / "git",
+        "#!/usr/bin/env bash\n"
+        '[[ "$1 $2" == "diff --quiet" ]] && exit 1\n'
+        "exit 0\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "update"],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "tracked changes" in result.stderr
+
+
+def test_update_backs_up_before_pull_and_rebuild(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    (root / ".env").write_text("DB_NAME=test\n")
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf 'docker %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        '[[ "$*" == *"pg_dump"* ]] && printf \'%s\\n\' \'SQL dump\'\n'
+        "exit 0\n",
+    )
+    executable(
+        bin_dir / "git",
+        "#!/usr/bin/env bash\n"
+        "printf 'git %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        '[[ "$*" == "rev-parse HEAD" ]] && printf \'%s\\n\' \'previous-sha\'\n'
+        "exit 0\n",
+    )
+    env = environment(bin_dir, tmp_path)
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "update"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    commands = Path(env["COMMAND_LOG"]).read_text().splitlines()
+    backup = next(index for index, line in enumerate(commands) if "pg_dump" in line)
+    pull = commands.index("git pull --ff-only")
+    rebuild = commands.index("docker compose up -d --build")
+    assert backup < pull < rebuild
+    assert "Previous commit: previous-sha" in result.stdout
+    assert "Backup: backups/pre_update_" in result.stdout
+
+
+def test_backup_uses_container_database_environment_atomically(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        "printf '%s\\n' 'SQL dump'\n",
+    )
+    env = environment(bin_dir, tmp_path, DB_USER="host-user", DB_NAME="host-db")
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/backup_database.sh", "safe_name"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "backups/safe_name.sql"
+    assert (root / "backups" / "safe_name.sql").read_text() == "SQL dump\n"
+    assert not list((root / "backups").glob("*.tmp"))
+    command = Path(env["COMMAND_LOG"]).read_text()
+    assert 'pg_dump -U "$POSTGRES_USER"' in command
+    assert '"$POSTGRES_DB"' in command
+    assert "host-user" not in command
+    assert "host-db" not in command
+
+
+def test_backup_removes_partial_dump_on_failure(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' 'partial dump'\n"
+        "exit 1\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/backup_database.sh", "failed"],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert not (root / "backups" / "failed.sql").exists()
+    assert not (root / "backups" / "failed.sql.tmp").exists()
+
+
+def test_backup_rejects_unsafe_name_without_running_docker(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    marker = tmp_path / "docker-ran"
+    executable(
+        bin_dir / "docker",
+        f"#!/usr/bin/env bash\ntouch {marker}\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/backup_database.sh", "../escape"],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "Invalid backup name" in result.stderr
+    assert not marker.exists()
+
+
+def test_restore_uses_container_database_environment(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    backup = root / "backup.sql"
+    backup.write_text("SELECT 1;\n")
+    executable(
+        bin_dir / "docker",
+        "#!/usr/bin/env bash\n"
+        "printf 'docker %s\\n' \"$*\" >> \"$COMMAND_LOG\"\n"
+        "exit 0\n",
+    )
+    env = environment(bin_dir, tmp_path, DB_USER="host-user", DB_NAME="host-db")
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/restore_database.sh", str(backup)],
+        cwd=root,
+        env=env,
+        input="RESTORE\n",
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    commands = Path(env["COMMAND_LOG"]).read_text()
+    assert "docker compose stop bot api" in commands
+    assert "docker compose up -d postgres" in commands
+    assert 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' in commands
+    assert 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' in commands
+    assert "docker compose up -d api bot frontend" in commands
+    assert "DROP DATABASE" not in commands
+    assert "CREATE DATABASE" not in commands
+    assert "host-user" not in commands
+    assert "host-db" not in commands
+
+
+def test_restore_requires_exact_confirmation(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    backup = root / "backup.sql"
+    backup.write_text("SELECT 1;\n")
+    marker = tmp_path / "docker-ran"
+    executable(
+        bin_dir / "docker",
+        f"#!/usr/bin/env bash\ntouch {marker}\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "scripts/restore_database.sh", str(backup)],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        input="yes\n",
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Restore cancelled" in result.stdout
+    assert not marker.exists()
+
+
+def test_doctor_reports_each_fake_check(tmp_path: Path) -> None:
+    root, bin_dir = operator_project(tmp_path)
+    env_file = root / ".env"
+    env_file.write_text("DB_NAME=test\n")
+    env_file.chmod(0o600)
+    executable(bin_dir / "docker", "#!/usr/bin/env bash\nexit 0\n")
+    executable(
+        bin_dir / "df",
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n' 'Filesystem 1024-blocks Used Available Capacity Mounted on'\n"
+        "printf '%s\\n' '/dev/fake 2000000 1 1999999 1% /'\n",
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "manage.sh", "doctor"],
+        cwd=root,
+        env=environment(bin_dir, tmp_path),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.count("[ok]") >= 8
+    assert "[fail]" not in result.stdout
