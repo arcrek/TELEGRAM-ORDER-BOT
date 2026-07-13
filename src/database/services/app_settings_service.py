@@ -19,6 +19,8 @@ def _https_url(name: str, value: str, *, required: bool) -> str:
     value = value.strip()
     if not value and not required:
         return ""
+    if len(value) > 2048:
+        raise ValueError(f"{name} must contain at most 2048 characters")
     parsed = urlsplit(value)
     if (
         parsed.scheme != "https"
@@ -61,16 +63,17 @@ class AppSettingsService:
         commit: bool = True,
     ) -> AppSettings:
         settings = self.get_settings()
+        updates: dict[str, str] = {}
         if system_name is not None:
             value = system_name.strip()
             if not 1 <= len(value) <= 80:
                 raise ValueError("system_name must contain 1-80 characters")
-            settings.system_name = value
+            updates["system_name"] = value
         if bot_url is not None:
             value = bot_url.strip()
             if not _BOT_URL_RE.fullmatch(value):
                 raise ValueError("bot_url must be an https://t.me bot URL")
-            settings.bot_url = value.rstrip("/")
+            updates["bot_url"] = value.rstrip("/")
         for name, value in (
             ("support_line_1", support_line_1),
             ("support_line_2", support_line_2),
@@ -79,11 +82,11 @@ class AppSettingsService:
                 value = value.strip()
                 if len(value) > 200:
                     raise ValueError(f"{name} must contain at most 200 characters")
-                setattr(settings, name, value)
+                updates[name] = value
         if timezone is not None:
             if not validate_timezone(timezone):
                 raise ValueError(f"Invalid IANA timezone: {timezone!r}")
-            settings.timezone = timezone
+            updates["timezone"] = timezone
         if order_prefix is not None:
             value = order_prefix.strip().upper()
             if not _ORDER_PREFIX_RE.fullmatch(value):
@@ -92,11 +95,13 @@ class AppSettingsService:
                 )
             if value.startswith("TU"):
                 raise ValueError("order_prefix cannot start with TU")
-            settings.order_prefix = value
+            updates["order_prefix"] = value
         if api_docs_url is not None:
-            settings.api_docs_url = _https_url(
+            updates["api_docs_url"] = _https_url(
                 "api_docs_url", api_docs_url, required=False
             )
+        for name, value in updates.items():
+            setattr(settings, name, value)
         if commit:
             self.session.commit()
             self.session.refresh(settings)

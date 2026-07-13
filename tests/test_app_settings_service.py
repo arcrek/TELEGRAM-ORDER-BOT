@@ -104,6 +104,31 @@ def test_update_normalizes_identity_values(db_session):
     assert updated.support_line_1 == "@support"
 
 
+def test_api_docs_url_enforces_model_length(db_session):
+    prefix = "https://shop.example/"
+    max_length_url = prefix + "a" * (2048 - len(prefix))
+    service = AppSettingsService(db_session)
+
+    assert (
+        service.update_settings(api_docs_url=max_length_url).api_docs_url
+        == max_length_url
+    )
+    with pytest.raises(ValueError, match="api_docs_url"):
+        service.update_settings(api_docs_url=max_length_url + "a")
+
+
+def test_invalid_mixed_update_leaves_no_pending_identity_mutation(db_session):
+    service = AppSettingsService(db_session)
+    service.get_settings()
+
+    with pytest.raises(ValueError, match="cannot start with TU"):
+        service.update_settings(system_name="Rejected Shop", order_prefix="TUX")
+
+    db_session.commit()
+    db_session.expire_all()
+    assert service.get_settings().system_name == "Bot Order System"
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
