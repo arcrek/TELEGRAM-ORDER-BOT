@@ -38,7 +38,7 @@ class AppSettingsService:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_settings(self) -> AppSettings:
+    def get_settings(self, commit: bool = True) -> AppSettings:
         """Return the singleton settings row, creating it on first access."""
         settings = self.session.query(AppSettings).filter_by(id=_SINGLETON_ID).first()
         if settings:
@@ -46,9 +46,18 @@ class AppSettingsService:
 
         settings = AppSettings(id=_SINGLETON_ID)
         self.session.add(settings)
-        self.session.commit()
-        self.session.refresh(settings)
+        if commit:
+            self.session.commit()
+            self.session.refresh(settings)
+        else:
+            self.session.flush()
         return settings
+
+    def settings_exist(self) -> bool:
+        return (
+            self.session.query(AppSettings.id).filter_by(id=_SINGLETON_ID).first()
+            is not None
+        )
 
     def update_settings(
         self,
@@ -62,7 +71,7 @@ class AppSettingsService:
         api_docs_url: str | None = None,
         commit: bool = True,
     ) -> AppSettings:
-        settings = self.get_settings()
+        settings = self.get_settings(commit=commit)
         updates: dict[str, str] = {}
         if system_name is not None:
             value = system_name.strip()
