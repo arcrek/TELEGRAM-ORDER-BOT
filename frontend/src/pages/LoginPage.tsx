@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Lock } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import { useBranding } from '../contexts/BrandingContext'
 import { Button } from '../shared/components/Button'
 import { Input } from '../shared/components/Input'
 import { FormField } from '../shared/components/FormField'
@@ -11,6 +12,7 @@ import './LoginPage.css'
 export function LoginPage() {
   const { t } = useTranslation()
   const { login } = useAuth()
+  const { systemName } = useBranding()
   const navigate = useNavigate()
   const formId = useId()
 
@@ -42,7 +44,7 @@ export function LoginPage() {
           <div className="login-page__logo">
             <Lock size={24} />
           </div>
-          <h1 className="login-page__brand-title">MTK Bot Order</h1>
+          <h1 className="login-page__brand-title">{systemName}</h1>
           <p className="login-page__brand-sub">{t('auth.brandTagline', 'Hệ thống quản lý đơn hàng Telegram')}</p>
         </div>
       </div>

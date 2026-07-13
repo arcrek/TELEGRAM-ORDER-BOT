@@ -4,6 +4,7 @@ import {
   ShieldCheck, Globe, Zap, List, Eye, History,
   Package, Wallet, Bot,
 } from 'lucide-react'
+import { useBranding } from '../contexts/BrandingContext'
 import './ApiPage.css'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -126,6 +127,8 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) || 'http://localhost:8001'
 
 export function ApiPage() {
+  const { systemName } = useBranding()
+
   return (
     <div className="api-shell">
       {/* Standalone topbar — no auth required */}
@@ -133,7 +136,7 @@ export function ApiPage() {
         <div className="api-shell__topbar-inner">
           <div className="api-shell__brand">
             <Bot size={18} className="api-shell__brand-icon" />
-            <span className="api-shell__brand-name">MTK Admin</span>
+            <span className="api-shell__brand-name">{systemName}</span>
             <span className="api-shell__brand-sep">/</span>
             <span className="api-shell__brand-page">API Reference</span>
           </div>

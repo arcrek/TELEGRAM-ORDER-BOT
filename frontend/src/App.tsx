@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { BrandingProvider } from './contexts/BrandingContext'
 import { ToastProvider } from './shared/components/Toast'
 import { ConfirmDialogProvider } from './shared/components/ConfirmDialog'
 import { Spinner } from './shared/components/Spinner'
@@ -95,16 +96,18 @@ export function AppRoutes() {
 
 export function App() {
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <ConfirmDialogProvider>
-          <AuthProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </AuthProvider>
-        </ConfirmDialogProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <BrandingProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <ConfirmDialogProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </AuthProvider>
+          </ConfirmDialogProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </BrandingProvider>
   )
 }

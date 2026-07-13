@@ -1,10 +1,12 @@
-import { useEffect, useState, useRef } from 'react'
-import { Save, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { RefreshCw, Save } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { PageHeader } from '../shared/components/PageHeader'
+import { useBranding } from '../contexts/BrandingContext'
 import { Button } from '../shared/components/Button'
-import { IconButton } from '../shared/components/IconButton'
 import { FormField } from '../shared/components/FormField'
+import { IconButton } from '../shared/components/IconButton'
+import { Input } from '../shared/components/Input'
+import { PageHeader } from '../shared/components/PageHeader'
 import { Select } from '../shared/components/Select'
 import { Skeleton } from '../shared/components/Skeleton'
 import { useToast } from '../shared/components/Toast'
@@ -12,25 +14,26 @@ import { apiClient, formatApiError } from '../shared/lib/api'
 import './GeneralSettingsPage.css'
 
 interface AppSettingsResponse {
+  system_name: string
+  bot_url: string
+  support_line_1: string
+  support_line_2: string
   timezone: string
+  order_prefix: string
+  api_docs_url: string
 }
 
-/** Build a list of IANA timezone options for the dropdown. */
-function buildTimezoneOptions(): Array<{ value: string; label: string }> {
-  // Intl.supportedValuesOf is ES2022 — guard for environments that lack it
-  const supported =
-    typeof Intl !== 'undefined' &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    typeof (Intl as any).supportedValuesOf === 'function'
-      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (Intl as any).supportedValuesOf('timeZone') as string[]
-      : FALLBACK_TIMEZONES
-
-  return supported.map(tz => ({ value: tz, label: tz }))
+const EMPTY_SETTINGS: AppSettingsResponse = {
+  system_name: '',
+  bot_url: '',
+  support_line_1: '',
+  support_line_2: '',
+  timezone: 'Asia/Ho_Chi_Minh',
+  order_prefix: 'ORD',
+  api_docs_url: '',
 }
 
-/** Curated fallback list for environments without Intl.supportedValuesOf. */
-const FALLBACK_TIMEZONES: string[] = [
+const FALLBACK_TIMEZONES = [
   'Asia/Ho_Chi_Minh',
   'Asia/Bangkok',
   'Asia/Singapore',
@@ -49,80 +52,83 @@ const FALLBACK_TIMEZONES: string[] = [
   'UTC',
 ]
 
+function buildTimezoneOptions(): Array<{ value: string; label: string }> {
+  const intl = typeof Intl === 'undefined'
+    ? null
+    : Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] }
+  const supported = intl?.supportedValuesOf?.('timeZone') ?? FALLBACK_TIMEZONES
+  return [...new Set([...supported, 'UTC'])].map(timezone => ({ value: timezone, label: timezone }))
+}
+
+const TIMEZONE_OPTIONS = buildTimezoneOptions()
+
 export function GeneralSettingsPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { refresh } = useBranding()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dirty, setDirty] = useState(false)
+  const [settings, setSettings] = useState<AppSettingsResponse>(EMPTY_SETTINGS)
+  const savedSettingsRef = useRef<AppSettingsResponse>(EMPTY_SETTINGS)
+  const dirty = JSON.stringify(settings) !== JSON.stringify(savedSettingsRef.current)
 
-  const [timezone, setTimezone] = useState<string>('Asia/Ho_Chi_Minh')
-  const savedTimezoneRef = useRef<string>(timezone)
-
-  const tzOptions = buildTimezoneOptions()
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await apiClient.get<AppSettingsResponse>('/api/app-settings')
-      const loaded = res.data.timezone
-      setTimezone(loaded)
-      savedTimezoneRef.current = loaded
-      setDirty(false)
+      const response = await apiClient.get<AppSettingsResponse>('/api/app-settings')
+      setSettings(response.data)
+      savedSettingsRef.current = response.data
     } catch (err) {
-      setError(formatApiError(err, t('generalSettings.loadError', 'Không thể tải cài đặt')))
+      setError(formatApiError(err, t('generalSettings.loadError')))
     } finally {
       setLoading(false)
     }
-  }
+  }, [t])
 
-  useEffect(() => { fetchSettings() }, [])
+  const handleSave = useCallback(async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      await apiClient.put('/api/app-settings', settings)
+      savedSettingsRef.current = settings
+      await refresh()
+      toast.success(t('generalSettings.saved'))
+    } catch (err) {
+      setError(formatApiError(err, t('generalSettings.saveError')))
+    } finally {
+      setSaving(false)
+    }
+  }, [refresh, settings, t, toast])
 
-  // Cmd/Ctrl+S to save
+  useEffect(() => { void fetchSettings() }, [fetchSettings])
+
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault()
-        if (dirty && !saving) handleSave()
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 's') {
+        event.preventDefault()
+        if (dirty && !saving) void handleSave()
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [dirty, saving, timezone])
+  }, [dirty, handleSave, saving])
 
-  const handleTimezoneChange = (value: string | null) => {
-    const next = value ?? savedTimezoneRef.current
-    setTimezone(next)
-    setDirty(next !== savedTimezoneRef.current)
-  }
-
-  const handleSave = async () => {
-    setSaving(true)
-    setError(null)
-    try {
-      await apiClient.put('/api/app-settings', { timezone })
-      savedTimezoneRef.current = timezone
-      setDirty(false)
-      toast.success(t('generalSettings.saved', 'Đã lưu cài đặt'))
-    } catch (err) {
-      setError(formatApiError(err, t('generalSettings.saveError', 'Không thể lưu cài đặt')))
-    } finally {
-      setSaving(false)
-    }
+  const updateSetting = (key: keyof AppSettingsResponse, value: string) => {
+    setSettings(current => ({ ...current, [key]: value }))
   }
 
   return (
     <div className="general-settings-page">
       <PageHeader
-        title={t('nav.generalSettings', 'Cài đặt chung')}
-        description={t('generalSettings.description', 'Cấu hình múi giờ và các tuỳ chọn toàn cục')}
+        title={t('nav.generalSettings')}
+        description={t('generalSettings.description')}
         actions={
           <div className="general-settings-page__actions">
             <IconButton
               icon={<RefreshCw size={14} />}
-              aria-label={t('common.refresh', 'Làm mới')}
+              aria-label={t('common.refresh')}
               variant="ghost"
               size="sm"
               onClick={fetchSettings}
@@ -136,16 +142,14 @@ export function GeneralSettingsPage() {
               loading={saving}
               disabled={!dirty}
             >
-              {t('common.save', 'Lưu')}
+              {t('common.save')}
               {dirty && <span className="general-settings-page__dirty-dot" aria-hidden="true" />}
             </Button>
           </div>
         }
       />
 
-      {error && (
-        <div className="general-settings-page__error" role="alert">{error}</div>
-      )}
+      {error && <div className="general-settings-page__error" role="alert">{error}</div>}
 
       {loading ? (
         <div className="general-settings-page__skel">
@@ -156,30 +160,110 @@ export function GeneralSettingsPage() {
         </div>
       ) : (
         <div className="general-settings-page__form">
+          <FormField
+            label={t('generalSettings.systemName')}
+            htmlFor="gs-system-name"
+            helperText={t('generalSettings.systemNameHint')}
+          >
+            <Input
+              id="gs-system-name"
+              value={settings.system_name}
+              onChange={event => updateSetting('system_name', event.target.value)}
+              maxLength={80}
+              required
+            />
+          </FormField>
+
+          <FormField
+            label={t('generalSettings.botUrl')}
+            htmlFor="gs-bot-url"
+            helperText={t('generalSettings.botUrlHint')}
+          >
+            <Input
+              id="gs-bot-url"
+              type="url"
+              value={settings.bot_url}
+              onChange={event => updateSetting('bot_url', event.target.value)}
+              required
+            />
+          </FormField>
+
+          <FormField
+            label={t('generalSettings.supportLine1')}
+            htmlFor="gs-support-line-1"
+            helperText={t('generalSettings.supportLine1Hint')}
+          >
+            <Input
+              id="gs-support-line-1"
+              value={settings.support_line_1}
+              onChange={event => updateSetting('support_line_1', event.target.value)}
+              maxLength={200}
+            />
+          </FormField>
+
+          <FormField
+            label={t('generalSettings.supportLine2')}
+            htmlFor="gs-support-line-2"
+            helperText={t('generalSettings.supportLine2Hint')}
+          >
+            <Input
+              id="gs-support-line-2"
+              value={settings.support_line_2}
+              onChange={event => updateSetting('support_line_2', event.target.value)}
+              maxLength={200}
+            />
+          </FormField>
+
           <div className="general-settings-page__info-box">
-            {t(
-              'generalSettings.timezoneNote',
-              'Múi giờ này áp dụng cho bot Telegram — tất cả thời gian hiển thị trong bot sẽ theo múi giờ này. Dashboard luôn hiển thị theo múi giờ trình duyệt của bạn.',
-            )}
+            {t('generalSettings.timezoneNote')}
           </div>
 
           <FormField
-            label={t('generalSettings.timezone', 'Múi giờ bot')}
+            label={t('generalSettings.timezone')}
             htmlFor="gs-timezone"
-            helperText={t('generalSettings.timezoneHint', 'Chọn múi giờ IANA cho bot Telegram')}
+            helperText={t('generalSettings.timezoneHint')}
+            required
           >
             <Select
               id="gs-timezone"
-              options={tzOptions}
-              value={timezone}
-              onChange={handleTimezoneChange}
+              options={TIMEZONE_OPTIONS}
+              value={settings.timezone}
+              onChange={value => updateSetting('timezone', value ?? savedSettingsRef.current.timezone)}
               searchable
-              placeholder={t('generalSettings.timezonePlaceholder', 'Chọn múi giờ...')}
+              placeholder={t('generalSettings.timezonePlaceholder')}
+            />
+          </FormField>
+
+          <FormField
+            label={t('generalSettings.orderPrefix')}
+            htmlFor="gs-order-prefix"
+            helperText={t('generalSettings.orderPrefixHint')}
+          >
+            <Input
+              id="gs-order-prefix"
+              value={settings.order_prefix}
+              onChange={event => updateSetting('order_prefix', event.target.value)}
+              minLength={2}
+              maxLength={8}
+              required
+            />
+          </FormField>
+
+          <FormField
+            label={t('generalSettings.apiDocsUrl')}
+            htmlFor="gs-api-docs-url"
+            helperText={t('generalSettings.apiDocsUrlHint')}
+          >
+            <Input
+              id="gs-api-docs-url"
+              type="url"
+              value={settings.api_docs_url}
+              onChange={event => updateSetting('api_docs_url', event.target.value)}
             />
           </FormField>
 
           <p className="general-settings-page__shortcut-hint">
-            {t('botUi.saveHint', 'Nhấn Ctrl+S (⌘S) để lưu nhanh')}
+            {t('generalSettings.saveShortcut')}
           </p>
         </div>
       )}

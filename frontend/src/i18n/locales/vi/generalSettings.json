@@ -1,0 +1,25 @@
+{
+  "generalSettings": {
+    "description": "Quản lý thương hiệu, liên kết Telegram, thông tin hỗ trợ và mặc định đơn hàng.",
+    "loadError": "Không thể tải cài đặt",
+    "saveError": "Không thể lưu cài đặt",
+    "saved": "Đã lưu cài đặt",
+    "systemName": "Tên hệ thống",
+    "systemNameHint": "Hiển thị tại trang đăng nhập, thanh bên và tài liệu API công khai.",
+    "botUrl": "URL bot",
+    "botUrlHint": "Liên kết https://t.me công khai của bot khách hàng.",
+    "supportLine1": "Kênh hỗ trợ chính",
+    "supportLine1Hint": "Thông tin hỗ trợ đầu tiên hiển thị cho khách hàng.",
+    "supportLine2": "Kênh hỗ trợ phụ",
+    "supportLine2Hint": "Thông tin hỗ trợ thứ hai, không bắt buộc.",
+    "timezone": "Múi giờ bot",
+    "timezoneHint": "Chọn múi giờ IANA cho bot Telegram.",
+    "timezonePlaceholder": "Chọn múi giờ...",
+    "timezoneNote": "Múi giờ này áp dụng cho thời gian hiển thị trong bot Telegram. Dashboard tiếp tục dùng múi giờ của trình duyệt.",
+    "orderPrefix": "Tiền tố đơn hàng",
+    "orderPrefixHint": "Dùng 2–8 chữ cái in hoa hoặc chữ số; không được bắt đầu bằng TU.",
+    "apiDocsUrl": "URL tài liệu API",
+    "apiDocsUrlHint": "Địa chỉ HTTPS công khai của tài liệu API, không bắt buộc.",
+    "saveShortcut": "Nhấn Ctrl+S (⌘S) để lưu nhanh."
+  }
+}

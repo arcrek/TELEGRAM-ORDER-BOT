@@ -7,6 +7,7 @@ import {
   Bot, PanelLeftClose, PanelLeft, Ban, RotateCcw,
 } from 'lucide-react'
 import { Tooltip } from '../../shared/components/Tooltip'
+import { useBranding } from '../../contexts/BrandingContext'
 import { ROUTE_GROUPS, routesByGroup } from '../routes'
 import './Sidebar.css'
 
@@ -34,6 +35,7 @@ const ROUTE_KEY_TO_BADGE: Record<string, keyof NavBadgeCounts> = {
 
 export function Sidebar({ collapsed, onToggleCollapse, badgeCounts = {}, className = '' }: SidebarProps) {
   const { t } = useTranslation()
+  const { systemName } = useBranding()
   const location = useLocation()
 
   return (
@@ -44,7 +46,7 @@ export function Sidebar({ collapsed, onToggleCollapse, badgeCounts = {}, classNa
       {/* Logo */}
       <div className="sidebar__logo">
         <Bot size={20} className="sidebar__logo-icon" />
-        {!collapsed && <span className="sidebar__logo-text">MTK Admin</span>}
+        {!collapsed && <span className="sidebar__logo-text">{systemName}</span>}
       </div>
 
       {/* Groups */}

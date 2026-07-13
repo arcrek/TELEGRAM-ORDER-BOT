@@ -6,6 +6,7 @@ import { render, screen } from '@testing-library/react'
 import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import { ThemeProvider } from '../contexts/ThemeContext'
 import { AuthProvider } from '../contexts/AuthContext'
+import { BrandingProvider } from '../contexts/BrandingContext'
 import { ToastProvider } from '../shared/components/Toast'
 import { ConfirmDialogProvider } from '../shared/components/ConfirmDialog'
 import { AppRoutes } from '../App'
@@ -47,15 +48,17 @@ describe('Routing', () => {
   it('should render login route', () => {
     render(
       <BrowserRouter>
-        <ThemeProvider>
-          <ToastProvider>
-            <ConfirmDialogProvider>
-              <AuthProvider>
-                <AppRoutes />
-              </AuthProvider>
-            </ConfirmDialogProvider>
-          </ToastProvider>
-        </ThemeProvider>
+        <BrandingProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ConfirmDialogProvider>
+                <AuthProvider>
+                  <AppRoutes />
+                </AuthProvider>
+              </ConfirmDialogProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </BrandingProvider>
       </BrowserRouter>
     )
 
@@ -75,15 +78,17 @@ describe('Routing', () => {
   it('should render RefundsPage at /refunds when authenticated', () => {
     render(
       <MemoryRouter initialEntries={['/refunds']}>
-        <ThemeProvider>
-          <ToastProvider>
-            <ConfirmDialogProvider>
-              <AuthProvider>
-                <AppRoutes />
-              </AuthProvider>
-            </ConfirmDialogProvider>
-          </ToastProvider>
-        </ThemeProvider>
+        <BrandingProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ConfirmDialogProvider>
+                <AuthProvider>
+                  <AppRoutes />
+                </AuthProvider>
+              </ConfirmDialogProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </BrandingProvider>
       </MemoryRouter>
     )
 

@@ -1,0 +1,25 @@
+{
+  "generalSettings": {
+    "description": "Manage operator branding, Telegram links, support contacts, and order defaults.",
+    "loadError": "Unable to load settings",
+    "saveError": "Unable to save settings",
+    "saved": "Settings saved",
+    "systemName": "System name",
+    "systemNameHint": "Shown on the login page, sidebar, and public API reference.",
+    "botUrl": "Bot URL",
+    "botUrlHint": "Public https://t.me link for the customer bot.",
+    "supportLine1": "Primary support line",
+    "supportLine1Hint": "First support contact shown to customers.",
+    "supportLine2": "Secondary support line",
+    "supportLine2Hint": "Optional second support contact shown to customers.",
+    "timezone": "Bot timezone",
+    "timezoneHint": "Choose the IANA timezone used by the Telegram bot.",
+    "timezonePlaceholder": "Choose a timezone...",
+    "timezoneNote": "This timezone controls times shown by the Telegram bot. The dashboard continues to use your browser timezone.",
+    "orderPrefix": "Order prefix",
+    "orderPrefixHint": "Use 2–8 uppercase letters or digits; it cannot start with TU.",
+    "apiDocsUrl": "API documentation URL",
+    "apiDocsUrlHint": "Optional public HTTPS address for the API reference.",
+    "saveShortcut": "Press Ctrl+S (⌘S) to save quickly."
+  }
+}
