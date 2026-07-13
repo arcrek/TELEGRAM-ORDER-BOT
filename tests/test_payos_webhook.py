@@ -110,7 +110,7 @@ def test_payos_webhook_success_calls_processor(client, monkeypatch):
     data = {
         "orderCode": 123,
         "amount": 3000,
-        "description": "MTKorder",
+        "description": "BotOrder",
         "accountNumber": "12345678",
         "reference": "REF123",
         "transactionDateTime": "2026-01-28 00:00:00",
@@ -175,4 +175,3 @@ def test_payos_webhook_invalid_signature_skips_processing(client, monkeypatch):
     resp = client.post("/api/payos/webhook", json=payload)
     assert resp.status_code == 200
     assert called["hit"] is False
-

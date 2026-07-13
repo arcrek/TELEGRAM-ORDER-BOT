@@ -1249,11 +1249,11 @@ Create a temporary `.env` from `.env.example`, replace its empty values with
 non-secret test values, then run:
 
 ```bash
-rtk cp .env.example /tmp/mtk-compose.env
-rtk sed -i 's/^TELEGRAM_BOT_TOKEN=$/TELEGRAM_BOT_TOKEN=000000000:test-token/; s/^BOT_OWNER_TELEGRAM_ID=$/BOT_OWNER_TELEGRAM_ID=123456/; s/^DB_PASSWORD=$/DB_PASSWORD=ci-database-password/; s/^PAYOS_CLIENT_ID=$/PAYOS_CLIENT_ID=ci-client/; s/^PAYOS_API_KEY=$/PAYOS_API_KEY=ci-api-key/; s/^PAYOS_CHECKSUM_KEY=$/PAYOS_CHECKSUM_KEY=ci-checksum-key/; s/^DASHBOARD_SECRET_KEY=$/DASHBOARD_SECRET_KEY=ci-dashboard-secret/' /tmp/mtk-compose.env
+rtk cp .env.example /tmp/bot-order-compose.env
+rtk sed -i 's/^TELEGRAM_BOT_TOKEN=$/TELEGRAM_BOT_TOKEN=000000000:test-token/; s/^BOT_OWNER_TELEGRAM_ID=$/BOT_OWNER_TELEGRAM_ID=123456/; s/^DB_PASSWORD=$/DB_PASSWORD=ci-database-password/; s/^PAYOS_CLIENT_ID=$/PAYOS_CLIENT_ID=ci-client/; s/^PAYOS_API_KEY=$/PAYOS_API_KEY=ci-api-key/; s/^PAYOS_CHECKSUM_KEY=$/PAYOS_CHECKSUM_KEY=ci-checksum-key/; s/^DASHBOARD_SECRET_KEY=$/DASHBOARD_SECRET_KEY=ci-dashboard-secret/' /tmp/bot-order-compose.env
 rtk pytest tests/test_health_endpoints.py -v
-rtk docker compose --env-file /tmp/mtk-compose.env config --services
-rtk docker compose --env-file /tmp/mtk-compose.env config -q
+rtk docker compose --env-file /tmp/bot-order-compose.env config --services
+rtk docker compose --env-file /tmp/bot-order-compose.env config -q
 ```
 
 Expected services, one per line: `postgres`, `api`, `bot`, `frontend`.
@@ -2316,7 +2316,7 @@ rtk npm test -- --run
 rtk npm run lint
 rtk npm run build
 rtk bash -n setup.sh manage.sh scripts/backup_database.sh scripts/restore_database.sh scripts/check_public_tree.sh
-rtk docker compose --env-file /tmp/mtk-compose.env config -q
+rtk docker compose --env-file /tmp/bot-order-compose.env config -q
 rtk bash scripts/check_public_tree.sh
 ```
 

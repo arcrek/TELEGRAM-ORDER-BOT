@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Prepare MTK Bot Order System for an AGPL-3.0 open-source release that a new
+Prepare Bot Order System for an AGPL-3.0 open-source release that a new
 operator can install, configure, run, update, and recover without reading the
 source code. Docker Compose is the only supported deployment path. PayOS is
 the only supported external payment provider.

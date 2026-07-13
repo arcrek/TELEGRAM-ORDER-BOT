@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Apply five visual/UX improvements to the MTK Admin dashboard: warm palette, amber VND accent, vitals strip, statistics page layout restructure, navigation count badges, and a bot-status pill in the topbar.
+**Goal:** Apply five visual/UX improvements to the Bot Order Admin dashboard: warm palette, amber VND accent, vitals strip, statistics page layout restructure, navigation count badges, and a bot-status pill in the topbar.
 
 **Architecture:** All changes are purely frontend — CSS token edits, React component restructures, and one new `useBotStatus` hook. No backend changes required. The todo/counts data already comes from `/api/statistics/todo`; the bot-status derives from recent-order activity already in the statistics payload.
 
@@ -899,7 +899,7 @@ export function Sidebar({ collapsed, onToggleCollapse, badgeCounts = {}, classNa
       {/* Logo */}
       <div className="sidebar__logo">
         <Bot size={20} className="sidebar__logo-icon" />
-        {!collapsed && <span className="sidebar__logo-text">MTK Admin</span>}
+        {!collapsed && <span className="sidebar__logo-text">Bot Order Admin</span>}
       </div>
 
       {/* Groups */}
