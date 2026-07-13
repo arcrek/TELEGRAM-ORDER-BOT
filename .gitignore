@@ -34,9 +34,8 @@ ENV/
 *~
 
 # Environment variables
-.env
-.env.secondary
-.env.local
+.env*
+!.env.example
 
 # Logs
 *.log
@@ -48,8 +47,10 @@ Thumbs.db
 *.db
 data/*
 
-.agents
-.claude
-.codex
+.agents/
+.claude/
+.codegraph/
+.codex/
+backups/
 .worktrees/
 .superpowers/
