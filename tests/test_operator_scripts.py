@@ -86,7 +86,7 @@ decode_compose_value() {
 }
 
 printf '%s\n' "$*" >> "$COMMAND_LOG"
-if [[ "$*" == *"scripts/bootstrap_system.py"* ]]; then
+if [[ "$*" == *"-m scripts.bootstrap_system"* ]]; then
   cat > "$BOOTSTRAP_STDIN"
 fi
 if [[ "${FAIL_CONFIG:-0}" == 1 && "$*" == *" config -q" ]]; then
@@ -602,7 +602,7 @@ def test_setup_creates_atomic_private_env_and_bootstraps_over_stdin(
     assert bootstrap["admin"]["password"] == "admin-password-123"
     assert bootstrap["settings"]["order_prefix"] == "SHOP"
     assert bootstrap["settings"]["support_line_1"] == 'Support "desk"\\night\tshift'
-    assert "scripts/bootstrap_system.py" in command_log
+    assert "-m scripts.bootstrap_system" in command_log
     assert "up -d postgres api" in command_log
     assert "up -d --build bot frontend" in command_log
     assert "https://api.shop.example/api/payos/webhook" in result.stdout

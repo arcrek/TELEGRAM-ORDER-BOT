@@ -282,7 +282,7 @@ printf -v bootstrap_json \
   "$(json_string "$api_docs_url")"
 
 printf '%s' "$bootstrap_json" |
-  docker compose exec -T api python scripts/bootstrap_system.py
+  docker compose exec -T api python -m scripts.bootstrap_system
 unset admin_password bootstrap_json
 
 docker compose up -d --build bot frontend
