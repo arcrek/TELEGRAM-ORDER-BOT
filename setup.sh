@@ -14,14 +14,15 @@ docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required
 docker info >/dev/null 2>&1 || die "Docker daemon is not reachable"
 
 validate_stored() {
-  [[ "$1" != *$'\n'* && "$1" != *$'\r'* ]]
+  local value="${1//$'\t'/}"
+  [[ "$value" != *[[:cntrl:]]* ]]
 }
 
 prompt_required() {
   local prompt="$1"
   while true; do
     read -r -p "$prompt: " REPLY || die "Input ended before setup was complete"
-    validate_stored "$REPLY" || { printf 'Values cannot contain newlines.\n' >&2; continue; }
+    validate_stored "$REPLY" || { printf 'Values cannot contain unsupported control characters.\n' >&2; continue; }
     [[ -n "$REPLY" ]] && return
     printf 'A value is required.\n' >&2
   done
@@ -30,7 +31,7 @@ prompt_required() {
 prompt_default() {
   local prompt="$1" default="$2"
   read -r -p "$prompt [$default]: " REPLY || die "Input ended before setup was complete"
-  validate_stored "$REPLY" || die "Values cannot contain newlines"
+  validate_stored "$REPLY" || die "Values cannot contain unsupported control characters"
   REPLY="${REPLY:-$default}"
 }
 
@@ -39,7 +40,7 @@ prompt_secret_required() {
   while true; do
     read -r -s -p "$prompt: " REPLY || die "Input ended before setup was complete"
     printf '\n' >&2
-    validate_stored "$REPLY" || { printf 'Values cannot contain newlines.\n' >&2; continue; }
+    validate_stored "$REPLY" || { printf 'Values cannot contain unsupported control characters.\n' >&2; continue; }
     [[ -n "$REPLY" ]] && return
     printf 'A value is required.\n' >&2
   done
@@ -62,7 +63,39 @@ prompt_secret_confirm() {
 }
 
 validate_url() {
-  [[ "$1" =~ ^https?://[^[:space:]/]+(/[^[:space:]]*)?$ ]]
+  local url="$1" rest authority host port="" label
+  local -a labels=()
+  [[ "$url" =~ ^https?:// && "$url" != *[[:space:]]* ]] || return 1
+  rest="${url#*://}"
+  authority="${rest%%[/?#]*}"
+  [[ -n "$authority" && "$authority" != *"@"* ]] || return 1
+
+  if [[ "$authority" == \[* ]]; then
+    [[ "$authority" =~ ^\[([0-9A-Fa-f:.]+)\](:([0-9]+))?$ ]] || return 1
+    host="${BASH_REMATCH[1]}"
+    port="${BASH_REMATCH[3]:-}"
+    [[ "$host" == *:* && "$host" != *:::* ]] || return 1
+  else
+    [[ "$authority" != *:*:* ]] || return 1
+    if [[ "$authority" == *:* ]]; then
+      host="${authority%:*}"
+      port="${authority##*:}"
+      [[ -n "$port" ]] || return 1
+    else
+      host="$authority"
+    fi
+    (( ${#host} <= 253 )) || return 1
+    IFS=. read -r -a labels <<< "$host"
+    for label in "${labels[@]}"; do
+      (( ${#label} <= 63 )) || return 1
+      [[ "$label" =~ ^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$ ]] || return 1
+    done
+  fi
+
+  if [[ -n "$port" ]]; then
+    [[ "$port" =~ ^[0-9]+$ ]] && (( ${#port} <= 5 )) || return 1
+    (( 10#$port >= 1 && 10#$port <= 65535 )) || return 1
+  fi
 }
 
 validate_positive_int() {
@@ -91,9 +124,19 @@ random_hex() {
   od -An -N32 -tx1 /dev/urandom | tr -d ' \n'
 }
 
+dotenv_value() {
+  local value="${1//\'/\\\'}"
+  printf "'%s'" "$value"
+}
+
 env_value() {
-  local key="$1"
-  sed -n "s/^${key}=//p" .env | tail -n 1
+  local key="$1" value
+  value="$(sed -n "s/^${key}=//p" .env | tail -n 1)"
+  if [[ "$value" == \'*\' ]]; then
+    value="${value:1:${#value}-2}"
+    value="${value//\\\'/\'}"
+  fi
+  printf '%s' "$value"
 }
 
 if [[ -f .env ]]; then
@@ -129,20 +172,20 @@ else
   umask 077
   TMP_ENV="$(mktemp "${ROOT_DIR}/.env.tmp.XXXXXX")"
   {
-    printf 'FRONTEND_URL=%s\n' "$frontend_url"
-    printf 'VITE_API_BASE_URL=%s\n' "$api_url"
-    printf 'CORS_ORIGINS=%s\n' "$frontend_url"
-    printf 'DASHBOARD_PORT=%s\n' "$dashboard_port"
-    printf 'FRONTEND_PORT=%s\n' "$frontend_port"
-    printf 'TELEGRAM_BOT_TOKEN=%s\n' "$telegram_token"
-    printf 'BOT_OWNER_TELEGRAM_ID=%s\n' "$owner_id"
-    printf 'DB_NAME=%s\n' "$db_name"
-    printf 'DB_USER=%s\n' "$db_user"
-    printf 'DB_PASSWORD=%s\n' "$db_password"
-    printf 'PAYOS_CLIENT_ID=%s\n' "$payos_client_id"
-    printf 'PAYOS_API_KEY=%s\n' "$payos_api_key"
-    printf 'PAYOS_CHECKSUM_KEY=%s\n' "$payos_checksum_key"
-    printf 'DASHBOARD_SECRET_KEY=%s\n' "$dashboard_secret"
+    printf 'FRONTEND_URL=%s\n' "$(dotenv_value "$frontend_url")"
+    printf 'VITE_API_BASE_URL=%s\n' "$(dotenv_value "$api_url")"
+    printf 'CORS_ORIGINS=%s\n' "$(dotenv_value "$frontend_url")"
+    printf 'DASHBOARD_PORT=%s\n' "$(dotenv_value "$dashboard_port")"
+    printf 'FRONTEND_PORT=%s\n' "$(dotenv_value "$frontend_port")"
+    printf 'TELEGRAM_BOT_TOKEN=%s\n' "$(dotenv_value "$telegram_token")"
+    printf 'BOT_OWNER_TELEGRAM_ID=%s\n' "$(dotenv_value "$owner_id")"
+    printf 'DB_NAME=%s\n' "$(dotenv_value "$db_name")"
+    printf 'DB_USER=%s\n' "$(dotenv_value "$db_user")"
+    printf 'DB_PASSWORD=%s\n' "$(dotenv_value "$db_password")"
+    printf 'PAYOS_CLIENT_ID=%s\n' "$(dotenv_value "$payos_client_id")"
+    printf 'PAYOS_API_KEY=%s\n' "$(dotenv_value "$payos_api_key")"
+    printf 'PAYOS_CHECKSUM_KEY=%s\n' "$(dotenv_value "$payos_checksum_key")"
+    printf 'DASHBOARD_SECRET_KEY=%s\n' "$(dotenv_value "$dashboard_secret")"
   } > "$TMP_ENV"
   docker compose --env-file "$TMP_ENV" config -q || die "Generated environment is not valid for Docker Compose"
   mv "$TMP_ENV" .env

@@ -54,6 +54,25 @@ def environment(bin_dir: Path, tmp_path: Path, **extra: str) -> dict[str, str]:
     }
 
 
+def fake_compose_env(path: Path) -> dict[str, str]:
+    parsed = {}
+    for line in path.read_text().splitlines():
+        key, value = line.split("=", 1)
+        assert value.startswith("'") and value.endswith("'")
+        value = value[1:-1]
+        decoded = []
+        index = 0
+        while index < len(value):
+            if value[index : index + 2] == "\\'":
+                decoded.append("'")
+                index += 2
+            else:
+                decoded.append(value[index])
+                index += 1
+        parsed[key] = "".join(decoded)
+    return parsed
+
+
 def deployment_answers() -> list[str]:
     return [
         "https://shop.example",
@@ -94,7 +113,7 @@ def run_setup(
     answers: list[str],
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["/usr/bin/bash", "setup.sh"],
+        ["/bin/bash", "setup.sh"],
         cwd=root,
         env=env,
         input="\n".join(answers) + "\n",
@@ -112,7 +131,7 @@ def test_setup_requires_git(tmp_path: Path) -> None:
     shutil.copy(ROOT / "setup.sh", root / "setup.sh")
 
     result = subprocess.run(
-        ["/usr/bin/bash", "setup.sh"],
+        ["/bin/bash", "setup.sh"],
         cwd=root,
         env={**os.environ, "PATH": str(core_dir)},
         text=True,
@@ -126,8 +145,18 @@ def test_setup_requires_git(tmp_path: Path) -> None:
 def test_setup_requires_docker(tmp_path: Path) -> None:
     root, bin_dir = project(tmp_path)
     executable(bin_dir / "git", "#!/usr/bin/env bash\nexit 0\n")
+    (bin_dir / "dirname").symlink_to("/usr/bin/dirname")
+    isolated_env = {**os.environ, "PATH": str(bin_dir)}
 
-    result = run_setup(root, environment(bin_dir, tmp_path), [])
+    assert shutil.which("docker", path=isolated_env["PATH"]) is None
+
+    result = subprocess.run(
+        ["/bin/bash", "setup.sh"],
+        cwd=root,
+        env=isolated_env,
+        text=True,
+        capture_output=True,
+    )
 
     assert result.returncode != 0
     assert "Docker is required" in result.stderr
@@ -209,12 +238,12 @@ def test_setup_validates_operator_input(tmp_path: Path) -> None:
     result = run_setup(root, environment(bin_dir, tmp_path), answers)
 
     assert result.returncode == 0, result.stderr
-    env_text = (root / ".env").read_text()
-    assert "FRONTEND_URL=https://shop.example\n" in env_text
-    assert "VITE_API_BASE_URL=https://api.shop.example\n" in env_text
-    assert "DASHBOARD_PORT=8001\n" in env_text
-    assert "FRONTEND_PORT=8082\n" in env_text
-    assert "BOT_OWNER_TELEGRAM_ID=123456789\n" in env_text
+    parsed_env = fake_compose_env(root / ".env")
+    assert parsed_env["FRONTEND_URL"] == "https://shop.example"
+    assert parsed_env["VITE_API_BASE_URL"] == "https://api.shop.example"
+    assert parsed_env["DASHBOARD_PORT"] == "8001"
+    assert parsed_env["FRONTEND_PORT"] == "8082"
+    assert parsed_env["BOT_OWNER_TELEGRAM_ID"] == "123456789"
     errors = result.stderr
     assert "absolute HTTP(S) URL" in errors
     assert "positive integer" in errors
@@ -223,6 +252,106 @@ def test_setup_validates_operator_input(tmp_path: Path) -> None:
     assert "2-8 uppercase letters or digits" in errors
     assert "at least 12 characters" in errors
     assert "Passwords do not match" in errors
+
+
+def test_setup_rejects_malformed_url_authorities_and_ports(tmp_path: Path) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    invalid_urls = [
+        "http://:",
+        "https://?x",
+        "http:///path",
+        "http://#fragment",
+        "https://example.test:port",
+        "https://example.test:0",
+        "https://example.test:65536",
+        "https://.",
+        "https://example..test",
+        "https://-example.test",
+        "https://example-.test",
+    ]
+    frontend_url = "https://shop.example:65535/store?x=1#top"
+    answers = [
+        *invalid_urls,
+        frontend_url,
+        *deployment_answers()[1:],
+        *bootstrap_answers(),
+    ]
+
+    result = run_setup(root, environment(bin_dir, tmp_path), answers)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr.count("absolute HTTP(S) URL") == len(invalid_urls)
+    assert f"Frontend: {frontend_url}" in result.stdout
+
+
+def test_setup_rejects_unsupported_json_control_characters(tmp_path: Path) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    (root / ".env").write_text(
+        "FRONTEND_URL=https://shop.example\n"
+        "VITE_API_BASE_URL=https://api.shop.example\n"
+    )
+    answers = ["Bad\bName", "Bad\fName", *bootstrap_answers()]
+
+    result = run_setup(root, environment(bin_dir, tmp_path), answers)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr.count("unsupported control characters") == 2
+    bootstrap = json.loads((tmp_path / "bootstrap.json").read_text())
+    assert bootstrap["settings"]["system_name"] == "Example Shop"
+
+
+def test_setup_round_trips_compose_literals_without_logging_secrets(
+    tmp_path: Path,
+) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    answers = deployment_answers()
+    answers[4] = "telegram $VALUE # spaced \\ 'single' \"double\""
+    answers[6] = "shop database #1"
+    answers[7] = "shop$user"
+    answers[8] = "db $VALUE # spaced \\ 'single' \"double\""
+    env = environment(bin_dir, tmp_path)
+
+    result = run_setup(root, env, answers + bootstrap_answers())
+
+    assert result.returncode == 0, result.stderr
+    parsed = fake_compose_env(root / ".env")
+    expected = {
+        "FRONTEND_URL": answers[0],
+        "VITE_API_BASE_URL": answers[1],
+        "CORS_ORIGINS": answers[0],
+        "DASHBOARD_PORT": answers[2],
+        "FRONTEND_PORT": answers[3],
+        "TELEGRAM_BOT_TOKEN": answers[4],
+        "BOT_OWNER_TELEGRAM_ID": answers[5],
+        "DB_NAME": answers[6],
+        "DB_USER": answers[7],
+        "DB_PASSWORD": answers[8],
+        "PAYOS_CLIENT_ID": answers[9],
+        "PAYOS_API_KEY": answers[10],
+        "PAYOS_CHECKSUM_KEY": answers[11],
+    }
+    assert {key: parsed[key] for key in expected} == expected
+    assert len(parsed["DASHBOARD_SECRET_KEY"]) == 64
+    assert set(parsed["DASHBOARD_SECRET_KEY"]) <= set("0123456789abcdef")
+    assert set(parsed) == {*expected, "DASHBOARD_SECRET_KEY"}
+    rendered = (root / ".env").read_text()
+    rerun = run_setup(root, env, bootstrap_answers())
+    assert rerun.returncode == 0, rerun.stderr
+    assert (root / ".env").read_text() == rendered
+    assert f"Frontend: {answers[0]}" in rerun.stdout
+    assert f"API docs: {answers[1]}/docs" in rerun.stdout
+    output_and_log = (
+        result.stdout
+        + result.stderr
+        + rerun.stdout
+        + rerun.stderr
+        + Path(env["COMMAND_LOG"]).read_text()
+    )
+    secrets = answers[4:5] + answers[7:12] + [bootstrap_answers()[-1]]
+    assert all(secret not in output_and_log for secret in secrets)
 
 
 def test_setup_creates_atomic_private_env_and_bootstraps_over_stdin(
