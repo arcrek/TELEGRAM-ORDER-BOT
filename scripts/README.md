@@ -1,71 +1,19 @@
-# Scripts
+# Repository scripts
 
-Utility scripts for database management and setup.
+The supported public interfaces are root `setup.sh` for installation and `manage.sh` for lifecycle, diagnostics, backup, restore, and updates. Follow [Installation](../docs/INSTALLATION.md) and [Operations](../OPERATIONS.md); do not duplicate an installation path here.
 
-## bootstrap_system.py
+## Called by supported wrappers
 
-Creates the first dashboard admin and application settings in one transaction.
-Pass the JSON payload through standard input so the password is never exposed in
-the command line:
+- `bootstrap_system.py` reads one JSON payload from standard input and creates the first dashboard administrator and App Settings in one transaction. Reruns preserve existing bootstrap records. `setup.sh` is its public caller.
+- `backup_database.sh` writes an atomic, non-empty PostgreSQL SQL dump under `backups/`. Use `./manage.sh backup [name]`.
+- `restore_database.sh` requires a non-empty dump and exact interactive `RESTORE` confirmation. Use `./manage.sh restore FILE` and run status/doctor afterward.
 
-```bash
-python -m scripts.bootstrap_system < bootstrap.json
-```
+These scripts resolve the repository root themselves and read database identity inside the PostgreSQL container. Do not pass credentials on command lines or commit their output.
 
-Rerunning the command preserves the existing first admin and settings.
+## Development and controlled maintenance
 
-## create_admin.py
+- `create_admin.py` creates an administrator through `AdminService` with a hidden prompt or password on standard input. Normal deployments create the first account through setup and additional accounts through authenticated `POST /api/auth/register`.
+- `seed_products.py` inserts synthetic catalog examples for development. It is not part of production setup.
+- The `.bat` database helpers are retained legacy utilities and are not part of the supported Docker Compose operations interface.
 
-Creates a dashboard admin. Enter the password at the hidden prompt:
-
-```bash
-python scripts/create_admin.py --username owner --full-name "System Owner"
-```
-
-For automation, pass only the password through standard input:
-
-```bash
-printf '%s\n' "$ADMIN_PASSWORD" | python scripts/create_admin.py \
-  --username owner --full-name "System Owner" --password-stdin
-```
-
-## seed_products.py
-
-Seeds the database with sample products and variations based on the requirements.
-
-### Usage
-
-```bash
-# Activate virtual environment
-.venv\Scripts\Activate.ps1
-
-# Run the seed script
-python scripts/seed_products.py
-```
-
-### What it does
-
-- Creates 15 sample products (matching TO-plan.md examples)
-- Creates variations for each product with prices and stock
-- Skips products that already exist (idempotent)
-- Shows progress and summary
-
-### Sample Products Included
-
-- ALIGHT MOTION
-- APPLE MUSIC
-- CANVA LIFETIME
-- CANVA PRO
-- CAPCUT BASIC
-- CAPCUT FAMHEAD
-- CAPCUT PRO
-- CAPCUT PRO PO
-- CHATGPT JASPAY
-- CHATGPT PRIVATE
-- CHATGPT SHARING
-- DUOLINGO
-- GSUITEXGOPAY
-- GSUITEXPSC
-- GOOGLE DRIVE
-
-Each product includes variations with realistic prices and stock levels.
+All scripts must preserve the service-layer database boundary and must not embed credentials, operator identity, production domains, customer data, or delivery inventory.
