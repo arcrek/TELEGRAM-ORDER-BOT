@@ -63,7 +63,7 @@ Restores a non-empty SQL dump into the configured database. This is destructive 
 
 The command requires the exact interactive confirmation `RESTORE`. Any other response prints `Restore cancelled` and exits `0` without changing data. After confirmation it stops `bot` and `api`, starts PostgreSQL, waits up to one minute for database readiness, restores with stop-on-error, and starts `api`, `bot`, and `frontend`.
 
-Successful SQL execution exits `0`, but the restore script does not perform the final API readiness check. Always run:
+The command exits `0` only when both the SQL restore and the final start of `api`, `bot`, and `frontend` succeed. It does not perform a final API readiness check. Always run:
 
 ```bash
 ./manage.sh status

@@ -13,7 +13,6 @@ These scripts resolve the repository root themselves and read database identity 
 ## Development and controlled maintenance
 
 - `create_admin.py` creates an administrator through `AdminService` with a hidden prompt or password on standard input. Normal deployments create the first account through setup and additional accounts through authenticated `POST /api/auth/register`.
-- `seed_products.py` inserts synthetic catalog examples for development. It is not part of production setup.
 - The `.bat` database helpers are retained legacy utilities and are not part of the supported Docker Compose operations interface.
 
 All scripts must preserve the service-layer database boundary and must not embed credentials, operator identity, production domains, customer data, or delivery inventory.

@@ -10,6 +10,7 @@ import { BrandingProvider } from '../contexts/BrandingContext'
 import { ToastProvider } from '../shared/components/Toast'
 import { ConfirmDialogProvider } from '../shared/components/ConfirmDialog'
 import { AppRoutes } from '../App'
+import { ROUTES } from '../app/routes'
 
 // jsdom does not implement window.matchMedia — stub it so AppShell can mount
 beforeAll(() => {
@@ -44,6 +45,10 @@ vi.mock('../contexts/AuthContext', async (importOriginal) => {
   }
 })
 
+vi.mock('../pages/SuppliersPage', () => ({
+  SuppliersPage: () => <div>experimental-supplier-page</div>,
+}))
+
 describe('Routing', () => {
   it('should render login route', () => {
     render(
@@ -73,6 +78,30 @@ describe('Routing', () => {
     routes.forEach(route => {
       expect(route).toMatch(/^\//)
     })
+  })
+
+  it('does not advertise the experimental supplier UI', () => {
+    expect(ROUTES.some(route => route.path === '/suppliers')).toBe(false)
+  })
+
+  it('does not mount the experimental supplier page', () => {
+    render(
+      <MemoryRouter initialEntries={['/suppliers']}>
+        <BrandingProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <ConfirmDialogProvider>
+                <AuthProvider>
+                  <AppRoutes />
+                </AuthProvider>
+              </ConfirmDialogProvider>
+            </ToastProvider>
+          </ThemeProvider>
+        </BrandingProvider>
+      </MemoryRouter>
+    )
+
+    expect(screen.queryByText('experimental-supplier-page')).not.toBeInTheDocument()
   })
 
   it('should render RefundsPage at /refunds when authenticated', () => {

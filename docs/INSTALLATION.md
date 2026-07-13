@@ -41,7 +41,7 @@ The Compose stack does not include a reverse proxy or TLS automation. The operat
 
 Choose two URLs before setup, for example `https://shop.example` and `https://api.shop.example`. `VITE_API_BASE_URL` is compiled into the frontend image, while `CORS_ORIGINS` controls which browser origins may call the API. The PayOS webhook must reach the public API URL.
 
-For a local-only rehearsal the frontend and API prompts accept HTTP. The runtime **API documentation URL** is stricter: when non-empty, the backend accepts HTTPS only. Enter an HTTPS documentation URL during setup even if the local API prompt uses HTTP.
+For a local-only rehearsal the frontend and API prompts accept HTTP. When the API URL uses HTTP, the runtime **API documentation URL** defaults to empty; leave it empty or enter a separate HTTPS URL. When the API URL uses HTTPS, the prompt defaults to that URL plus `/docs`. Non-empty HTTP documentation URLs are rejected. The FastAPI documentation remains available at the API URL plus `/docs` either way.
 
 ## 5. Run the setup wizard
 
@@ -77,7 +77,7 @@ The wizard then asks for runtime identity and the first administrator on every r
 4. **Support line 2** — optional, at most 200 characters.
 5. **Timezone** — valid IANA name; defaults to `Asia/Ho_Chi_Minh`.
 6. **Order prefix** — 2–8 uppercase letters or digits and cannot start with `TU`; defaults to `MTK` in the wizard.
-7. **API documentation URL** — optional absolute HTTPS URL at the backend boundary; the wizard suggests the API URL plus `/docs`.
+7. **API documentation URL** — optional absolute HTTPS URL; defaults to the API URL plus `/docs` only when the API URL uses HTTPS, otherwise empty.
 8. **Admin username** — 3–64 letters, digits, dots, underscores, or hyphens.
 9. **Admin full name** — 1–120 characters.
 10. **Admin email** — valid email address.

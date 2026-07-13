@@ -26,7 +26,6 @@ export const ROUTES: RouteDefinition[] = [
   { path: '/balances', key: 'balances', labelKey: 'nav.balances', group: 'operations', iconName: 'Wallet' },
   { path: '/refunds', key: 'refunds', labelKey: 'nav.refunds', group: 'operations', iconName: 'RotateCcw' },
   { path: '/blocked-users', key: 'blockedUsers', labelKey: 'nav.blockedUsers', group: 'operations', iconName: 'Ban' },
-  { path: '/suppliers', key: 'suppliers', labelKey: 'nav.suppliers', group: 'operations', iconName: 'Users' },
   // Settings
   { path: '/bot-ui-settings', key: 'botUiSettings', labelKey: 'nav.botUiSettings', group: 'settings', iconName: 'Settings' },
   { path: '/general-settings', key: 'generalSettings', labelKey: 'nav.generalSettings', group: 'settings', iconName: 'Star' },

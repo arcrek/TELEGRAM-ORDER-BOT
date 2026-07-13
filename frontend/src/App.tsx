@@ -16,7 +16,6 @@ import { ProductUploadPage } from './pages/ProductUploadPage'
 import { InventoryPage } from './pages/InventoryPage'
 import { VariationsPage } from './pages/VariationsPage'
 import { BonusSummaryPage } from './pages/BonusSummaryPage'
-import { SuppliersPage } from './pages/SuppliersPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { IotdPage } from './pages/IotdPage'
 import { BotUiSettingsPage } from './pages/BotUiSettingsPage'
@@ -81,7 +80,6 @@ export function AppRoutes() {
           <Route path="balances" element={<BalancesPage />} />
           <Route path="refunds" element={<RefundsPage />} />
           <Route path="blocked-users" element={<BlockedUsersPage />} />
-          <Route path="suppliers" element={<SuppliersPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="bot-ui-settings" element={<BotUiSettingsPage />} />
           <Route path="general-settings" element={<GeneralSettingsPage />} />

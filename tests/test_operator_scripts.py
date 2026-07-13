@@ -417,6 +417,44 @@ def test_setup_validates_operator_input(tmp_path: Path) -> None:
     assert "Passwords do not match" in errors
 
 
+def test_setup_local_http_defaults_to_empty_runtime_api_docs_url(
+    tmp_path: Path,
+) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    deployment = deployment_answers()
+    deployment[:2] = ["", ""]
+    bootstrap = bootstrap_answers()
+    bootstrap[6] = ""
+
+    result = run_setup(root, environment(bin_dir, tmp_path), deployment + bootstrap)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads((tmp_path / "bootstrap.json").read_text())
+    assert payload["settings"]["api_docs_url"] == ""
+    assert "API docs: http://localhost:8001/docs" in result.stdout
+
+
+def test_setup_rejects_http_runtime_api_docs_url(tmp_path: Path) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    bootstrap = bootstrap_answers()
+    answers = [
+        *deployment_answers(),
+        *bootstrap[:6],
+        "http://api.shop.example/docs",
+        "https://api.shop.example/docs",
+        *bootstrap[7:],
+    ]
+
+    result = run_setup(root, environment(bin_dir, tmp_path), answers)
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads((tmp_path / "bootstrap.json").read_text())
+    assert payload["settings"]["api_docs_url"] == "https://api.shop.example/docs"
+    assert "absolute HTTPS URL or leave blank" in result.stderr
+
+
 def test_setup_rejects_malformed_url_authorities_and_ports(tmp_path: Path) -> None:
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)

@@ -104,6 +104,16 @@ prompt_url() {
   done
 }
 
+prompt_optional_https_url() {
+  local prompt="$1" default="$2"
+  while true; do
+    prompt_default "$prompt" "$default"
+    [[ -z "$REPLY" ]] && return
+    [[ "$REPLY" == https://* ]] && validate_url "$REPLY" && return
+    printf 'Enter an absolute HTTPS URL or leave blank.\n' >&2
+  done
+}
+
 prompt_positive_int() {
   local prompt="$1" default="$2"
   while true; do
@@ -218,7 +228,9 @@ while true; do
     break
   fi
 done
-prompt_url "API documentation URL" "${api_url%/}/docs"
+api_docs_default=""
+[[ "$api_url" == https://* ]] && api_docs_default="${api_url%/}/docs"
+prompt_optional_https_url "API documentation URL" "$api_docs_default"
 api_docs_url="$REPLY"
 prompt_required "Admin username"
 admin_username="$REPLY"

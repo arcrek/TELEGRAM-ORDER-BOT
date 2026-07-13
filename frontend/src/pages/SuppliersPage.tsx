@@ -18,6 +18,7 @@ import { apiClient, formatApiError } from '../shared/lib/api'
 import { useFormat } from '../shared/lib/format'
 import './SuppliersPage.css'
 
+// Experimental source only; this page is intentionally absent from public routing.
 interface Supplier {
   id: string
   telegram_user_id: number
