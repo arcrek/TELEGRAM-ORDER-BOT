@@ -5,12 +5,11 @@ The /apitoken command generates (or regenerates) a per-user API token stored
 in BotUser.api_token.  The inline menu (start_api callback) lets users view,
 create, and revoke their token without leaving the chat.
 
-API docs URL is read from the API_DOCS_URL environment variable.  When unset
-the docs button is hidden rather than pointing to a dead link.
+When the configured API docs URL is empty, the docs button is hidden rather
+than pointing to a dead link.
 """
 
 import logging
-import os
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -18,6 +17,7 @@ from telegram.ext import ContextTypes
 
 from src.database.connection import get_session_factory
 from src.database.services.bot_user_service import BotUserService
+from src.database.services.app_settings_service import AppSettingsService
 from src.bot.utils.language import t
 
 logger = logging.getLogger(__name__)
@@ -27,10 +27,10 @@ logger = logging.getLogger(__name__)
 # Keyboard helper
 # ---------------------------------------------------------------------------
 
-def _api_menu_keyboard(update: Update, has_token: bool) -> InlineKeyboardMarkup:
+def _api_menu_keyboard(
+    update: Update, has_token: bool, api_docs_url: str
+) -> InlineKeyboardMarkup:
     """Build the API management inline keyboard."""
-    api_docs_url = os.getenv("API_DOCS_URL", "")
-
     buttons = []
     if has_token:
         buttons.append([
@@ -89,7 +89,10 @@ async def api_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
         token = bot_user.api_token
         text = _api_menu_text(update, token)
-        keyboard = _api_menu_keyboard(update, has_token=bool(token))
+        api_docs_url = AppSettingsService(session).get_settings().api_docs_url
+        keyboard = _api_menu_keyboard(
+            update, has_token=bool(token), api_docs_url=api_docs_url
+        )
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
         logger.error("Error showing API menu for user %s: %s", user_id, exc, exc_info=True)
@@ -172,7 +175,10 @@ async def handle_api_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
         token = bot_user.api_token
         text = _api_menu_text(update, token)
-        keyboard = _api_menu_keyboard(update, has_token=bool(token))
+        api_docs_url = AppSettingsService(session).get_settings().api_docs_url
+        keyboard = _api_menu_keyboard(
+            update, has_token=bool(token), api_docs_url=api_docs_url
+        )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
         logger.error("Error showing API menu for user %s: %s", user_id, exc, exc_info=True)
@@ -198,7 +204,10 @@ async def handle_api_create(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             return
 
         text = _api_menu_text(update, token)
-        keyboard = _api_menu_keyboard(update, has_token=True)
+        api_docs_url = AppSettingsService(session).get_settings().api_docs_url
+        keyboard = _api_menu_keyboard(
+            update, has_token=True, api_docs_url=api_docs_url
+        )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
         logger.error("Error creating API token for user %s: %s", user_id, exc, exc_info=True)
@@ -221,7 +230,10 @@ async def handle_api_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         svc.revoke_api_token(user_id)
 
         text = _api_menu_text(update, token=None)
-        keyboard = _api_menu_keyboard(update, has_token=False)
+        api_docs_url = AppSettingsService(session).get_settings().api_docs_url
+        keyboard = _api_menu_keyboard(
+            update, has_token=False, api_docs_url=api_docs_url
+        )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
         logger.error("Error revoking API token for user %s: %s", user_id, exc, exc_info=True)

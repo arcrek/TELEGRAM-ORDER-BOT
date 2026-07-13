@@ -794,12 +794,6 @@ async def handle_back_to_list(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     
-    user_id = query.from_user.id
-    user_state = state_manager.get_user_state(user_id)
-    
-    # Get current page from state
-    current_page = user_state.current_page if user_state else 1
-    
     # Show product list for that page
     session_factory = get_session_factory()
     session = session_factory()

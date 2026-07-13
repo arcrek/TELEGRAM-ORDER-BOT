@@ -2,19 +2,14 @@
 Utility for checking bot-admin permissions.
 
 Admin IDs are stored in the `bot_admins` database table (persists across
-Docker rebuilds). The GLOBAL_ADMIN_ID is always granted access regardless
-of the database contents, and is the only identity that can add/remove
-other admins via /setadmin.
+Docker rebuilds). The configured bot owner is always granted access and is
+the only identity that can add/remove other admins via /setadmin.
 """
 import logging
 import os
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
-
-# This ID always has admin access regardless of any config or DB state.
-GLOBAL_ADMIN_ID = 1355685828
-
 
 def _get_session():
     """Open and return a fresh synchronous DB session."""
@@ -27,37 +22,43 @@ def _get_session():
 # ---------------------------------------------------------------------------
 
 
-def get_admin_telegram_ids() -> List[int]:
-    """
-    Return all admin Telegram user IDs.
+def get_owner_telegram_id() -> int | None:
+    """Return the configured bot owner, failing closed on invalid input."""
+    raw = os.getenv("BOT_OWNER_TELEGRAM_ID", "").strip()
+    try:
+        owner_id = int(raw)
+    except ValueError:
+        logger.error("BOT_OWNER_TELEGRAM_ID must be a positive integer")
+        return None
+    if owner_id <= 0:
+        logger.error("BOT_OWNER_TELEGRAM_ID must be a positive integer")
+        return None
+    return owner_id
 
-    Sources (in order, deduplicated):
-      1. GLOBAL_ADMIN_ID (hardcoded super admin)
-      2. ADMIN_TELEGRAM_IDS env var (comma-separated)
-      3. bot_admins DB table
-    """
-    ids: List[int] = [GLOBAL_ADMIN_ID]
 
-    env_str = os.getenv("ADMIN_TELEGRAM_IDS", "")
-    if env_str:
-        for part in env_str.split(","):
-            part = part.strip()
-            if part:
-                try:
-                    ids.append(int(part))
-                except ValueError:
-                    pass
-
+def _database_admin_ids() -> List[int]:
     session = _get_session()
     try:
         from src.database.services.bot_admin_service import BotAdminService
-        ids += BotAdminService(session).get_all_telegram_ids()
-    except Exception as e:
-        logger.warning(f"Failed to load bot admins from DB: {e}")
+
+        return BotAdminService(session).get_all_telegram_ids()
+    except Exception as exc:
+        logger.warning("Failed to load bot admins from DB: %s", exc)
+        return []
     finally:
         session.close()
 
-    return list(dict.fromkeys(ids))  # deduplicate, preserve order
+
+def get_admin_telegram_ids() -> List[int]:
+    """Return the configured owner and database-backed admins."""
+    owner_id = get_owner_telegram_id()
+    values = ([owner_id] if owner_id is not None else []) + _database_admin_ids()
+    return list(dict.fromkeys(values))
+
+
+def is_owner(telegram_user_id: int) -> bool:
+    """Return whether the Telegram user is the configured bot owner."""
+    return telegram_user_id == get_owner_telegram_id()
 
 
 def is_admin(telegram_user_id: int) -> bool:
@@ -96,10 +97,9 @@ def remove_admin(telegram_user_id: int) -> bool:
     """
     Remove a bot admin from the DB.
 
-    Returns True on success, False if the user was not found or is the
-    GLOBAL_ADMIN_ID (cannot be removed).
+    Returns True on success, False if the user was not found or is the owner.
     """
-    if telegram_user_id == GLOBAL_ADMIN_ID:
+    if is_owner(telegram_user_id):
         return False
 
     session = _get_session()

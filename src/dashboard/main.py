@@ -5,11 +5,13 @@ Main FastAPI application for dashboard.
 import logging
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from src.dashboard.limiter import limiter
+from src.dashboard.auth import get_db
+from src.database.services.app_settings_service import AppSettingsService
 
 # Supplier functionality disabled
 # from src.dashboard.routers import auth, statistics, products, orders, suppliers, product_upload, pre_uploaded, variations, product_supplier_assignments, notifications, payos_webhook, iotd
@@ -136,9 +138,13 @@ app.include_router(
 
 
 @app.get("/")
-async def root():
+async def root(db=Depends(get_db)):
     """Root endpoint."""
-    return {"message": "MTK Bot Order Dashboard API", "version": "1.0.0"}
+    settings = AppSettingsService(db).get_settings()
+    return {
+        "message": f"{settings.system_name} Dashboard API",
+        "version": "1.0.0",
+    }
 
 
 @app.get("/health")

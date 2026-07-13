@@ -20,6 +20,7 @@ from src.database.services.supplier_order_service import SupplierOrderService
 from src.database.services.order_notification_service import OrderNotificationService
 from src.database.services.balance_service import BalanceService
 from src.database.services.topup_service import TopupService
+from src.database.services.app_settings_service import AppSettingsService
 from src.database.models import Order
 from src.database.models.enums import OrderStatus, DeliveryType
 from telegram import Bot
@@ -825,7 +826,11 @@ class IPNOrderProcessor:
 
             # Create file content with timestamp and header
             delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
+            settings_session = self.session_factory()
+            try:
+                system_name = AppSettingsService(settings_session).get_settings().system_name
+            finally:
+                settings_session.close()
             file_header = (
                 f"================\n"
                 f"{system_name}\n"

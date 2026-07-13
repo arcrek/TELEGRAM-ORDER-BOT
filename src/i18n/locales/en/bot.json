@@ -16,18 +16,19 @@
       "notify_all": "/notify_all <message> - Send to all users",
       "notify_user": "/notify_user <user_id> <message> - Send to specific user",
       "notify_active": "/notify_active <message> - Send to active users",
-      "setadmin": "/setadmin list — List admins (all admins) | /setadmin <id|@username> — Add | /setadmin remove <id|@username> — Remove (super admin only)"
+      "setadmin": "/setadmin list — List admins (all admins) | /setadmin <id|@username> — Add | /setadmin remove <id|@username> — Remove (owner only)"
     },
     "setadmin": {
       "no_permission": "⛔ You do not have permission to use this command.",
-      "usage": "⚙️ Usage:\n/setadmin list — List current admins\n/setadmin <id|@username> — Add admin (super admin only)\n/setadmin remove <id|@username> — Remove admin (super admin only)",
+      "usage": "⚙️ Usage:\n/setadmin list — List current admins\n/setadmin <id|@username> — Add admin (owner only)\n/setadmin remove <id|@username> — Remove admin (owner only)",
       "added": "✅ Added admin: {user_id}",
       "removed": "✅ Removed admin: {user_id}",
       "already_admin": "ℹ️ {user_id} is already an admin.",
-      "not_found_or_protected": "❌ {user_id} not found in the list or cannot be removed (super admin).",
+      "not_found_or_protected": "❌ {user_id} not found in the list or cannot be removed (owner).",
       "invalid_id": "❌ Invalid ID. Please enter a number.",
       "user_not_found": "❌ User {username} not found. They must start the bot first.",
-      "list": "👥 Current admin list:\n{ids}"
+      "list": "👥 Current admin list:\n{ids}",
+      "owner_label": " [owner]"
     },
     "block": {
       "no_permission": "⛔ You do not have permission to use this command.",

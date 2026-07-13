@@ -2,7 +2,6 @@
 Command handlers for the Telegram bot.
 """
 
-import os
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -16,10 +15,10 @@ from src.database.services.statistics_service import StatisticsService
 from src.database.models.enums import OrderStatus
 from src.database.services.user_preference_service import UserPreferenceService
 from src.bot.utils.admin_check import (
-    GLOBAL_ADMIN_ID,
     add_admin,
     get_admin_telegram_ids,
     is_admin,
+    is_owner,
     remove_admin,
 )
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
@@ -135,30 +134,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session = session_factory()
 
     try:
-        bot_user_service = BotUserService(session)
-        bot_user_service.track_user(
-            telegram_user_id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-        )
-    except Exception as e:
-        # Log error but don't fail the command
-        import logging
+        settings = AppSettingsService(session).get_settings()
+        try:
+            bot_user_service = BotUserService(session)
+            bot_user_service.track_user(
+                telegram_user_id=user.id,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+            )
+        except Exception as e:
+            # Log error but don't fail the command
+            import logging
 
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error tracking user: {str(e)}", exc_info=True)
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error tracking user: {str(e)}", exc_info=True)
     finally:
         session.close()
 
-    # Get system name from environment
-    system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
-
     welcome_message = (
         f"{t('commands.start.welcome', update, name=user.first_name or 'User')}\n\n"
-        f"{t('commands.start.description', update, system_name=system_name)}\n"
+        f"{t('commands.start.description', update, system_name=settings.system_name)}\n"
         f"{t('commands.start.help_hint', update)}"
     )
+    support_lines = "\n".join(
+        line for line in (settings.support_line_1, settings.support_line_2) if line
+    )
+    if support_lines:
+        welcome_message += f"\n{support_lines}"
     # Send welcome text with the reply keyboard, then send the inline menu
     keyboard = get_persistent_keyboard(update)
     await update.message.reply_text(welcome_message, reply_markup=keyboard)
@@ -371,7 +374,6 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         context: Bot context
     """
     user = update.effective_user
-    user_id = user.id
 
     # Track user in database (if not already tracked)
     session_factory = get_session_factory()
@@ -740,7 +742,7 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
       /setadmin <id|@username>              — add a new admin (super admin only)
       /setadmin remove <id|@username>       — remove an admin (super admin only)
 
-    All admins can run 'list'. Add/remove is restricted to the super admin.
+    All admins can run 'list'. Add/remove is restricted to the configured owner.
     """
     user = update.effective_user
     if not user or not is_admin(user.id):
@@ -748,18 +750,14 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     args = context.args or []
-    is_super_admin = user.id == GLOBAL_ADMIN_ID
+    user_is_owner = is_owner(user.id)
 
     # ── list ──────────────────────────────────────────────────────────────────
     if not args or args[0].lower() == "list":
         session_factory = get_session_factory()
         session = session_factory()
         try:
-            from src.database.services.bot_admin_service import BotAdminService
-
             bot_svc = BotUserService(session)
-            ba_svc = BotAdminService(session)
-            db_records = {r.telegram_user_id: r for r in ba_svc.list_all()}
 
             lines = []
             for uid in get_admin_telegram_ids():
@@ -767,11 +765,7 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 uname = (
                     f" (@{bot_user.username})" if bot_user and bot_user.username else ""
                 )
-                source = (
-                    " [super]"
-                    if uid == GLOBAL_ADMIN_ID
-                    else (" [env]" if uid not in db_records else "")
-                )
+                source = t("commands.setadmin.owner_label", update) if is_owner(uid) else ""
                 lines.append(f"• {uid}{uname}{source}")
         finally:
             session.close()
@@ -780,8 +774,8 @@ async def setadmin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
 
-    # ── add / remove — super admin only ───────────────────────────────────────
-    if not is_super_admin:
+    # ── add / remove — owner only ─────────────────────────────────────────────
+    if not user_is_owner:
         await update.message.reply_text(t("commands.setadmin.no_permission", update))
         return
 

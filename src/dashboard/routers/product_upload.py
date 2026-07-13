@@ -12,6 +12,7 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.product_upload_service import ProductUploadService
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
+from src.database.services.app_settings_service import AppSettingsService
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
 from src.database.models.pre_uploaded_product import PreUploadedProduct
@@ -56,7 +57,8 @@ def _collect_upload_notification_messages(
     Returns a list of dicts with keys: "message" (str) and "product_id" (str).
     """
     ui_settings = BotUiSettingsService(db).get_settings()
-    default_header = f"📢 {os.getenv('SYSTEM_NAME', 'MUATAIKHOANPRO')} thông báo có hàng mới!"
+    system_name = AppSettingsService(db).get_settings().system_name
+    default_header = f"📢 {system_name} thông báo có hàng mới!"
     header = ui_settings.upload_notification_header or default_header
 
     error_indices = {e["index"] for e in result.get("errors", [])}
@@ -361,4 +363,3 @@ async def upload_file(
         "item_count": len(parsed_data),
         "message": "File parsed successfully. Please map fields to products."
     }
-

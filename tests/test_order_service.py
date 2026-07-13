@@ -9,6 +9,7 @@ from src.database.models.base import Base
 from src.database.models import ProductVariation, DeliveryType
 from src.database.models.enums import OrderStatus
 from src.database.services.order_service import OrderService
+from src.database.services.app_settings_service import AppSettingsService
 from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
 
@@ -60,12 +61,16 @@ def order_service(db_session):
 class TestOrderService:
     """Test OrderService class."""
 
-    def test_generate_order_id(self, order_service):
-        """Test order ID generation."""
+    def test_generate_order_id_uses_runtime_prefix(self, order_service):
+        AppSettingsService(order_service.session).update_settings(
+            system_name="Example Shop",
+            bot_url="https://t.me/example_shop_bot",
+            timezone="UTC",
+            order_prefix="SHOP",
+        )
         order_id = order_service.generate_order_id()
-        assert order_id is not None
-        assert isinstance(order_id, str)
-        assert len(order_id) > 0
+        assert order_id.startswith("SHOP")
+        assert len(order_id) == 12
 
     def test_generate_order_item_id(self, order_service):
         """Test order item ID generation."""
@@ -344,4 +349,3 @@ class TestOrderService:
         """Test cancelling a nonexistent order."""
         with pytest.raises(ValueError, match="not found"):
             order_service.cancel_order("nonexistent")
-

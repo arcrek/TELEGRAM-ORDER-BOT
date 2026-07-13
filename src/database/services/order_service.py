@@ -13,6 +13,7 @@ from src.database.models import Order, OrderItem
 from src.database.models.enums import OrderStatus
 from src.database.models.bot_user import BotUser
 from src.database.services.variation_service import VariationService
+from src.database.services.app_settings_service import AppSettingsService
 
 
 class OrderService:
@@ -35,8 +36,8 @@ class OrderService:
         Returns:
             Order ID string
         """
-        # Generate a short unique ID (first 8 chars of UUID)
-        return str(uuid.uuid4()).replace("-", "")[:8]
+        prefix = AppSettingsService(self.session).get_settings().order_prefix
+        return f"{prefix}{uuid.uuid4().hex[:8]}"
 
     def generate_order_item_id(self) -> str:
         """
