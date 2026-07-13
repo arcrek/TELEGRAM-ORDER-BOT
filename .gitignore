@@ -51,3 +51,4 @@ data/*
 .agents
 .claude
 .codex
+.worktrees/
