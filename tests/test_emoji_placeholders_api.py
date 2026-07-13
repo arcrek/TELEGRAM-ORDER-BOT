@@ -1,5 +1,6 @@
 """Unit tests for emoji placeholder API schema."""
 from src.dashboard.routers import emoji_placeholders
+from src.dashboard.routers.emoji_placeholders import EmojiUnit, _parse_units
 
 
 def test_response_token_format():
@@ -8,10 +9,6 @@ def test_response_token_format():
     )
     assert resp.token == "{emo:5}"
     assert resp.configured is False
-
-
-from src.dashboard.routers.emoji_placeholders import _parse_units, EmojiUnit
-
 
 def test_parse_units_maps_emoji_and_text():
     import json

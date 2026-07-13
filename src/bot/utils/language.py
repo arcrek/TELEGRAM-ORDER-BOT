@@ -5,7 +5,6 @@ from telegram import Update
 from src.database.connection import get_session_factory
 from src.database.services.user_preference_service import UserPreferenceService
 from src.i18n.bot_translations import (
-    detect_language_from_telegram_user,
     get_translation,
     DEFAULT_LANGUAGE,
 )

@@ -45,6 +45,11 @@ ENV/
 Thumbs.db
 
 *.db
+*.sqlite
+*.sql
+*.dump
+*.pem
+*.key
 data/*
 
 .agents/

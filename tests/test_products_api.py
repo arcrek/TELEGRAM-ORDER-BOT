@@ -297,7 +297,7 @@ class TestProductsAPI:
         assert data["name"] == "Updated Product"
         assert data["description"] == "Updated Description"
         assert data["delivery_type"] == "supplier_based"
-        assert data["is_active"] == False
+        assert data["is_active"] is False
     
     def test_update_product_not_found(self, client, auth_token):
         """Test updating non-existent product."""
@@ -334,4 +334,3 @@ class TestProductsAPI:
             headers={"Authorization": f"Bearer {auth_token}"}
         )
         assert response.status_code == 404
-

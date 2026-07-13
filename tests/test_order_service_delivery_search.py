@@ -11,7 +11,7 @@ Covers:
 
 import json
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -186,7 +186,7 @@ class TestDeliverySearch:
         self, order_service, db_session, base_product, base_variation
     ):
         """An order with 2 used pre_uploaded rows must appear exactly once in results."""
-        order = _make_order(db_session, "ds_multi_1")
+        _make_order(db_session, "ds_multi_1")
         _make_order_item(db_session, "ds_multi_1", base_product.id, base_variation.id)
         used_at = datetime(2026, 6, 15, 10, 0, 0)
         # Two delivered rows for the same order
@@ -220,7 +220,7 @@ class TestDeliverySearch:
 
     def test_unused_product_not_matched(self, order_service, db_session, base_product, base_variation):
         """is_used=False rows must NOT be matched even if content matches."""
-        order = _make_order(db_session, "ds_unused_1")
+        _make_order(db_session, "ds_unused_1")
         _make_order_item(db_session, "ds_unused_1", base_product.id, base_variation.id)
         pu = PreUploadedProduct(
             id="ds_unused_pu",

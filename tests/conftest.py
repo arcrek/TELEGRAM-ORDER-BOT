@@ -36,7 +36,6 @@ def patch_language_db(request):
     mock_session.query.return_value.filter_by.return_value.first.return_value = None
     mock_session.execute.return_value.scalars.return_value.first.return_value = None
     mock_session_factory = MagicMock(return_value=mock_session)
-    mock_factory_fn = MagicMock(return_value=mock_session_factory)
 
     patches = [
         patch("src.bot.utils.language.get_session_factory", return_value=mock_session_factory),

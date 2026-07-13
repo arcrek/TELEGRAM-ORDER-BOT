@@ -1,7 +1,6 @@
 """
 The IPN fulfillment lock helper must serialize per order id.
 """
-import threading
 
 from src.ipn.processor import _get_order_lock
 

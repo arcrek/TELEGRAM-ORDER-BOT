@@ -1,5 +1,4 @@
 """Tests for the /export data service."""
-import json
 from datetime import datetime
 
 import pytest

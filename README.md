@@ -17,6 +17,10 @@ The supported Docker Compose deployment contains exactly four services:
 
 PayOS is the only supported payment provider. Docker Compose is the only supported runtime path.
 
+## Release status
+
+This repository is a `v0.1.0` beta candidate, not a completed public release. CI is configured to block on backend, frontend, shell, Compose, secret, and dependency checks. A public push and tag remain blocked until an operator completes the clean-host acceptance rehearsals in [the roadmap](ROADMAP.md) and confirms that every credential ever committed to private history has been revoked or rotated.
+
 ## Requirements
 
 A Linux host with Git, Bash, Docker Engine, and the Docker Compose v2 plugin is the release-tested path. The host needs at least 1 GiB of free disk space plus capacity for PostgreSQL, backups, and delivery inventory. You also need a Telegram bot and numeric owner ID, PayOS merchant credentials, and public HTTPS frontend/API endpoints for production.

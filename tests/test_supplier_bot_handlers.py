@@ -156,7 +156,7 @@ class TestSupplierBotCommands:
         """Test /register command for existing supplier."""
         # Create supplier first
         supplier_service = SupplierService(db_session)
-        supplier = supplier_service.create_supplier(
+        supplier_service.create_supplier(
             telegram_user_id=123456789,
             name="Existing Supplier",
             is_active=True,
@@ -218,7 +218,7 @@ class TestSupplierReplyHandler:
         """Test handling reply to non-existent order."""
         # Create supplier
         supplier_service = SupplierService(db_session)
-        supplier = supplier_service.create_supplier(
+        supplier_service.create_supplier(
             telegram_user_id=123456789,
             name="Test Supplier",
         )
@@ -243,4 +243,3 @@ class TestSupplierReplyHandler:
             mock_update_with_mock_message.message.reply_text.assert_called_once()
             call_args = mock_update_with_mock_message.message.reply_text.call_args[0][0]
             assert "not associated" in call_args
-

@@ -13,7 +13,9 @@ from src.database.services.bot_user_service import BotUserService
 from src.dashboard.auth import get_password_hash, create_access_token, get_db
 from src.database.models import *  # noqa: F401,F403
 
-import tempfile, os, atexit
+import tempfile
+import os
+import atexit
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
 test_db_path = test_db_file.name

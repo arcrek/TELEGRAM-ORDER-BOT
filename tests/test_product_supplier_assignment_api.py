@@ -2,6 +2,7 @@
 Tests for product supplier assignment API endpoints.
 Following TDD: Write tests first, then implement endpoints.
 """
+# ruff: noqa: E402
 import pytest
 
 pytestmark = pytest.mark.skip(reason="Supplier module disabled in dashboard API")
@@ -349,4 +350,3 @@ def test_delete_assignment_not_found(client, auth_token):
         headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 404
-

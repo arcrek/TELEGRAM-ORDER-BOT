@@ -154,7 +154,7 @@ async def test_variation_selection_callback(mock_callback_update, mock_context, 
 
     # Create a variation first
     variation_service = VariationService(db_session)
-    variation = variation_service.create_variation({
+    variation_service.create_variation({
         "id": "var_1",
         "product_id": "prod_00",
         "name": "Pro 12M 1PCS",
@@ -198,7 +198,7 @@ async def test_quantity_adjustment_callback(mock_callback_update, mock_context, 
 
     # Create a variation with underscore in ID (like real data)
     variation_service = VariationService(db_session)
-    variation = variation_service.create_variation({
+    variation_service.create_variation({
         "id": "alight_12m_1",  # Variation ID with underscores
         "product_id": "prod_00",
         "name": "Pro 12M 1PCS",
@@ -243,4 +243,3 @@ async def test_quantity_adjustment_callback(mock_callback_update, mock_context, 
         message_text = call_args[0][0] if call_args and call_args[0] else ""
         assert "❌ Variation not found" not in message_text
         assert "Pro 12M 1PCS" in message_text or "40,000" in message_text
-

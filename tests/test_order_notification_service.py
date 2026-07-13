@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
 from src.database.models.enums import OrderStatus
-from src.database.models import Order, Product, ProductVariation, DeliveryType
+from src.database.models import DeliveryType
 from src.database.services.order_service import OrderService
 from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService

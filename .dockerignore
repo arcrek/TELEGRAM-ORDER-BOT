@@ -6,6 +6,18 @@ __pycache__
 *.pyo
 *.pyd
 *.db
+*.sqlite
+*.sql
+*.dump
+*.pem
+*.key
+backups
+data
+.agents
+.claude
+.codegraph
+.codex
+.superpowers
 .pytest_cache
 .mypy_cache
 .ruff_cache
@@ -72,4 +84,3 @@ tests/
 
 # Cursor
 .cursor/
-

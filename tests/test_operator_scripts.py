@@ -435,6 +435,23 @@ def test_setup_local_http_defaults_to_empty_runtime_api_docs_url(
     assert "API docs: http://localhost:8001/docs" in result.stdout
 
 
+def test_setup_https_api_blank_docs_accepts_computed_default(tmp_path: Path) -> None:
+    root, bin_dir = project(tmp_path)
+    fake_tools(bin_dir)
+    bootstrap = bootstrap_answers()
+    bootstrap[6] = ""
+
+    result = run_setup(
+        root,
+        environment(bin_dir, tmp_path),
+        deployment_answers() + bootstrap,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads((tmp_path / "bootstrap.json").read_text())
+    assert payload["settings"]["api_docs_url"] == "https://api.shop.example/docs"
+
+
 def test_setup_rejects_http_runtime_api_docs_url(tmp_path: Path) -> None:
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)

@@ -88,7 +88,7 @@ async def handle_supplier_reply(
     
     try:
         supplier_service = SupplierService(session)
-        supplier_order_service = SupplierOrderService(session)
+        supplier_order_service = SupplierOrderService(session)  # noqa: F841
         order_service = OrderService(session)
         
         # Check if user is a registered supplier
@@ -214,4 +214,3 @@ async def handle_supplier_reply(
         session.rollback()
     finally:
         session.close()
-
