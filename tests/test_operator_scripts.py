@@ -66,9 +66,14 @@ if [[ "$*" == *"scripts/bootstrap_system.py"* ]]; then
   cat > "$BOOTSTRAP_STDIN"
 fi
 if [[ "${FAIL_CONFIG:-0}" == 1 && "$*" == *" config -q" ]]; then
+  printf '%s\n' "${COMPOSE_ERROR_SECRET:-compose config failed}" >&2
   exit 1
 fi
 if [[ "$*" == *"config --environment"* ]]; then
+  if [[ "${FAIL_CONFIG_ENVIRONMENT:-0}" == 1 ]]; then
+    printf '%s\n' "${COMPOSE_ERROR_SECRET:-compose environment failed}" >&2
+    exit 1
+  fi
   env_file=""
   while (($#)); do
     if [[ "$1" == --env-file ]]; then
@@ -283,6 +288,52 @@ def test_setup_refuses_to_overwrite_existing_env(tmp_path: Path) -> None:
     assert "Using existing .env" in result.stdout
 
 
+def test_setup_hides_existing_env_compose_validation_errors(tmp_path: Path) -> None:
+    root, bin_dir = project(tmp_path)
+    secret = "existing-malformed-password-secret"
+    (root / ".env").write_text(
+        "FRONTEND_URL=https://existing.example\n"
+        "VITE_API_BASE_URL=https://api.existing.example\n"
+        f'DB_PASSWORD="unterminated-{secret}\n'
+    )
+    fake_tools(bin_dir)
+    env = environment(
+        bin_dir,
+        tmp_path,
+        FAIL_CONFIG="1",
+        COMPOSE_ERROR_SECRET=secret,
+    )
+
+    result = run_setup(root, env, [])
+
+    assert result.returncode != 0
+    assert "Existing .env is not valid for Docker Compose" in result.stderr
+    assert secret not in result.stdout + result.stderr
+
+
+def test_setup_hides_compose_environment_errors(tmp_path: Path) -> None:
+    root, bin_dir = project(tmp_path)
+    secret = "resolved-environment-password-secret"
+    (root / ".env").write_text(
+        'FRONTEND_URL="https://existing.example"\n'
+        'VITE_API_BASE_URL="https://api.existing.example"\n'
+        f'DB_PASSWORD="{secret}"\n'
+    )
+    fake_tools(bin_dir)
+    env = environment(
+        bin_dir,
+        tmp_path,
+        FAIL_CONFIG_ENVIRONMENT="1",
+        COMPOSE_ERROR_SECRET=secret,
+    )
+
+    result = run_setup(root, env, [])
+
+    assert result.returncode != 0
+    assert "Could not read the resolved Compose environment" in result.stderr
+    assert secret not in result.stdout + result.stderr
+
+
 def test_setup_validates_operator_input(tmp_path: Path) -> None:
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)
@@ -470,10 +521,18 @@ def test_setup_creates_atomic_private_env_and_bootstraps_over_stdin(
 def test_setup_does_not_publish_invalid_temporary_env(tmp_path: Path) -> None:
     root, bin_dir = project(tmp_path)
     fake_tools(bin_dir)
-    env = environment(bin_dir, tmp_path, FAIL_CONFIG="1")
+    secret = deployment_answers()[8]
+    env = environment(
+        bin_dir,
+        tmp_path,
+        FAIL_CONFIG="1",
+        COMPOSE_ERROR_SECRET=secret,
+    )
 
     result = run_setup(root, env, deployment_answers())
 
     assert result.returncode != 0
+    assert "Generated environment is not valid for Docker Compose" in result.stderr
+    assert secret not in result.stdout + result.stderr
     assert not (root / ".env").exists()
     assert not list(root.glob(".env.tmp.*"))

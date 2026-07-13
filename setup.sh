@@ -127,7 +127,8 @@ dotenv_value() {
 
 if [[ -f .env ]]; then
   printf 'Using existing .env\n'
-  docker compose --env-file .env config -q || die "Existing .env is not valid for Docker Compose"
+  docker compose --env-file .env config -q >/dev/null 2>&1 ||
+    die "Existing .env is not valid for Docker Compose"
 else
   prompt_url "Frontend URL" "http://localhost:8082"
   frontend_url="$REPLY"
@@ -173,13 +174,14 @@ else
     printf 'PAYOS_CHECKSUM_KEY=%s\n' "$(dotenv_value "$payos_checksum_key")"
     printf 'DASHBOARD_SECRET_KEY=%s\n' "$(dotenv_value "$dashboard_secret")"
   } > "$TMP_ENV"
-  docker compose --env-file "$TMP_ENV" config -q || die "Generated environment is not valid for Docker Compose"
+  docker compose --env-file "$TMP_ENV" config -q >/dev/null 2>&1 ||
+    die "Generated environment is not valid for Docker Compose"
   mv "$TMP_ENV" .env
   TMP_ENV=""
   chmod 600 .env
 fi
 
-compose_environment="$(docker compose --env-file .env config --environment)" ||
+compose_environment="$(docker compose --env-file .env config --environment 2>/dev/null)" ||
   die "Could not read the resolved Compose environment"
 frontend_url=""
 api_url=""
