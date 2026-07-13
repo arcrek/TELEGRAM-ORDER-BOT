@@ -1,10 +1,8 @@
 """
 Callback query handlers for the Telegram bot.
 """
-import base64
 import logging
-from io import BytesIO
-from telegram import Update, InputFile, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from src.database.connection import get_session_factory
 from src.database.services.product_service import ProductService
@@ -18,10 +16,13 @@ from src.bot.messages.order_confirmation_formatter import OrderConfirmationForma
 from src.bot.states.state_manager import StateManager
 from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
+from src.database.services.app_settings_service import AppSettingsService
 from src.bot.utils.user_locks import get_user_lock
 from src.bot.messages.emoji_renderer import render as render_emoji, substitute_tokens
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.bot.utils.language import t
+from src.bot.utils.qr import make_qr_png_bytes
+from src.payos.client import build_payos_client
 
 logger = logging.getLogger(__name__)
 
@@ -976,7 +977,7 @@ async def _create_qr_for_order(
     reply_to_query=None,
 ) -> None:
     """
-    Create a PayOS or Pay2S QR payment for an existing order and send it to the user.
+    Create a PayOS QR payment for an existing order and send it to the user.
 
     Args:
         order_id: The Order.id to pay.
@@ -984,7 +985,6 @@ async def _create_qr_for_order(
         context: Bot context for sending messages.
         reply_to_query: If set (a CallbackQuery), we will edit it for the text message.
     """
-    import os
     import time
     import json
 
@@ -1009,59 +1009,18 @@ async def _create_qr_for_order(
                 await reply_to_query.edit_message_text(msg)
             return
 
-        # Determine payment provider (default: payos)
-        payment_provider = os.getenv("PAYMENT_PROVIDER_DEFAULT", "payos").lower()
+        settings = AppSettingsService(session).get_settings()
         try:
-            from config.config import PAYMENT_PROVIDER_DEFAULT as _PAYMENT_PROVIDER_DEFAULT
-            if _PAYMENT_PROVIDER_DEFAULT:
-                payment_provider = str(_PAYMENT_PROVIDER_DEFAULT).lower()
-        except ModuleNotFoundError:
-            pass
-
-        # PayOS flow (default)
-        if payment_provider == "payos":
-            try:
-                from config.config import (
-                    PAYOS_BASE_URL,
-                    PAYOS_PARTNER_CODE,
-                    PAYOS_CLIENT_ID,
-                    PAYOS_API_KEY,
-                    PAYOS_CHECKSUM_KEY,
-                    PAYOS_RETURN_URL,
-                    PAYOS_CANCEL_URL,
-                )
-            except ModuleNotFoundError:
-                PAYOS_BASE_URL = os.getenv("PAYOS_BASE_URL", "https://api-merchant.payos.vn")
-                PAYOS_PARTNER_CODE = os.getenv("PAYOS_PARTNER_CODE", "")
-                PAYOS_CLIENT_ID = os.getenv("PAYOS_CLIENT_ID", "")
-                PAYOS_API_KEY = os.getenv("PAYOS_API_KEY", "")
-                PAYOS_CHECKSUM_KEY = os.getenv("PAYOS_CHECKSUM_KEY", "")
-                PAYOS_RETURN_URL = os.getenv("PAYOS_RETURN_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
-                PAYOS_CANCEL_URL = os.getenv("PAYOS_CANCEL_URL", os.getenv("REDIRECT_URL", "https://t.me/your_bot"))
-
-            if not PAYOS_CLIENT_ID or not PAYOS_API_KEY or not PAYOS_CHECKSUM_KEY:
-                err = (
-                    "❌ Payment configuration error.\n\n"
-                    "PAYOS_CLIENT_ID / PAYOS_API_KEY / PAYOS_CHECKSUM_KEY is not configured.\n"
-                    "Please set environment variables or update config/config.py"
-                )
-                if reply_to_query:
-                    await reply_to_query.edit_message_text(err)
-                else:
-                    await context.bot.send_message(chat_id=user_id, text=err)
-                return
-
-            try:
-                from src.payos.client import PayOSClient, PayOSCredentials
-                from src.bot.utils.qr import make_qr_png_bytes
-            except Exception as e:
-                logger.error(f"Failed to import PayOS modules: {e}", exc_info=True)
-                err = "❌ Payment module error. Please contact support."
-                if reply_to_query:
-                    await reply_to_query.edit_message_text(err)
-                else:
-                    await context.bot.send_message(chat_id=user_id, text=err)
-                return
+            payos = build_payos_client()
+        except RuntimeError as exc:
+            logger.error("PayOS configuration error: %s", exc)
+            err = t("payment.configuration_error", update)
+            if reply_to_query:
+                await reply_to_query.edit_message_text(err)
+            else:
+                await context.bot.send_message(chat_id=user_id, text=err)
+            return
+        else:
 
             # If a complete payment link already exists for this order, reuse it
             # without calling the PayOS API again. This prevents duplicate payment
@@ -1090,18 +1049,7 @@ async def _create_qr_for_order(
                         await context.bot.send_message(chat_id=user_id, text=err)
                     return
 
-                payos = PayOSClient(
-                    base_url=PAYOS_BASE_URL,
-                    credentials=PayOSCredentials(
-                        client_id=PAYOS_CLIENT_ID,
-                        api_key=PAYOS_API_KEY,
-                        checksum_key=PAYOS_CHECKSUM_KEY,
-                        partner_code=PAYOS_PARTNER_CODE,
-                    ),
-                )
-
-                order_prefix = os.getenv("ORDER_PREFIX", "MTK")
-                description = f"{order_prefix}{order.id}"[:9]
+                description = order.id[:9]
                 expired_at = int(time.time()) + PAYMENT_EXPIRE_MINUTES * 60
                 logger.info(f"Creating PayOS payment link for order {order.id} with {PAYMENT_EXPIRE_MINUTES}-min expiration")
 
@@ -1110,13 +1058,13 @@ async def _create_qr_for_order(
                         order_code=int(payos_order_code),
                         amount=int(order.total_amount),
                         description=description,
-                        return_url=PAYOS_RETURN_URL,
-                        cancel_url=PAYOS_CANCEL_URL,
+                        return_url=settings.bot_url,
+                        cancel_url=settings.bot_url,
                         expired_at=expired_at,
                     )
                 except Exception as e:
                     logger.error(f"PayOS create link failed: {e}", exc_info=True)
-                    err = "❌ Payment creation failed. Please try again later."
+                    err = t("payment.creation_error", update)
                     if reply_to_query:
                         await reply_to_query.edit_message_text(err)
                     else:
@@ -1207,254 +1155,6 @@ async def _create_qr_for_order(
                 order.payment_message_ids = json.dumps(message_ids)
                 session.commit()
             return
-
-        # ---- Pay2S fallback ----
-        try:
-            from config.config import (
-                PAY2S_ENDPOINT,
-                PARTNER_CODE,
-                ACCESS_KEY,
-                SECRET_KEY,
-                DEFAULT_BANK_ACCOUNTS,
-            )
-        except ModuleNotFoundError:
-            PAY2S_ENDPOINT = os.getenv("PAY2S_ENDPOINT", "...")
-            PARTNER_CODE = os.getenv("PAY2S_PARTNER_CODE", "...")
-            ACCESS_KEY = os.getenv("PAY2S_ACCESS_KEY", "...")
-            SECRET_KEY = os.getenv("PAY2S_SECRET_KEY", "...")
-            DEFAULT_BANK_ACCOUNTS = os.getenv("DEFAULT_BANK_ACCOUNTS", "[]")
-            if isinstance(DEFAULT_BANK_ACCOUNTS, str):
-                try:
-                    DEFAULT_BANK_ACCOUNTS = json.loads(DEFAULT_BANK_ACCOUNTS)
-                except Exception:
-                    DEFAULT_BANK_ACCOUNTS = []
-
-        from src.pay2s import create_payment
-
-        if not PAY2S_ENDPOINT or PAY2S_ENDPOINT == '...' or not PAY2S_ENDPOINT.startswith(('http://', 'https://')):
-            error_msg = (
-                "❌ Payment configuration error.\n\n"
-                "The Pay2S endpoint is not configured correctly.\n"
-                "Please set PAY2S_ENDPOINT environment variable or update config/config.py\n\n"
-                f"Current value: {repr(PAY2S_ENDPOINT)}"
-            )
-            if reply_to_query:
-                await reply_to_query.edit_message_text(error_msg)
-            else:
-                await context.bot.send_message(chat_id=user_id, text=error_msg)
-            logger.error(f"Invalid PAY2S_ENDPOINT: {repr(PAY2S_ENDPOINT)}")
-            return
-
-        if not ACCESS_KEY or ACCESS_KEY == '...' or not SECRET_KEY or SECRET_KEY == '...':
-            error_msg = (
-                "❌ Payment configuration error.\n\n"
-                "ACCESS_KEY or SECRET_KEY is not configured correctly.\n"
-                "Please update config/config.py\n"
-            )
-            if reply_to_query:
-                await reply_to_query.edit_message_text(error_msg)
-            else:
-                await context.bot.send_message(chat_id=user_id, text=error_msg)
-            logger.error("Invalid ACCESS_KEY or SECRET_KEY in payment config")
-            return
-
-        if not DEFAULT_BANK_ACCOUNTS or len(DEFAULT_BANK_ACCOUNTS) == 0:
-            error_msg = (
-                "❌ Payment configuration error.\n\n"
-                "No bank accounts configured.\n"
-                "Please configure DEFAULT_BANK_ACCOUNTS in config/config.py\n"
-            )
-            if reply_to_query:
-                await reply_to_query.edit_message_text(error_msg)
-            else:
-                await context.bot.send_message(chat_id=user_id, text=error_msg)
-            logger.error("DEFAULT_BANK_ACCOUNTS not configured")
-            return
-
-        logger.info(f"Bank accounts type: {type(DEFAULT_BANK_ACCOUNTS)}, value: {DEFAULT_BANK_ACCOUNTS}")
-
-        validated_bank_accounts = []
-        for bank in DEFAULT_BANK_ACCOUNTS:
-            if isinstance(bank, dict) and "account_number" in bank and "bank_id" in bank:
-                validated_bank_accounts.append({
-                    "account_number": str(bank["account_number"]),
-                    "bank_id": str(bank["bank_id"]).upper()
-                })
-            else:
-                logger.warning(f"Invalid bank account format: {bank}")
-
-        if not validated_bank_accounts:
-            error_msg = (
-                "❌ Payment configuration error.\n\n"
-                "Bank accounts have invalid format.\n"
-                f"Expected: [{{'account_number': '...', 'bank_id': '...'}}]\n"
-                f"Got: {DEFAULT_BANK_ACCOUNTS}\n"
-            )
-            if reply_to_query:
-                await reply_to_query.edit_message_text(error_msg)
-            else:
-                await context.bot.send_message(chat_id=user_id, text=error_msg)
-            logger.error(f"Invalid bank accounts format: {DEFAULT_BANK_ACCOUNTS}")
-            return
-
-        bank_accounts_to_use = validated_bank_accounts
-        logger.info(f"Using validated bank accounts: {bank_accounts_to_use}")
-
-        ipn_url = os.getenv("IPN_URL", f"http://localhost:{os.getenv('IPN_PORT', '5001')}/ipn")
-        redirect_url = os.getenv("REDIRECT_URL", "https://t.me/your_bot")
-
-        order_prefix = os.getenv("ORDER_PREFIX", "MTK")
-        order_info = f"{order_prefix}{order.id}"[:32]
-
-        request_id = str(int(time.time() * 1000))
-
-        logger.info(f"Creating payment: endpoint={PAY2S_ENDPOINT}, order_id={order.id}, amount={order.total_amount}, order_info={order_info}, request_id={request_id}")
-        logger.debug(f"Bank accounts: {DEFAULT_BANK_ACCOUNTS}")
-        logger.debug(f"IPN URL: {ipn_url}, Redirect URL: {redirect_url}")
-
-        payment_response = create_payment(
-            endpoint=PAY2S_ENDPOINT,
-            access_key=ACCESS_KEY,
-            secret_key=SECRET_KEY,
-            partner_code=PARTNER_CODE,
-            amount=order.total_amount,
-            order_id=order.id,
-            order_info=order_info,
-            redirect_url=redirect_url,
-            ipn_url=ipn_url,
-            bank_accounts=bank_accounts_to_use,
-            request_id=request_id,
-        )
-
-        logger.info(f"Payment response keys: {payment_response.keys()}")
-        logger.info(f"Payment response resultCode type: {type(payment_response.get('resultCode'))}, value: {payment_response.get('resultCode')}")
-
-        result_code = payment_response.get("resultCode")
-        is_success = (result_code == 0 or result_code == "0") and payment_response.get("payUrl")
-
-        if is_success:
-            payment_url = payment_response["payUrl"]
-            logger.info(f"Payment created successfully! payUrl: {payment_url[:50]}...")
-
-            transaction_id = payment_response.get("transId")
-            logger.info(f"Transaction ID from response: {transaction_id}")
-
-            if transaction_id:
-                order_service.update_order_status(
-                    order.id,
-                    order.status,
-                    payment_transaction_id=transaction_id,
-                )
-                logger.info(f"Updated order {order.id} with transaction_id: {transaction_id}")
-            else:
-                logger.warning(f"No transId in payment response for order {order.id}")
-
-            state_manager.update_user_state(user_id, pending_order_id=order.id)
-
-            payment_message, caption_base = format_payment_message(order, update, session)
-            rendered_pm, pm_parse_mode = render_emoji(payment_message, EmojiPlaceholderService(session))
-
-            qr_code_data = None
-            qr_list = payment_response.get("qrList", [])
-            if qr_list and len(qr_list) > 0:
-                qr_code = qr_list[0].get("qrCode")
-                if qr_code and qr_code.startswith("data:image/png;base64,"):
-                    base64_data = qr_code.replace("data:image/png;base64,", "")
-                    try:
-                        qr_code_data = base64.b64decode(base64_data)
-                    except Exception as e:
-                        logger.warning(f"Failed to decode QR code: {str(e)}")
-                        qr_code_data = None
-
-            if qr_code_data:
-                qr_image = BytesIO(qr_code_data)
-                qr_image.name = "qr_code.png"
-
-                cancel_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
-                ])
-
-                if reply_to_query:
-                    await reply_to_query.edit_message_text(rendered_pm, parse_mode=pm_parse_mode)
-                    text_message_id = reply_to_query.message.message_id
-                else:
-                    sent_text = await context.bot.send_message(chat_id=user_id, text=rendered_pm, parse_mode=pm_parse_mode)
-                    text_message_id = sent_text.message_id
-
-                bank_info = (
-                    f"\n\n🏦 Bank Information:\n"
-                    f"  • Bank: {qr_list[0].get('bank_name', 'N/A')}\n"
-                    f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
-                    f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
-                )
-                # Render caption_with_bank AFTER concatenation to preserve escape-order
-                rendered_caption_wb, cwb_parse_mode = render_emoji(
-                    caption_base + bank_info, EmojiPlaceholderService(session)
-                )
-
-                sent_message = await context.bot.send_photo(
-                    chat_id=user_id,
-                    photo=InputFile(qr_image, filename="qr_code.png"),
-                    caption=rendered_caption_wb,
-                    reply_markup=cancel_keyboard,
-                    parse_mode=cwb_parse_mode,
-                )
-
-                message_ids = [text_message_id, sent_message.message_id]
-                state_manager.update_user_state(
-                    user_id,
-                    payment_message_id=sent_message.message_id,
-                    payment_message_ids=message_ids
-                )
-
-                order.payment_message_ids = json.dumps(message_ids)
-                session.commit()
-                logger.info(f"Stored payment message IDs in database: {message_ids}")
-            else:
-                bank_info = ""
-                if qr_list and len(qr_list) > 0:
-                    bank_info = (
-                        f"\n🏦 Bank Information:\n"
-                        f"  • Bank: {qr_list[0].get('bank_id', 'N/A')}\n"
-                        f"  • Account: {qr_list[0].get('account_number', 'N/A')}\n"
-                        f"  • Name: {qr_list[0].get('account_name', 'N/A')}"
-                    )
-                # Render AFTER appending bank_info and payment_url to preserve escape-order
-                full_payment_message = payment_message + f"{bank_info}\n\n🔗 Payment link:\n{payment_url}"
-                rendered_full_pm, full_pm_parse_mode = render_emoji(
-                    full_payment_message, EmojiPlaceholderService(session)
-                )
-                cancel_keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton("❌ Cancel Order", callback_data=f"cancel_order_{order.id}")]
-                ])
-
-                if reply_to_query:
-                    text_message_id = reply_to_query.message.message_id
-                    edited_message = await reply_to_query.edit_message_text(rendered_full_pm, reply_markup=cancel_keyboard, parse_mode=full_pm_parse_mode)
-                else:
-                    edited_message = await context.bot.send_message(
-                        chat_id=user_id, text=rendered_full_pm, reply_markup=cancel_keyboard, parse_mode=full_pm_parse_mode,
-                    )
-                    text_message_id = edited_message.message_id
-
-                if edited_message:
-                    message_ids = [text_message_id]
-                    state_manager.update_user_state(
-                        user_id,
-                        payment_message_id=edited_message.message_id,
-                        payment_message_ids=message_ids
-                    )
-                    order.payment_message_ids = json.dumps(message_ids)
-                    session.commit()
-                    logger.info(f"Stored payment message IDs in database: {message_ids}")
-        else:
-            error_msg = payment_response.get("message", "Unknown error")
-            err_text = f"❌ Payment creation failed: {error_msg}"
-            if reply_to_query:
-                await reply_to_query.edit_message_text(err_text)
-            else:
-                await context.bot.send_message(chat_id=user_id, text=err_text)
-            logger.error(f"Payment creation failed: {payment_response}")
 
     except ValueError as e:
         error_msg = str(e)

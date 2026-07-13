@@ -1,4 +1,3 @@
 """
-Tests for Pay2S integration.
+Tests for the order system.
 """
-

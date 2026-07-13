@@ -6,6 +6,7 @@ API base URL (prod): https://api-merchant.payos.vn
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -13,13 +14,33 @@ import requests
 
 from src.payos.signature import create_payment_request_signature
 
+PAYOS_API_BASE_URL = "https://api-merchant.payos.vn"
+
 
 @dataclass(frozen=True)
 class PayOSCredentials:
     client_id: str
     api_key: str
     checksum_key: str
-    partner_code: str = ""
+
+
+def build_payos_client() -> "PayOSClient":
+    values = {
+        "PAYOS_CLIENT_ID": os.getenv("PAYOS_CLIENT_ID", "").strip(),
+        "PAYOS_API_KEY": os.getenv("PAYOS_API_KEY", "").strip(),
+        "PAYOS_CHECKSUM_KEY": os.getenv("PAYOS_CHECKSUM_KEY", "").strip(),
+    }
+    missing = [name for name, value in values.items() if not value]
+    if missing:
+        raise RuntimeError(f"Missing PayOS configuration: {', '.join(missing)}")
+    return PayOSClient(
+        base_url=PAYOS_API_BASE_URL,
+        credentials=PayOSCredentials(
+            client_id=values["PAYOS_CLIENT_ID"],
+            api_key=values["PAYOS_API_KEY"],
+            checksum_key=values["PAYOS_CHECKSUM_KEY"],
+        ),
+    )
 
 
 class PayOSClient:
@@ -29,14 +50,11 @@ class PayOSClient:
         self.timeout_seconds = timeout_seconds
 
     def _headers(self) -> Dict[str, str]:
-        headers = {
+        return {
             "x-client-id": self.credentials.client_id,
             "x-api-key": self.credentials.api_key,
             "Content-Type": "application/json",
         }
-        if self.credentials.partner_code:
-            headers["x-partner-code"] = self.credentials.partner_code
-        return headers
 
     def create_payment_link(
         self,
@@ -107,4 +125,3 @@ class PayOSClient:
         if data.get("code") != "00":
             raise ValueError(f"PayOS cancel_payment_link failed: {data.get('code')} - {data.get('desc')}")
         return data
-

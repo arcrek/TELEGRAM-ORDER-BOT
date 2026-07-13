@@ -134,7 +134,7 @@ class StatisticsService:
         """
         Get vendor cash revenue = QR-paid orders + PAID topups, excluding balance payments.
 
-        QR orders: payment_provider in ('payos', 'pay2s'), status PAID/DELIVERED.
+        QR orders: any non-balance payment provider, status PAID/DELIVERED.
         Topups: TopupOrder where status=PAID.
         Both windowed on updated_at.
 
@@ -158,7 +158,8 @@ class StatisticsService:
         # QR orders revenue
         qr_query = self.session.query(func.sum(Order.total_amount)).filter(
             Order.status.in_([OrderStatus.PAID, OrderStatus.DELIVERED]),
-            Order.payment_provider.in_(["payos", "pay2s"]),
+            Order.payment_provider.is_not(None),
+            Order.payment_provider != "balance",
         )
         if sd:
             qr_query = qr_query.filter(Order.updated_at >= sd)
@@ -779,4 +780,3 @@ class StatisticsService:
             "low_stock_inventory": low_stock_items,
             "low_stock_inventory_count": len(low_stock_items),
         }
-

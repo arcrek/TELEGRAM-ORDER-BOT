@@ -173,6 +173,8 @@
     "success": "✅ Thanh toán thành công! Đang xử lý đơn hàng...",
     "pending": "⏳ Đang chờ thanh toán...",
     "failed": "❌ Thanh toán thất bại. Vui lòng thử lại.",
+    "configuration_error": "❌ Lỗi cấu hình thanh toán. Vui lòng liên hệ hỗ trợ.",
+    "creation_error": "❌ Không thể tạo thanh toán. Vui lòng thử lại sau.",
     "timeout": "⏰ Hết thời gian thanh toán. Đơn hàng đã bị hủy.",
     "order_created": "✅ Đặt hàng thành công!",
     "scan_qr": "💳 Quét mã QR bên dưới để thanh toán",

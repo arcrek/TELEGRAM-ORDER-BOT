@@ -333,14 +333,22 @@ class TestStatisticsServiceNewBehaviors:
         self._seed_app_settings(db_session)
         now = datetime.utcnow()
         self._make_order(db_session, "v_payos", OrderStatus.PAID, 100000, "payos", now, now)
-        self._make_order(db_session, "v_pay2s", OrderStatus.DELIVERED, 80000, "pay2s", now, now)
+        self._make_order(
+            db_session,
+            "v_legacy_qr",
+            OrderStatus.DELIVERED,
+            80000,
+            "legacy_qr",
+            now,
+            now,
+        )
         self._make_order(db_session, "v_balance", OrderStatus.PAID, 60000, "balance", now, now)
         self._make_order(db_session, "v_null", OrderStatus.PAID, 40000, None, now, now)
         db_session.commit()
 
         service = StatisticsService(db_session)
         vendor = service.get_vendor_revenue()
-        # Only payos (100k) + pay2s (80k) = 180k; balance and null excluded
+        # payos (100k) + historical external QR (80k); balance/null excluded
         assert vendor == 180000
 
     def test_get_vendor_revenue_includes_paid_topups(self, db_session: Session):
@@ -396,4 +404,3 @@ class TestStatisticsServiceNewBehaviors:
         assert "vendor_revenue_today" in overview
         assert isinstance(overview["vendor_revenue"], int)
         assert isinstance(overview["vendor_revenue_today"], int)
-

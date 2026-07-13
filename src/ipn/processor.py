@@ -1,8 +1,8 @@
 """
 Order processor for IPN (Instant Payment Notification) from any payment provider.
 
-Used by both PayOS (dashboard webhook) and Pay2S (IPN server). Receives payment
-confirmations, updates order status, and fulfills delivery (pre-uploaded or supplier-based).
+Receives payment confirmations, updates order status, and fulfills delivery
+(pre-uploaded or supplier-based).
 """
 import asyncio
 import logging
@@ -60,8 +60,8 @@ def run_async(coro):
 
     - When a request loop was set (e.g. PayOS webhook runs processor in executor):
       schedules the coroutine on that loop via run_coroutine_threadsafe and waits.
-    - Otherwise (e.g. Pay2S Flask IPN): runs the coroutine on the current or a
-      new event loop in this thread.
+    - Otherwise: runs the coroutine on the current or a new event loop in this
+      thread.
     """
     request_loop = _get_request_loop()
     if request_loop is not None and request_loop.is_running():
@@ -116,7 +116,7 @@ class IPNOrderProcessor:
     """
     Processes payment success/failure and fulfills orders.
 
-    Used by PayOS webhook and Pay2S IPN; payment-agnostic (order_id, transaction_id, amount).
+    Payment-agnostic processor for order id, transaction id, and amount.
     """
 
     def __init__(self, bot: Optional[Bot] = None, supplier_bot: Optional[Bot] = None):

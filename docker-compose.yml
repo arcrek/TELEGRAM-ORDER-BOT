@@ -23,8 +23,6 @@ services:
       # Comma-separated list of frontend origins allowed to call the API
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       # PayOS Configuration (needed for webhook verification)
-      PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
-      PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
       PAYOS_API_KEY: ${PAYOS_API_KEY:-}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
@@ -55,25 +53,10 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-CHANGE_ME_STRONG_PASSWORD}
       # System Name (displayed in messages)
       SYSTEM_NAME: ${SYSTEM_NAME:-MUATAIKHOANPRO}
-      # Payment provider selection
-      PAYMENT_PROVIDER_DEFAULT: ${PAYMENT_PROVIDER_DEFAULT:-payos}
       # PayOS Configuration (needed for payment creation)
-      PAYOS_BASE_URL: ${PAYOS_BASE_URL:-https://api-merchant.payos.vn}
-      PAYOS_PARTNER_CODE: ${PAYOS_PARTNER_CODE:-}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID:-}
       PAYOS_API_KEY: ${PAYOS_API_KEY:-}
       PAYOS_CHECKSUM_KEY: ${PAYOS_CHECKSUM_KEY:-}
-      PAYOS_RETURN_URL: ${PAYOS_RETURN_URL:-https://t.me/your_bot}
-      PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL:-https://t.me/your_bot}
-      # Pay2S Configuration (needed for payment creation)
-      PAY2S_ENDPOINT: ${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
-      PAY2S_PARTNER_CODE: ${PAY2S_PARTNER_CODE}
-      PAY2S_ACCESS_KEY: ${PAY2S_ACCESS_KEY}
-      PAY2S_SECRET_KEY: ${PAY2S_SECRET_KEY}
-      DEFAULT_BANK_ACCOUNTS: ${DEFAULT_BANK_ACCOUNTS:-[{"account_number":"99999999","bank_id":"ACB"}]}
-      # Payment URLs
-      IPN_URL: ${IPN_URL}
-      REDIRECT_URL: ${REDIRECT_URL:-https://t.me/your_bot}
       # Support Contact Information (footer lines)
       SUPPORT_LINE_1: ${SUPPORT_LINE_1}
       SUPPORT_LINE_2: ${SUPPORT_LINE_2}
@@ -119,39 +102,6 @@ services:
     depends_on:
       - api
 
-  # ipn-server:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.ipn
-  #   container_name: pay2s-ipn-server
-  #   env_file:
-  #     - .env
-  #   ports:
-  #     - "${IPN_PORT:-5001}:5001"
-  #   environment:
-  #     # Database Configuration (same as other services)
-  #     - APP_ENV=${APP_ENV:-dev}
-  #     # Telegram Bot Tokens (for sending messages after payment)
-  #     - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-  #     - SUPPLIER_TELEGRAM_BOT_TOKEN=${SUPPLIER_TELEGRAM_BOT_TOKEN}
-  #     # Pay2S Configuration
-  #     - PAY2S_ENDPOINT=${PAY2S_ENDPOINT:-https://sandbox-payment.pay2s.vn/v1/gateway/api/create}
-  #     - PAY2S_PARTNER_CODE=${PAY2S_PARTNER_CODE:-PAY2S7EPF0SB1ZP27W71}
-  #     - PAY2S_ACCESS_KEY=${PAY2S_ACCESS_KEY:-REDACTED_PAY2S_ACCESS_KEY}
-  #     - PAY2S_SECRET_KEY=${PAY2S_SECRET_KEY:-REDACTED_PAY2S_SECRET_KEY}
-  #     # IPN Server Configuration
-  #     - IPN_HOST=0.0.0.0
-  #     - IPN_PORT=5001
-  #   volumes:
-  #     - delivery-data:/app/delivery_data
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 5s
-
   postgres:
     image: postgres:16
     environment:
@@ -164,10 +114,5 @@ services:
       - ./data/postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
-networks:
-  pay2s-network:
-    driver: bridge
-
 volumes:
   postgres_data:
-

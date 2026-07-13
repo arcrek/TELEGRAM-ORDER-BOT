@@ -173,6 +173,8 @@
     "success": "✅ Payment successful! Processing your order...",
     "pending": "⏳ Awaiting payment...",
     "failed": "❌ Payment failed. Please try again.",
+    "configuration_error": "❌ Payment configuration error. Please contact support.",
+    "creation_error": "❌ Payment creation failed. Please try again later.",
     "timeout": "⏰ Payment timeout. Order has been cancelled.",
     "order_created": "✅ Order created successfully!",
     "scan_qr": "💳 Scan QR code below to complete payment",

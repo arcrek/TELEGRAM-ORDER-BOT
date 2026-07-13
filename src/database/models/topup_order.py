@@ -24,7 +24,7 @@ class TopupOrder(Base):
     )
 
     # Payment tracking (mirrors Order payment fields)
-    payment_provider = Column(String, nullable=True)  # "payos" | "pay2s"
+    payment_provider = Column(String, nullable=True)  # "payos" | "balance"
     payment_transaction_id = Column(String, nullable=True)
     payment_message_ids = Column(Text, nullable=True)  # JSON list of Telegram message IDs
 

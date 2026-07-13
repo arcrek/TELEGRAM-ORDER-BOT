@@ -1,7 +1,7 @@
 """
 IPN (Instant Payment Notification) package.
 
-Shared order fulfillment logic used by all payment providers (PayOS, Pay2S, etc.).
+Shared order fulfillment logic used by external gateways and balance payments.
 Webhooks call the processor with order_id, transaction_id, and amount; the processor
 updates order status, sends delivery, and notifies users/suppliers.
 """
