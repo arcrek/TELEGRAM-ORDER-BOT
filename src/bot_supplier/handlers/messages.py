@@ -8,7 +8,6 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from src.database.connection import get_session_factory
 from src.database.services.supplier_service import SupplierService
-from src.database.services.supplier_order_service import SupplierOrderService
 from src.database.services.order_service import OrderService
 from src.database.models.supplier_order import SupplierOrder
 from src.database.models.enums import SupplierOrderStatus, OrderStatus
@@ -88,7 +87,6 @@ async def handle_supplier_reply(
     
     try:
         supplier_service = SupplierService(session)
-        supplier_order_service = SupplierOrderService(session)  # noqa: F841
         order_service = OrderService(session)
         
         # Check if user is a registered supplier

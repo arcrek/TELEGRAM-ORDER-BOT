@@ -5,7 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$ROOT_DIR"
 
 for forbidden in .env '*.db' '*.sqlite' '*.sql' '*.dump' '*.pem' '*.key' 'backups/*' 'data/*' '.claude/*'; do
-  if [[ -n "$(git ls-files -- "$forbidden")" ]]; then
+  tracked="$(git ls-files -- "$forbidden")"
+  if [[ -n "$tracked" ]]; then
     echo "Tracked private artifact matches: $forbidden" >&2
     exit 1
   fi

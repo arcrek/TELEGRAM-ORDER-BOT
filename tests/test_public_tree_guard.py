@@ -9,6 +9,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 GUARD = ROOT / "scripts" / "check_public_tree.sh"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 FORBIDDEN_ARTIFACTS = (
     (".env", ".env"),
     ("database.db", "*.db"),
@@ -102,3 +103,23 @@ def test_guard_propagates_gitleaks_failure(tmp_path: Path) -> None:
     result = run_guard(root, env)
 
     assert result.returncode == 42
+
+
+def test_guard_propagates_git_failure_without_scanning(tmp_path: Path) -> None:
+    root, env = public_project(tmp_path)
+    git = Path(env["PATH"].split(":", 1)[0]) / "git"
+    git.write_text("#!/usr/bin/env bash\nexit 5\n")
+    git.chmod(git.stat().st_mode | stat.S_IXUSR)
+
+    result = run_guard(root, env)
+
+    assert result.returncode == 5
+    assert not Path(env["DOCKER_LOG"]).exists()
+
+
+def test_frontend_ci_audits_production_dependencies_before_tests() -> None:
+    assert (
+        "      - run: npm ci\n"
+        "      - run: npm audit --omit=dev --audit-level=moderate\n"
+        "      - run: npm test -- --run\n"
+    ) in CI_WORKFLOW.read_text()
