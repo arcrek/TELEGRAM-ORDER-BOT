@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Search, Wallet, RefreshCw, Eye, SlidersHorizontal } from 'lucide-react'
+import { Search, Wallet, Download, RefreshCw, Eye, SlidersHorizontal } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PageHeader } from '../shared/components/PageHeader'
 import { Table, type ColumnDef, type SortState } from '../shared/components/Table'
 import { Pagination } from '../shared/components/Pagination'
+import { Button } from '../shared/components/Button'
 import { IconButton } from '../shared/components/IconButton'
 import { Input } from '../shared/components/Input'
 import { Select } from '../shared/components/Select'
 import { Tooltip } from '../shared/components/Tooltip'
+import { useToast } from '../shared/components/Toast'
 import { apiClient, formatApiError } from '../shared/lib/api'
 import { useFormat } from '../shared/lib/format'
 import { BalanceAdjustModal } from './balances/BalanceAdjustModal'
@@ -26,6 +28,7 @@ const SORT_OPTIONS = [
 
 export function BalancesPage() {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const fmt = useFormat()
 
   // ── URL-synced filters ─────────────────────────────────────────────
@@ -104,6 +107,22 @@ export function BalancesPage() {
   }, [urlPage, perPage, sortBy, sortOrder, urlSearch, t])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
+
+  const handleExport = async () => {
+    try {
+      const res = await apiClient.get('/api/balances/export', { responseType: 'blob' })
+      const url = URL.createObjectURL(new Blob([res.data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `active_users_${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      toast.error(formatApiError(err, t('balances.exportError', 'Không thể xuất người dùng')))
+    }
+  }
 
   // ── Adjust success callback ────────────────────────────────────────
   const handleAdjustSuccess = useCallback((botUserId: string, newBalance: number) => {
@@ -209,13 +228,24 @@ export function BalancesPage() {
         title={t('nav.balances', 'Số dư người dùng')}
         description={t('balances.description', 'Quản lý số dư và lịch sử nạp tiền của khách hàng')}
         actions={
-          <IconButton
-            icon={<RefreshCw size={14} />}
-            aria-label={t('common.refresh', 'Làm mới')}
-            variant="ghost"
-            size="sm"
-            onClick={fetchUsers}
-          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button
+              variant="secondary"
+              tone="subtle"
+              size="sm"
+              iconLeft={<Download size={14} />}
+              onClick={handleExport}
+            >
+              {t('common.export', 'Xuất CSV')}
+            </Button>
+            <IconButton
+              icon={<RefreshCw size={14} />}
+              aria-label={t('common.refresh', 'Làm mới')}
+              variant="ghost"
+              size="sm"
+              onClick={fetchUsers}
+            />
+          </div>
         }
       />
 

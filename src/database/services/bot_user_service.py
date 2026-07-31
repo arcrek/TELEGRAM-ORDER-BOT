@@ -4,10 +4,12 @@ Bot user service layer for user tracking.
 
 import secrets
 import uuid
-from typing import Optional, List
 from datetime import datetime, timezone
+from typing import List, Optional
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
 from src.database.models.bot_user import BotUser
 
 
@@ -142,6 +144,7 @@ class BotUserService:
         return (
             self.session.query(BotUser)
             .filter_by(is_active=True, has_started=True)
+            .order_by(BotUser.telegram_user_id)
             .all()
         )
 
