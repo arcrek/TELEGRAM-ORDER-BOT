@@ -290,7 +290,6 @@ async def update_variation(
             detail=f"Variation {variation_id} not found",
         )
     
-    previous_stock = existing.stock
     update_dict = {}
     if variation_data.name is not None:
         update_dict["name"] = variation_data.name
@@ -337,12 +336,12 @@ async def update_variation(
     product_service = ProductService(db)
     product = product_service.get_product_by_id(variation.product_id)
 
-    if variation_data.stock is not None and variation.stock > previous_stock:
+    if variation_data.stock is not None:
         entry = _build_upload_notification_entry(
             db,
             variation.product_id,
             variation.id,
-            variation.stock - previous_stock,
+            variation.stock,
             variation.stock,
         )
         if entry:

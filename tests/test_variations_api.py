@@ -331,8 +331,9 @@ def test_update_variation_success(client, auth_token, sample_products):
     assert "stock" in data
 
 
-def test_increasing_virtual_stock_sends_upload_notification(
-    client, auth_token, test_db, monkeypatch
+@pytest.mark.asyncio
+async def test_editing_virtual_stock_sends_full_stock_upload_notification(
+    test_db, monkeypatch
 ):
     product = Product(
         id="prod_virtual",
@@ -346,7 +347,7 @@ def test_increasing_virtual_stock_sends_upload_notification(
         product_id=product.id,
         name="Default",
         price=10_000,
-        stock=5,
+        stock=8,
         is_active=True,
     )
     test_db.add_all([product, variation])
@@ -363,17 +364,17 @@ def test_increasing_virtual_stock_sends_upload_notification(
 
     monkeypatch.setattr(variations_router, "_send_upload_notifications", capture)
 
-    response = client.put(
-        "/api/variations/var_virtual",
-        json={"stock": 8},
-        headers={"Authorization": f"Bearer {auth_token}"},
+    response = await variations_router.update_variation(
+        "var_virtual",
+        variations_router.VariationUpdate(stock=3),
+        current_admin=None,
+        db=test_db,
     )
 
-    assert response.status_code == 200
-    assert response.json()["stock"] == 8
+    assert response["stock"] == 3
     assert sent["entries"][0]["product_id"] == product.id
     assert "➕ Đã thêm: 3" in sent["entries"][0]["message"]
-    assert "📦 Tổng số lượng: 8" in sent["entries"][0]["message"]
+    assert "📦 Tổng số lượng: 3" in sent["entries"][0]["message"]
 
 
 def test_update_variation_not_found(client, auth_token):
