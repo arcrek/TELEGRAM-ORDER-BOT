@@ -299,6 +299,7 @@
     "insufficient_balance": "❌ Số dư không đủ!\n\n💰 Số dư: {balance} VND\n💵 Cần: {total} VND",
     "topup_more_button": "➕ Nạp thêm",
     "balance_paid_success": "✅ Thanh toán thành công bằng số dư!\n\nĐang xử lý đơn hàng của bạn...",
+    "balance_paid_delivered": "✅ Thanh toán thành công bằng số dư!\n\n📦 Đơn hàng đã được giao.",
     "already_processed": "❌ Đơn hàng này đã được xử lý.",
     "preset_50k": "50.000 VND",
     "preset_100k": "100.000 VND",

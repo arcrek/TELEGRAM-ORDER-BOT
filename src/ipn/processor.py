@@ -747,7 +747,18 @@ class IPNOrderProcessor:
         if not self.bot:
             raise RuntimeError("Bot instance is None, cannot deliver virtual order")
 
-        run_async(self.bot.send_message(chat_id=user_id, text=content))
+        delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
+        message = (
+            f"================\n"
+            f"{system_name}\n"
+            f"Order ID: {order_id}\n"
+            f"Delivered: {delivery_time}\n"
+            f"User ID: {user_id}\n"
+            f"================\n\n"
+            f"{content}"
+        )
+        run_async(self.bot.send_message(chat_id=user_id, text=message))
         OrderService(session).update_order_status(order_id, OrderStatus.DELIVERED)
 
         try:

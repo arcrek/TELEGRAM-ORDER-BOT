@@ -299,6 +299,7 @@
     "insufficient_balance": "❌ Insufficient balance!\n\n💰 Balance: {balance} VND\n💵 Required: {total} VND",
     "topup_more_button": "➕ Top up more",
     "balance_paid_success": "✅ Payment successful via wallet balance!\n\nProcessing your order...",
+    "balance_paid_delivered": "✅ Payment successful via wallet balance!\n\n📦 Your order has been delivered.",
     "already_processed": "❌ This order has already been processed.",
     "preset_50k": "50,000 VND",
     "preset_100k": "100,000 VND",

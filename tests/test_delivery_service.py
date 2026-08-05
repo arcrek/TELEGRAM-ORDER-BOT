@@ -241,8 +241,9 @@ def test_virtual_order_keeps_fixed_stock_and_sends_configured_content(
     ):
         processor._handle_virtual_order_delivery(db_session, order.id, order.user_id)
 
-    processor.bot.send_message.assert_awaited_once_with(
-        chat_id=order.user_id,
-        text="Liên hệ hỗ trợ để nhận tài khoản: @support",
-    )
+    delivery_text = processor.bot.send_message.await_args.kwargs["text"]
+    assert f"Order ID: {order.id}" in delivery_text
+    assert f"User ID: {order.user_id}" in delivery_text
+    assert "Liên hệ hỗ trợ để nhận tài khoản: @support" in delivery_text
+    processor.bot.send_document.assert_not_awaited()
     assert OrderService(db_session).get_order_by_id(order.id).status == OrderStatus.DELIVERED
