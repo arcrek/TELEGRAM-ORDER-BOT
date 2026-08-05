@@ -163,8 +163,11 @@ class VariationService:
                 raise ValueError(f"Insufficient stock. Available: {available_stock}, Requested: {quantity}")
             # Stock is managed through pre-uploaded products, so we don't modify variation.stock
             # The actual reduction happens when pre-uploaded products are marked as used
-        elif product.delivery_type == DeliveryType.UPGRADE:
-            # UPGRADE products are not inventory-backed; nothing to decrement.
+        elif product.delivery_type in (
+            DeliveryType.UPGRADE,
+            DeliveryType.VIRTUAL_ORDER,
+        ):
+            # UPGRADE has no stock; VIRTUAL_ORDER stock is a fixed display/limit value.
             pass
         else:
             # For SUPPLIER_BASED products, decrease the stock field directly
@@ -245,7 +248,11 @@ class VariationService:
                 }
             
             # Calculate stock from pre-uploaded products
-            calculated_stock = self.calculate_stock_from_pre_uploaded(variation.id)
+            calculated_stock = (
+                variation.stock
+                if variation.product.delivery_type == DeliveryType.VIRTUAL_ORDER
+                else self.calculate_stock_from_pre_uploaded(variation.id)
+            )
             
             grouped[variation.product_id]["variations"].append({
                 "id": variation.id,
@@ -306,8 +313,11 @@ class VariationService:
         # Group by product and filter by calculated stock
         grouped = {}
         for variation in variations:
-            # Calculate stock from pre-uploaded products
-            calculated_stock = self.calculate_stock_from_pre_uploaded(variation.id)
+            calculated_stock = (
+                variation.stock
+                if variation.product.delivery_type == DeliveryType.VIRTUAL_ORDER
+                else self.calculate_stock_from_pre_uploaded(variation.id)
+            )
             
             # Only include if stock is below threshold
             if calculated_stock > threshold:

@@ -1,16 +1,21 @@
 """
 Tests for delivery service.
 """
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models.base import Base
-from src.database.services.delivery_service import DeliveryService
-from src.database.services.order_service import OrderService
 from src.database.models.enums import DeliveryType, OrderStatus
+from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-from src.database.models.pre_uploaded_product import PreUploadedProduct
+from src.database.services.delivery_service import DeliveryService
+from src.database.services.order_notification_service import OrderNotificationService
+from src.database.services.order_service import OrderService
+from src.ipn.processor import IPNOrderProcessor
 
 
 @pytest.fixture
@@ -200,3 +205,44 @@ def test_process_paid_order_not_found(delivery_service):
     success = delivery_service.process_paid_order("nonexistent")
     assert success is False
 
+
+def test_virtual_order_keeps_fixed_stock_and_sends_configured_content(
+    db_session, delivery_service
+):
+    product = Product(
+        id="prod_virtual",
+        name="Virtual order",
+        delivery_type=DeliveryType.VIRTUAL_ORDER,
+        upgrade_request_text="Liên hệ hỗ trợ để nhận tài khoản: @support",
+        is_active=True,
+    )
+    variation = ProductVariation(
+        id="var_virtual",
+        product_id=product.id,
+        name="Default",
+        price=10_000,
+        stock=123,
+        is_active=True,
+    )
+    db_session.add_all([product, variation])
+    db_session.commit()
+
+    order = OrderService(db_session).create_order(123456789, variation.id, 2)
+    assert delivery_service.process_paid_order(order.id) is True
+    db_session.refresh(variation)
+    assert variation.stock == 123
+
+    processor = IPNOrderProcessor.__new__(IPNOrderProcessor)
+    processor.bot = AsyncMock()
+    with patch.object(
+        OrderNotificationService,
+        "prepare_order_paid_notification",
+        return_value=None,
+    ):
+        processor._handle_virtual_order_delivery(db_session, order.id, order.user_id)
+
+    processor.bot.send_message.assert_awaited_once_with(
+        chat_id=order.user_id,
+        text="Liên hệ hỗ trợ để nhận tài khoản: @support",
+    )
+    assert OrderService(db_session).get_order_by_id(order.id).status == OrderStatus.DELIVERED

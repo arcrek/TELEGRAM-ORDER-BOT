@@ -49,6 +49,21 @@ class TestProductService:
         assert product.delivery_type == DeliveryType.PRE_UPLOADED
         assert product.is_active is True
 
+    def test_virtual_order_delivery_content_is_editable(self, product_service):
+        product = product_service.create_product({
+            "id": "prod_virtual",
+            "name": "Đơn ảo",
+            "delivery_type": DeliveryType.VIRTUAL_ORDER,
+            "upgrade_request_text": "Liên hệ hỗ trợ: @old",
+        })
+        updated = product_service.update_product(product.id, {
+            "upgrade_request_text": "Liên hệ hỗ trợ: @new",
+        })
+
+        assert updated.upgrade_request_text == "Liên hệ hỗ trợ: @new"
+        with pytest.raises(ValueError, match="delivery content is required"):
+            product_service.update_product(product.id, {"upgrade_request_text": ""})
+
     def test_get_product_by_id(self, product_service):
         """Test retrieving a product by ID."""
         # Create a product first
@@ -180,4 +195,3 @@ class TestProductService:
         
         count = product_service.get_total_count(only_active=True)
         assert count == 10
-

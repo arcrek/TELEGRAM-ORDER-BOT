@@ -11,7 +11,8 @@
     "type": {
       "pre_uploaded": "Kho hàng",
       "supplier_based": "Nhà cung cấp",
-      "upgrade": "Nâng cấp"
+      "upgrade": "Nâng cấp",
+      "virtual_order": "Đơn ảo"
     }
   }
 }

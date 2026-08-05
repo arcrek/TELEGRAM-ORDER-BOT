@@ -5,10 +5,11 @@ import uuid
 from typing import Optional, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from src.dashboard.auth import get_current_admin, require_admin_role, get_db
 from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
+from src.database.models.enums import DeliveryType
 from src.utils.datetime_format import to_utc_iso
 
 
@@ -21,7 +22,7 @@ class VariationCreate(BaseModel):
     product_id: str
     name: str
     price: int
-    # stock is removed - it's calculated from pre-uploaded products
+    stock: int = Field(0, ge=0)
     is_active: bool = True
 
 
@@ -29,7 +30,7 @@ class VariationUpdate(BaseModel):
     """Variation update schema."""
     name: Optional[str] = None
     price: Optional[int] = None
-    # stock is removed - it's calculated from pre-uploaded products
+    stock: Optional[int] = Field(None, ge=0)
     is_active: Optional[bool] = None
     benefit_mode: Optional[str] = None  # 'bonus' | 'discount' | 'both'
     # Warning threshold for inventory aging/expiry tracking.
@@ -168,7 +169,11 @@ async def get_variation(
     product = product_service.get_product_by_id(variation.product_id)
     
     # Calculate stock from pre-uploaded products
-    calculated_stock = service.calculate_stock_from_pre_uploaded(variation.id)
+    calculated_stock = (
+        variation.stock
+        if product and product.delivery_type == DeliveryType.VIRTUAL_ORDER
+        else service.calculate_stock_from_pre_uploaded(variation.id)
+    )
     
     return {
         "id": variation.id,
@@ -226,12 +231,20 @@ async def create_variation(
         "product_id": variation_data.product_id,
         "name": variation_data.name,
         "price": variation_data.price,
-        "stock": 0,  # Stock is calculated from pre-uploaded products
+        "stock": (
+            variation_data.stock
+            if product.delivery_type == DeliveryType.VIRTUAL_ORDER
+            else 0
+        ),
         "is_active": variation_data.is_active,
     })
     
     # Calculate stock from pre-uploaded products
-    calculated_stock = service.calculate_stock_from_pre_uploaded(variation.id)
+    calculated_stock = (
+        variation.stock
+        if product.delivery_type == DeliveryType.VIRTUAL_ORDER
+        else service.calculate_stock_from_pre_uploaded(variation.id)
+    )
     
     return {
         "id": variation.id,
@@ -265,13 +278,26 @@ async def update_variation(
         Updated variation
     """
     service = VariationService(db)
+    existing = service.get_variation_by_id(variation_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Variation {variation_id} not found",
+        )
     
     update_dict = {}
     if variation_data.name is not None:
         update_dict["name"] = variation_data.name
     if variation_data.price is not None:
         update_dict["price"] = variation_data.price
-    # stock is not updated - it's calculated from pre-uploaded products
+    product = ProductService(db).get_product_by_id(existing.product_id)
+    if variation_data.stock is not None:
+        if not product or product.delivery_type != DeliveryType.VIRTUAL_ORDER:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Fixed stock is only available for virtual-order products",
+            )
+        update_dict["stock"] = variation_data.stock
     if variation_data.is_active is not None:
         update_dict["is_active"] = variation_data.is_active
     if variation_data.benefit_mode is not None:
@@ -306,7 +332,11 @@ async def update_variation(
     product = product_service.get_product_by_id(variation.product_id)
     
     # Calculate stock from pre-uploaded products
-    calculated_stock = service.calculate_stock_from_pre_uploaded(variation.id)
+    calculated_stock = (
+        variation.stock
+        if product and product.delivery_type == DeliveryType.VIRTUAL_ORDER
+        else service.calculate_stock_from_pre_uploaded(variation.id)
+    )
     
     return {
         "id": variation.id,
@@ -556,4 +586,3 @@ async def bulk_delete_variations(
         "failed": failed_count,
         "errors": errors,
     }
-

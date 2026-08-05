@@ -11,7 +11,8 @@
     "type": {
       "pre_uploaded": "Inventory",
       "supplier_based": "Supplier",
-      "upgrade": "Upgrade"
+      "upgrade": "Upgrade",
+      "virtual_order": "Virtual order"
     }
   }
 }

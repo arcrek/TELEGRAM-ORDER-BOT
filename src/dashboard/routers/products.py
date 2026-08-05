@@ -207,14 +207,17 @@ async def create_product(
             detail=f"Product with ID {product_id} already exists"
         )
 
-    product = service.create_product({
-        "id": product_id,
-        "name": product_data.name,
-        "description": product_data.description,
-        "delivery_type": product_data.delivery_type,
-        "upgrade_request_text": product_data.upgrade_request_text,
-        "is_active": product_data.is_active,
-    })
+    try:
+        product = service.create_product({
+            "id": product_id,
+            "name": product_data.name,
+            "description": product_data.description,
+            "delivery_type": product_data.delivery_type,
+            "upgrade_request_text": product_data.upgrade_request_text,
+            "is_active": product_data.is_active,
+        })
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
     return {
         "id": product.id,
@@ -259,7 +262,10 @@ async def update_product(
     if product_data.is_active is not None:
         update_dict["is_active"] = product_data.is_active
 
-    product = service.update_product(product_id, update_dict)
+    try:
+        product = service.update_product(product_id, update_dict)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 
     if not product:
         raise HTTPException(

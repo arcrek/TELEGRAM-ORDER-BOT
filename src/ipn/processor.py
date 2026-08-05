@@ -309,6 +309,10 @@ class IPNOrderProcessor:
                 logger.info(f"Processing UPGRADE delivery for order {order_id}")
                 self._handle_upgrade_delivery(session, order_id, order.user_id)
                 delivery_success = True
+            elif delivery_type == DeliveryType.VIRTUAL_ORDER:
+                logger.info(f"Processing VIRTUAL_ORDER delivery for order {order_id}")
+                self._handle_virtual_order_delivery(session, order_id, order.user_id)
+                delivery_success = True
             elif delivery_type == DeliveryType.SUPPLIER_BASED:
                 # Supplier-based delivery is DISABLED
                 logger.warning(f"SUPPLIER_BASED delivery is disabled for order {order_id}")
@@ -728,6 +732,39 @@ class IPNOrderProcessor:
         except Exception as e:
             logger.warning(
                 f"Order paid notification failed for UPGRADE order {order_id}: {e}",
+                exc_info=True,
+            )
+
+    def _handle_virtual_order_delivery(
+        self, session, order_id: str, user_id: int
+    ) -> None:
+        """Send reusable configured content without consuming stock."""
+        order = session.query(Order).filter_by(id=order_id).first()
+        product = order.items[0].product if order and order.items else None
+        content = (product.upgrade_request_text or "").strip() if product else ""
+        if not content:
+            raise RuntimeError(f"VIRTUAL_ORDER product has no delivery content: {order_id}")
+        if not self.bot:
+            raise RuntimeError("Bot instance is None, cannot deliver virtual order")
+
+        run_async(self.bot.send_message(chat_id=user_id, text=content))
+        OrderService(session).update_order_status(order_id, OrderStatus.DELIVERED)
+
+        try:
+            notify_service = OrderNotificationService(session, bot=self.bot)
+            notif = notify_service.prepare_order_paid_notification(
+                order, delivery_data=content
+            )
+            if notif:
+                message, targets = notif
+                run_async(
+                    notify_service.send_message_to_whitelist_async(
+                        message=message, targets=targets
+                    )
+                )
+        except Exception as e:
+            logger.warning(
+                f"Order paid notification failed for VIRTUAL_ORDER {order_id}: {e}",
                 exc_info=True,
             )
 
