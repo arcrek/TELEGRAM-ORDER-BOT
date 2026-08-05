@@ -206,7 +206,7 @@ def test_process_paid_order_not_found(delivery_service):
     assert success is False
 
 
-def test_virtual_order_keeps_fixed_stock_and_sends_configured_content(
+def test_virtual_order_decreases_fixed_stock_and_sends_configured_content(
     db_session, delivery_service
 ):
     product = Product(
@@ -230,7 +230,7 @@ def test_virtual_order_keeps_fixed_stock_and_sends_configured_content(
     order = OrderService(db_session).create_order(123456789, variation.id, 2)
     assert delivery_service.process_paid_order(order.id) is True
     db_session.refresh(variation)
-    assert variation.stock == 123
+    assert variation.stock == 121
 
     processor = IPNOrderProcessor.__new__(IPNOrderProcessor)
     processor.bot = AsyncMock()

@@ -738,7 +738,7 @@ class IPNOrderProcessor:
     def _handle_virtual_order_delivery(
         self, session, order_id: str, user_id: int
     ) -> None:
-        """Send reusable configured content without consuming stock."""
+        """Send reusable configured content after fixed stock is consumed."""
         order = session.query(Order).filter_by(id=order_id).first()
         product = order.items[0].product if order and order.items else None
         content = (product.upgrade_request_text or "").strip() if product else ""

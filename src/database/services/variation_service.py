@@ -132,7 +132,7 @@ class VariationService:
         """
         Decrease stock for a variation (used when order is placed).
         For PRE_UPLOADED products: validates availability from pre-uploaded products.
-        For SUPPLIER_BASED products: decreases the stock field directly.
+        For SUPPLIER_BASED and VIRTUAL_ORDER products: decreases stock directly.
         
         Args:
             variation_id: Variation ID
@@ -163,14 +163,11 @@ class VariationService:
                 raise ValueError(f"Insufficient stock. Available: {available_stock}, Requested: {quantity}")
             # Stock is managed through pre-uploaded products, so we don't modify variation.stock
             # The actual reduction happens when pre-uploaded products are marked as used
-        elif product.delivery_type in (
-            DeliveryType.UPGRADE,
-            DeliveryType.VIRTUAL_ORDER,
-        ):
-            # UPGRADE has no stock; VIRTUAL_ORDER stock is a fixed display/limit value.
+        elif product.delivery_type == DeliveryType.UPGRADE:
+            # UPGRADE has no stock.
             pass
         else:
-            # For SUPPLIER_BASED products, decrease the stock field directly
+            # Fixed-stock products decrease the stock field directly.
             if variation.stock < quantity:
                 raise ValueError(f"Insufficient stock. Available: {variation.stock}, Requested: {quantity}")
             variation.stock -= quantity

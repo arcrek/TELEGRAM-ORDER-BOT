@@ -74,27 +74,49 @@ def _collect_upload_notification_messages(
 
     entries = []
     for (product_id, variation_id), uploaded_qty in variation_counts.items():
-        product = db.query(Product).filter_by(id=product_id).first()
-        variation = db.query(ProductVariation).filter_by(id=variation_id).first()
-        if not product or not variation:
-            continue
-
         total_qty = (
             db.query(PreUploadedProduct)
             .filter_by(variation_id=variation_id, is_used=False)
             .count()
         )
-
-        price_str = f"{variation.price:,}đ"
-        message = (
-            f"{header}\n\n"
-            f"Sản phẩm: {product.name} {variation.name} {price_str}\n"
-            f"➕ Đã thêm: {uploaded_qty}\n"
-            f"📦 Tổng số lượng: {total_qty}"
+        entry = _build_upload_notification_entry(
+            db, product_id, variation_id, uploaded_qty, total_qty, header
         )
-        entries.append({"message": message, "product_id": product_id})
+        if entry:
+            entries.append(entry)
 
     return entries
+
+
+def _build_upload_notification_entry(
+    db: Session,
+    product_id: str,
+    variation_id: str,
+    added_qty: int,
+    total_qty: int,
+    header: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Build the shared new-stock notification used by uploads and fixed stock."""
+    product = db.query(Product).filter_by(id=product_id).first()
+    variation = db.query(ProductVariation).filter_by(id=variation_id).first()
+    if not product or not variation:
+        return None
+
+    if header is None:
+        settings = BotUiSettingsService(db).get_settings()
+        header = settings.upload_notification_header or (
+            f"📢 {os.getenv('SYSTEM_NAME', 'MUATAIKHOANPRO')} thông báo có hàng mới!"
+        )
+
+    return {
+        "message": (
+            f"{header}\n\n"
+            f"Sản phẩm: {product.name} {variation.name} {variation.price:,}đ\n"
+            f"➕ Đã thêm: {added_qty}\n"
+            f"📦 Tổng số lượng: {total_qty}"
+        ),
+        "product_id": product_id,
+    }
 
 
 async def _send_upload_notifications(entries: List[Dict[str, Any]]) -> None:

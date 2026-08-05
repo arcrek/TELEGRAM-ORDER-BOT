@@ -1,6 +1,7 @@
 """
 Variations router.
 """
+import asyncio
 import uuid
 from typing import Optional, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,6 +12,10 @@ from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
 from src.database.models.enums import DeliveryType
 from src.utils.datetime_format import to_utc_iso
+from src.dashboard.routers.product_upload import (
+    _build_upload_notification_entry,
+    _send_upload_notifications,
+)
 
 
 router = APIRouter()
@@ -285,6 +290,7 @@ async def update_variation(
             detail=f"Variation {variation_id} not found",
         )
     
+    previous_stock = existing.stock
     update_dict = {}
     if variation_data.name is not None:
         update_dict["name"] = variation_data.name
@@ -330,6 +336,17 @@ async def update_variation(
     # Get product name
     product_service = ProductService(db)
     product = product_service.get_product_by_id(variation.product_id)
+
+    if variation_data.stock is not None and variation.stock > previous_stock:
+        entry = _build_upload_notification_entry(
+            db,
+            variation.product_id,
+            variation.id,
+            variation.stock - previous_stock,
+            variation.stock,
+        )
+        if entry:
+            asyncio.create_task(_send_upload_notifications([entry]))
     
     # Calculate stock from pre-uploaded products
     calculated_stock = (
