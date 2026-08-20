@@ -118,7 +118,7 @@ async def _create_topup_qr(
         topup_svc = TopupService(session)
         topup = topup_svc.get_by_id(topup_id)
         if not topup:
-            logger.error(f"_create_topup_qr: TopupOrder {topup_id} not found")
+            logger.exception(f"_create_topup_qr: TopupOrder {topup_id} not found")
             return
 
         cancel_keyboard = InlineKeyboardMarkup([
@@ -176,7 +176,7 @@ async def _create_topup_qr(
                     expired_at=expired_at,
                 )
             except Exception as exc:
-                logger.error(f"PayOS create link failed for topup {topup_id}: {exc}", exc_info=True)
+                logger.error(f"PayOS create link failed for topup {topup_id}: {exc}")
                 await context.bot.send_message(
                     chat_id=user_id,
                     text=t("payment.creation_error", update),
@@ -213,7 +213,7 @@ async def _create_topup_qr(
                 )
                 ids_to_track.append(sent.message_id)
             except Exception as exc:
-                logger.error(f"Failed to send PayOS QR for topup: {exc}", exc_info=True)
+                logger.exception(f"Failed to send PayOS QR for topup: {exc}")
                 sent = await context.bot.send_message(
                     chat_id=user_id,
                     text=rendered_caption,
@@ -241,7 +241,7 @@ async def _create_topup_qr(
         return
 
     except Exception as exc:
-        logger.error(f"Error in _create_topup_qr for {topup_id}: {exc}", exc_info=True)
+        logger.exception(f"Error in _create_topup_qr for {topup_id}: {exc}")
     finally:
         session.close()
 

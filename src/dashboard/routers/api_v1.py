@@ -417,8 +417,7 @@ async def create_order(
             try:
                 order_svc.cancel_order(order_id)
             except Exception as cancel_exc:
-                logger.error(
-                    "Failed to cancel order %s after insufficient balance: %s",
+                logger.exception("Failed to cancel order %s after insufficient balance: %s",
                     order_id,
                     cancel_exc,
                 )
@@ -456,9 +455,7 @@ async def create_order(
         logger.error(
             "Fulfillment raised an exception for balance-paid order %s: %s",
             order_id,
-            exc,
-            exc_info=True,
-        )
+            exc)
 
     # 7. Re-read order state
     db.expire_all()

@@ -142,7 +142,7 @@ async def refund_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             await update.message.reply_text(text)
 
     except Exception as e:
-        logger.error(f"Error in refund_command: {e}", exc_info=True)
+        logger.exception(f"Error in refund_command: {e}")
         await update.message.reply_text(f"❌ Lỗi: {e}")
     finally:
         session.close()
@@ -231,7 +231,7 @@ async def handle_refund_credit(
             )
 
     except Exception as e:
-        logger.error(f"Error in handle_refund_credit: {e}", exc_info=True)
+        logger.exception(f"Error in handle_refund_credit: {e}")
         await query.edit_message_text(f"❌ Lỗi khi hoàn tiền: {e}")
     finally:
         session.close()

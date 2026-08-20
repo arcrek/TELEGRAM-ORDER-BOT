@@ -151,7 +151,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.error(f"Error tracking user: {e!s}", exc_info=True)
+            logger.exception(f"Error tracking user: {e!s}")
     finally:
         session.close()
 
@@ -225,7 +225,7 @@ async def handle_start_products(
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in handle_start_products: {e!s}", exc_info=True)
+        logger.exception(f"Error in handle_start_products: {e!s}")
         await query.edit_message_text(t("commands.products.error", update))
     finally:
         session.close()
@@ -303,7 +303,7 @@ async def handle_start_history(
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in handle_start_history: {e!s}", exc_info=True)
+        logger.exception(f"Error in handle_start_history: {e!s}")
         await query.edit_message_text(t("order_history.error", update))
     finally:
         session.close()
@@ -336,7 +336,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error tracking user: {e!s}", exc_info=True)
+        logger.exception(f"Error tracking user: {e!s}")
     finally:
         session.close()
 
@@ -426,7 +426,7 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in products command: {e!s}", exc_info=True)
+        logger.exception(f"Error in products command: {e!s}")
         await update.message.reply_text(t("commands.products.error", update))
     finally:
         session.close()
@@ -450,7 +450,7 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error tracking user in /balance: {e!s}", exc_info=True)
+        logger.exception(f"Error tracking user in /balance: {e!s}")
     finally:
         session.close()
 
@@ -543,7 +543,7 @@ async def order_history_command(
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in order_history_command: {e!s}", exc_info=True)
+        logger.exception(f"Error in order_history_command: {e!s}")
         await update.message.reply_text(t("order_history.error", update))
     finally:
         session.close()
@@ -692,7 +692,7 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in language command: {e!s}", exc_info=True)
+        logger.exception(f"Error in language command: {e!s}")
         await update.message.reply_text(t("commands.language.error", update))
     finally:
         session.close()

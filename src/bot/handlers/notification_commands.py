@@ -58,7 +58,7 @@ async def notify_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(report)
         
     except Exception as e:
-        logger.error(f"Error sending notification: {e!s}", exc_info=True)
+        logger.exception(f"Error sending notification: {e!s}")
         await update.message.reply_text(f"❌ Error sending notification: {e!s}")
     finally:
         session.close()
@@ -115,7 +115,7 @@ async def notify_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
         
     except Exception as e:
-        logger.error(f"Error sending notification: {e!s}", exc_info=True)
+        logger.exception(f"Error sending notification: {e!s}")
         await update.message.reply_text(f"❌ Error sending notification: {e!s}")
     finally:
         session.close()
@@ -166,7 +166,7 @@ async def notify_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(report)
         
     except Exception as e:
-        logger.error(f"Error sending notification: {e!s}", exc_info=True)
+        logger.exception(f"Error sending notification: {e!s}")
         await update.message.reply_text(f"❌ Error sending notification: {e!s}")
     finally:
         session.close()

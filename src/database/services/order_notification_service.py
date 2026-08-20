@@ -174,8 +174,7 @@ class OrderNotificationService:
                 results["success"] += 1
             except TelegramError as e:
                 error_msg = str(e)
-                logger.error(
-                    f"Failed to send order notification to chat {chat_id}: {error_msg}"
+                logger.exception(f"Failed to send order notification to chat {chat_id}: {error_msg}"
                 )
                 details = {
                     "success": False,
@@ -189,9 +188,7 @@ class OrderNotificationService:
             except Exception as e:
                 error_msg = str(e)
                 logger.error(
-                    f"Unexpected error sending order notification to chat {chat_id}: {error_msg}",
-                    exc_info=True,
-                )
+                    f"Unexpected error sending order notification to chat {chat_id}: {error_msg}")
                 details = {
                     "success": False,
                     "error": error_msg,

@@ -193,7 +193,7 @@ async def handle_supplier_reply(
                     f"Supplier {supplier.id} delivered product for order {order.id}"
                 )
             except TelegramError as e:
-                logger.error(f"Failed to send product to customer: {e!s}")
+                logger.exception(f"Failed to send product to customer: {e!s}")
                 await message.reply_text(
                     "❌ Failed to send product to customer.\n"
                     "Please try again or contact support."
@@ -206,7 +206,7 @@ async def handle_supplier_reply(
             )
             
     except Exception as e:
-        logger.error(f"Error handling supplier reply: {e!s}", exc_info=True)
+        logger.error(f"Error handling supplier reply: {e!s}")
         await message.reply_text(
             "❌ An error occurred while processing your reply.\n"
             "Please try again or contact support."

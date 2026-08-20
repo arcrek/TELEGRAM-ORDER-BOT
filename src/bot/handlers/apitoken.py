@@ -95,7 +95,7 @@ async def api_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         )
         await update.message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
-        logger.error("Error showing API menu for user %s: %s", user_id, exc, exc_info=True)
+        logger.exception("Error showing API menu for user %s: %s", user_id, exc)
         await update.message.reply_text(
             t("api_menu.error", update),
             parse_mode=ParseMode.HTML,
@@ -133,8 +133,7 @@ async def apitoken_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             )
             return
     except Exception as exc:
-        logger.error(
-            "Error generating API token for user %s: %s",
+        logger.exception("Error generating API token for user %s: %s",
             telegram_user_id,
             exc,
             exc_info=True,
@@ -181,7 +180,7 @@ async def handle_api_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
-        logger.error("Error showing API menu for user %s: %s", user_id, exc, exc_info=True)
+        logger.error("Error showing API menu for user %s: %s", user_id, exc)
         await query.answer(t("api_menu.error", update), show_alert=True)
     finally:
         session.close()
@@ -210,7 +209,7 @@ async def handle_api_create(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
-        logger.error("Error creating API token for user %s: %s", user_id, exc, exc_info=True)
+        logger.exception("Error creating API token for user %s: %s", user_id, exc)
         await query.answer(t("api_menu.error", update), show_alert=True)
     finally:
         session.close()
@@ -236,7 +235,7 @@ async def handle_api_revoke(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     except Exception as exc:
-        logger.error("Error revoking API token for user %s: %s", user_id, exc, exc_info=True)
+        logger.exception("Error revoking API token for user %s: %s", user_id, exc)
         await query.answer(t("api_menu.error", update), show_alert=True)
     finally:
         session.close()

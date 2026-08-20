@@ -249,8 +249,7 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                             done_msg = await context.bot.send_message(**done_kwargs)
                             done_msg_id = done_msg.message_id
                         except TelegramError as e:
-                            logger.error(
-                                f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}: {e}"
+                            logger.exception(f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}: {e}"
                             )
                     forwards.append(
                         {
@@ -286,7 +285,7 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
             logger.error(f"Failed to send UPGRADE confirmation to user {user_id}: {e}")
 
     except Exception as e:
-        logger.error(f"Error in _handle_customer_reply: {e!s}", exc_info=True)
+        logger.error(f"Error in _handle_customer_reply: {e!s}")
         session.rollback()
     finally:
         session.close()
@@ -346,8 +345,7 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
                 message_id=msg.message_id,
             )
         except TelegramError as e:
-            logger.error(
-                f"Failed to relay admin update to customer {order.user_id} for order {order.id}: {e}"
+            logger.exception(f"Failed to relay admin update to customer {order.user_id} for order {order.id}: {e}"
             )
             try:
                 await msg.reply_text(
@@ -364,7 +362,7 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.warning(f"Failed to confirm admin update for order {order.id}: {e}")
 
     except Exception as e:
-        logger.error(f"Error in _handle_admin_reply: {e!s}", exc_info=True)
+        logger.error(f"Error in _handle_admin_reply: {e!s}")
         session.rollback()
     finally:
         session.close()
@@ -491,8 +489,7 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
                 ),
             )
         except TelegramError as e:
-            logger.error(
-                f"Failed to send UPGRADE done confirmation to customer {order.user_id} for order {order.id}: {e}"
+            logger.exception(f"Failed to send UPGRADE done confirmation to customer {order.user_id} for order {order.id}: {e}"
             )
 
         admin_handle = user.username or user.first_name or str(user.id)
@@ -521,7 +518,7 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer()
 
     except Exception as e:
-        logger.error(f"Error in handle_upgrade_done: {e!s}", exc_info=True)
+        logger.error(f"Error in handle_upgrade_done: {e!s}")
         session.rollback()
         try:
             await query.answer(

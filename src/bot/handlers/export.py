@@ -310,7 +310,7 @@ async def handle_export_generate(update: Update, context: ContextTypes.DEFAULT_T
                 )
                 sent += 1
             except Exception as e:
-                logger.error(f"Export send_document failed for {filename}: {e}", exc_info=True)
+                logger.exception(f"Export send_document failed for {filename}: {e}")
     finally:
         session.close()
 

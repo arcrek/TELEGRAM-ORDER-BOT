@@ -78,7 +78,7 @@ class AutoCancelTask:
                     f"Cancelled {topup_results['cancelled']}, Skipped {topup_results['skipped']}"
                 )
         except Exception as e:
-            logger.error(f"Error in auto-cancel task: {e!s}", exc_info=True)
+            logger.exception(f"Error in auto-cancel task: {e!s}")
         finally:
             session.close()
 

@@ -1010,7 +1010,7 @@ async def _create_qr_for_order(
         try:
             payos = build_payos_client()
         except RuntimeError as exc:
-            logger.error("PayOS configuration error: %s", exc)
+            logger.exception("PayOS configuration error: %s", exc)
             err = t("payment.configuration_error", update)
             if reply_to_query:
                 await reply_to_query.edit_message_text(err)
@@ -1038,7 +1038,7 @@ async def _create_qr_for_order(
                         order.payos_order_code = payos_order_code
                         session.commit()
                 except Exception as e:
-                    logger.error(f"Failed to set PayOS orderCode: {e}", exc_info=True)
+                    logger.error(f"Failed to set PayOS orderCode: {e}")
                     err = "❌ Error preparing payment. Please try again."
                     if reply_to_query:
                         await reply_to_query.edit_message_text(err)
@@ -1060,7 +1060,7 @@ async def _create_qr_for_order(
                         expired_at=expired_at,
                     )
                 except Exception as e:
-                    logger.error(f"PayOS create link failed: {e}", exc_info=True)
+                    logger.exception(f"PayOS create link failed: {e}")
                     err = t("payment.creation_error", update)
                     if reply_to_query:
                         await reply_to_query.edit_message_text(err)
@@ -1127,7 +1127,7 @@ async def _create_qr_for_order(
                     order.payment_message_ids = json.dumps(message_ids)
                     session.commit()
                 except Exception as e:
-                    logger.error(f"Failed to send PayOS QR image: {e}", exc_info=True)
+                    logger.exception(f"Failed to send PayOS QR image: {e}")
                     fallback = await context.bot.send_message(
                         chat_id=user_id, text=rendered_pm, reply_markup=cancel_keyboard, parse_mode=pm_parse_mode,
                     )
@@ -1155,14 +1155,14 @@ async def _create_qr_for_order(
 
     except ValueError as e:
         error_msg = str(e)
-        logger.error(f"Payment configuration error: {error_msg}")
+        logger.exception(f"Payment configuration error: {error_msg}")
         err_text = f"❌ Configuration error: {error_msg}"
         if reply_to_query:
             await reply_to_query.edit_message_text(err_text)
         else:
             await context.bot.send_message(chat_id=user_id, text=err_text)
     except Exception as e:
-        logger.error(f"Error creating payment: {e!s}", exc_info=True)
+        logger.error(f"Error creating payment: {e!s}")
         error_detail = str(e)
         if "Connection" in error_detail or "timeout" in error_detail.lower():
             error_message = (
@@ -1261,7 +1261,7 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
             else:
                 logger.warning(f"IPN processor not available for balance-paid order {order_id}")
         except Exception as exc:
-            logger.error(f"Error in fulfillment for balance-paid order {order_id}: {exc}", exc_info=True)
+            logger.exception(f"Error in fulfillment for balance-paid order {order_id}: {exc}")
 
         if fulfillment_succeeded:
             status_session = get_session_factory()()
@@ -1402,7 +1402,7 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.warning(f"Cannot cancel order {order_id}: {e!s}")
     
     except Exception as e:
-        logger.error(f"Error cancelling order: {e!s}", exc_info=True)
+        logger.exception(f"Error cancelling order: {e!s}")
         await query.answer("❌ Error cancelling order. Please try again later.", show_alert=True)
     
     finally:
@@ -1486,7 +1486,7 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
         message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
-        logger.error(f"Error in handle_order_history_page: {e!s}", exc_info=True)
+        logger.exception(f"Error in handle_order_history_page: {e!s}")
         await query.answer(t("order_history.error", update), show_alert=True)
     finally:
         session.close()
@@ -1603,7 +1603,7 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="HTML",
         )
     except Exception as e:
-        logger.error(f"Error in handle_order_detail: {e!s}", exc_info=True)
+        logger.exception(f"Error in handle_order_detail: {e!s}")
         await query.answer(t("order_history.error", update), show_alert=True)
     finally:
         session.close()
@@ -1635,7 +1635,7 @@ async def handle_back_to_order_history(update: Update, context: ContextTypes.DEF
         message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
-        logger.error(f"Error in handle_back_to_order_history: {e!s}", exc_info=True)
+        logger.exception(f"Error in handle_back_to_order_history: {e!s}")
         await query.answer(t("order_history.error", update), show_alert=True)
     finally:
         session.close()
@@ -1680,7 +1680,7 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error setting language: {e!s}", exc_info=True)
+        logger.exception(f"Error setting language: {e!s}")
         await query.answer("❌ Error changing language. Please try again.", show_alert=True)
     finally:
         session.close()

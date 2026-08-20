@@ -90,7 +90,7 @@ def run_async(coro):
     except RuntimeError:
         return asyncio.run(coro)
     except Exception as e:
-        logger.error(f"Error in run_async: {e!s}", exc_info=True)
+        logger.exception(f"Error in run_async: {e!s}")
         raise
 
 
@@ -191,7 +191,7 @@ class IPNOrderProcessor:
                 # Get order (fresh read inside the lock)
                 order = order_service.get_order_by_id(order_id)
                 if not order:
-                    logger.error(f"Order {order_id} not found in database")
+                    logger.exception(f"Order {order_id} not found in database")
                     return False
 
                 logger.info(
@@ -240,7 +240,7 @@ class IPNOrderProcessor:
                 return self._run_fulfillment(session, order)
 
         except Exception as e:
-            logger.error(f"Error processing payment success: {e!s}", exc_info=True)
+            logger.error(f"Error processing payment success: {e!s}")
             session.rollback()
             return False
         finally:
@@ -262,7 +262,7 @@ class IPNOrderProcessor:
         # Get delivery type and trigger appropriate delivery
         delivery_type = delivery_service.get_order_delivery_type(order_id)
         if not delivery_type:
-            logger.error(f"Could not determine delivery type for order {order_id}")
+            logger.exception(f"Could not determine delivery type for order {order_id}")
             return False
 
         # Delete all payment-related messages from database
@@ -334,13 +334,13 @@ class IPNOrderProcessor:
                 logger.error(f"Unknown delivery type: {delivery_type} for order {order_id}")
                 return False
         except Exception as e:
-            logger.error(f"Error during delivery processing for order {order_id}: {e!s}", exc_info=True)
+            logger.error(f"Error during delivery processing for order {order_id}: {e!s}")
             return False
 
         if delivery_success:
             logger.info(f"✓ Delivery completed successfully for order {order_id}")
         else:
-            logger.error(f"✗ Delivery failed for order {order_id}")
+            logger.exception(f"✗ Delivery failed for order {order_id}")
 
         logger.info(f"=== Payment Processing Complete for order {order_id} ===")
         return delivery_success
@@ -439,7 +439,7 @@ class IPNOrderProcessor:
                     notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
                 )
         except Exception as e:
-            logger.warning(f"Topup paid notification failed for {topup_id}: {e}", exc_info=True)
+            logger.warning(f"Topup paid notification failed for {topup_id}: {e}")
 
         logger.info(f"=== Topup Payment Processing Complete for {topup_id} ===")
         return True
@@ -475,7 +475,7 @@ class IPNOrderProcessor:
 
             order = order_service.get_order_by_id(order_id)
             if not order:
-                logger.error(f"process_balance_paid_order: Order {order_id} not found")
+                logger.exception(f"process_balance_paid_order: Order {order_id} not found")
                 return False
 
             # Defensive check — order must be PAID for fulfillment to make sense.
@@ -496,7 +496,7 @@ class IPNOrderProcessor:
             return self._run_fulfillment(session, order)
 
         except Exception as e:
-            logger.error(f"Error in process_balance_paid_order for {order_id}: {e!s}", exc_info=True)
+            logger.error(f"Error in process_balance_paid_order for {order_id}: {e!s}")
             session.rollback()
             return False
         finally:
@@ -541,12 +541,12 @@ class IPNOrderProcessor:
                         text=error_message,
                     ))
                 except TelegramError as e:
-                    logger.error(f"Failed to send failure notification: {e!s}")
+                    logger.exception(f"Failed to send failure notification: {e!s}")
 
             return True
 
         except Exception as e:
-            logger.error(f"Error processing payment failure: {e!s}", exc_info=True)
+            logger.error(f"Error processing payment failure: {e!s}")
             session.rollback()
             return False
         finally:
@@ -574,7 +574,7 @@ class IPNOrderProcessor:
         delivery_result = pre_uploaded_service.deliver_order(order_id)
 
         if not delivery_result:
-            logger.error(f"deliver_order returned None/False for order {order_id}")
+            logger.exception(f"deliver_order returned None/False for order {order_id}")
             raise RuntimeError(f"deliver_order failed for order {order_id}")
 
         if delivery_result["success"]:
@@ -619,7 +619,7 @@ class IPNOrderProcessor:
                         notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
                     )
             except Exception as e:
-                logger.warning(f"Order paid notification failed for {order_id}: {e}", exc_info=True)
+                logger.warning(f"Order paid notification failed for {order_id}: {e}")
             return
 
         # Some items failed
@@ -639,7 +639,7 @@ class IPNOrderProcessor:
             try:
                 run_async(self.bot.send_message(chat_id=user_id, text=error_message))
             except TelegramError as e:
-                logger.error(f"Failed to send partial delivery notification: {e!s}")
+                logger.exception(f"Failed to send partial delivery notification: {e!s}")
 
         # Treat partial delivery as failure so upstream returns processed=False
         raise RuntimeError(f"Partial delivery failure for order {order_id}")
@@ -828,8 +828,7 @@ class IPNOrderProcessor:
                         raise
                     except Exception as e:
                         logger.error(
-                            f"Error sending notification to supplier {supplier.id}: {e!s}", exc_info=True
-                        )
+                            f"Error sending notification to supplier {supplier.id}: {e!s}")
                         raise
 
             # Send confirmation to user
@@ -842,11 +841,11 @@ class IPNOrderProcessor:
                     )
                     run_async(self.bot.send_message(chat_id=user_id, text=user_message))
                 except TelegramError as e:
-                    logger.error(f"Failed to send supplier delivery confirmation: {e!s}")
+                    logger.exception(f"Failed to send supplier delivery confirmation: {e!s}")
                     raise
 
         except Exception as e:
-            logger.error(f"Error handling supplier delivery: {e!s}", exc_info=True)
+            logger.error(f"Error handling supplier delivery: {e!s}")
             raise
 
     def _send_pre_uploaded_products(
@@ -928,7 +927,7 @@ class IPNOrderProcessor:
             except PermissionError as e:
                 logger.warning(f"Could not save delivery data to file: {e!s}")
             except Exception as e:
-                logger.error(f"Error saving delivery data to file: {e!s}")
+                logger.exception(f"Error saving delivery data to file: {e!s}")
 
             sent_ok = False
             try:
@@ -969,10 +968,10 @@ class IPNOrderProcessor:
                     logger.error(f"Delivery file does not exist at {file_path}. Cannot send to user.")
                     raise RuntimeError("Delivery file does not exist; cannot send")
             except TelegramError as e:
-                logger.error(f"Telegram error sending delivery to user {user_id}: {e!s}", exc_info=True)
+                logger.error(f"Telegram error sending delivery to user {user_id}: {e!s}")
                 raise
             except Exception as e:
-                logger.error(f"Failed to send delivery to user {user_id}: {e!s}", exc_info=True)
+                logger.exception(f"Failed to send delivery to user {user_id}: {e!s}")
                 raise
 
             # Delete the delivery file only after successful delivery
@@ -987,10 +986,10 @@ class IPNOrderProcessor:
             return product_lines.strip()
 
         except TelegramError as e:
-            logger.error(f"Failed to send pre-uploaded products: {e!s}")
+            logger.exception(f"Failed to send pre-uploaded products: {e!s}")
             raise
         except Exception as e:
-            logger.error(f"Error in _send_pre_uploaded_products: {e!s}", exc_info=True)
+            logger.error(f"Error in _send_pre_uploaded_products: {e!s}")
             raise
 
 

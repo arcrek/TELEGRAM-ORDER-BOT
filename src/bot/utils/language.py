@@ -52,7 +52,7 @@ def get_user_language(update: Update) -> str:
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error getting user language: {e}", exc_info=True)
+        logger.exception(f"Error getting user language: {e}")
         # Conservative fallback: use global default (Vietnamese)
         return DEFAULT_LANGUAGE
     finally:

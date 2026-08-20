@@ -29,7 +29,7 @@ def _get_bot() -> Bot | None:
     try:
         return Bot(token=token)
     except Exception as exc:
-        logger.error(f"Failed to build Bot for thumbnails: {exc}", exc_info=True)
+        logger.exception(f"Failed to build Bot for thumbnails: {exc}")
         return None
 
 

@@ -142,8 +142,7 @@ class AutoCancelService:
                     ))
                     logger.info(f"Sent auto-cancellation notification to user {cancelled_order.user_id}")
                 except Exception as e:
-                    logger.error(
-                        f"Failed to send auto-cancellation notification to user {cancelled_order.user_id}: {e!s}"
+                    logger.exception(f"Failed to send auto-cancellation notification to user {cancelled_order.user_id}: {e!s}"
                     )
             
             return True
@@ -153,7 +152,7 @@ class AutoCancelService:
             logger.warning(f"Cannot auto-cancel order {order.id}: {e!s}")
             return False
         except Exception as e:
-            logger.error(f"Error auto-cancelling order {order.id}: {e!s}", exc_info=True)
+            logger.error(f"Error auto-cancelling order {order.id}: {e!s}")
             return False
     
     def process_expired_orders(self, minutes: int = 10, send_notification: bool = True) -> dict:
@@ -263,15 +262,14 @@ class AutoCancelService:
                     ))
                     logger.info(f"Sent auto-cancellation notification to user {topup.user_id} for topup {topup.id}")
                 except Exception as e:
-                    logger.error(
-                        f"Failed to send auto-cancellation notification to user {topup.user_id} "
+                    logger.exception(f"Failed to send auto-cancellation notification to user {topup.user_id} "
                         f"for topup {topup.id}: {e!s}"
                     )
 
             return True
 
         except Exception as e:
-            logger.error(f"Error auto-cancelling topup {topup.id}: {e!s}", exc_info=True)
+            logger.error(f"Error auto-cancelling topup {topup.id}: {e!s}")
             return False
 
     def process_expired_topups(self, minutes: int = 10, send_notification: bool = True) -> dict:

@@ -42,7 +42,7 @@ def _get_bot_instance() -> Bot | None:
         try:
             return Bot(token=bot_token)
         except Exception as e:
-            logger.error(f"Failed to create bot instance for upload notification: {e}")
+            logger.exception(f"Failed to create bot instance for upload notification: {e}")
     return None
 
 
@@ -169,11 +169,11 @@ async def _send_upload_notifications(entries: list[dict[str, Any]]) -> None:
                             f"Failed to send upload notification to {user.telegram_user_id}: {e}"
                         )
             except Exception as e:
-                logger.error(f"Failed to send upload notification batch: {e}", exc_info=True)
+                logger.error(f"Failed to send upload notification batch: {e}")
             finally:
                 session.close()
     except Exception as e:
-        logger.error(f"Unexpected error in upload notification task: {e}", exc_info=True)
+        logger.exception(f"Unexpected error in upload notification task: {e}")
 
 
 class ParseTextRequest(BaseModel):

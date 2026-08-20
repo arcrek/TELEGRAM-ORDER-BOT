@@ -75,7 +75,7 @@ class NotificationService:
             return {"success": True, "telegram_user_id": telegram_user_id}
         except TelegramError as e:
             error_msg = str(e)
-            logger.error(f"Failed to send notification to user {telegram_user_id}: {error_msg}")
+            logger.exception(f"Failed to send notification to user {telegram_user_id}: {error_msg}")
             if isinstance(e, Forbidden):
                 self.bot_user_service.update_user_active_status(telegram_user_id, False)
                 logger.info(f"Marked user {telegram_user_id} as inactive (bot blocked)")
@@ -83,9 +83,7 @@ class NotificationService:
         except Exception as e:
             error_msg = str(e)
             logger.error(
-                f"Unexpected error sending notification to user {telegram_user_id}: {error_msg}",
-                exc_info=True,
-            )
+                f"Unexpected error sending notification to user {telegram_user_id}: {error_msg}")
             return {"success": False, "error": error_msg, "telegram_user_id": telegram_user_id}
 
     async def _send_photo_to_user(
