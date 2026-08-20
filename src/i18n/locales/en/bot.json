@@ -242,7 +242,8 @@
     "done_customer_message": "🎉 Your upgrade order #{order_id} is complete. Thank you!",
     "done_already": "This order has already been marked as done.",
     "done_footer": "\n\n✅ Completed by @{admin} at {time}",
-    "not_admin": "⛔ Only admins can use this button."
+    "not_admin": "⛔ Only admins can use this button.",
+    "not_upgrade_order": "⛔ This button is only for upgrade orders."
   },
   "buttons": {
     "next": "Next ▶️",

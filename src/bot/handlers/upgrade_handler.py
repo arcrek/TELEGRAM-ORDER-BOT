@@ -51,6 +51,14 @@ logger = logging.getLogger(__name__)
 state_manager = StateManager()
 
 
+def _has_upgrade_item(order: Order) -> bool:
+    """Return whether an order contains at least one UPGRADE item."""
+    return any(
+        item.product is not None and item.product.delivery_type == DeliveryType.UPGRADE
+        for item in order.items
+    )
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -441,15 +449,12 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
 
-        first_item_delivery = None
-        if order.items:
-            product = order.items[0].product
-            if product is not None:
-                first_item_delivery = product.delivery_type
-
-        if first_item_delivery is not None and first_item_delivery != DeliveryType.UPGRADE:
+        # An order can contain more than one item.  The Done prompt is created
+        # for an UPGRADE item, so do not reject it merely because another item
+        # happens to be first in the relationship collection.
+        if not _has_upgrade_item(order):
             await query.answer(
-                get_translation("upgrade.not_admin", "vi"),
+                get_translation("upgrade.not_upgrade_order", "vi"),
                 show_alert=True,
             )
             return

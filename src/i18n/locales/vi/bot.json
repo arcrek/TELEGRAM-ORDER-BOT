@@ -242,7 +242,8 @@
     "done_customer_message": "🎉 Đơn nâng cấp #{order_id} đã hoàn tất. Cảm ơn bạn!",
     "done_already": "Đơn này đã được đánh dấu hoàn tất.",
     "done_footer": "\n\n✅ Hoàn tất bởi @{admin} lúc {time}",
-    "not_admin": "⛔ Chỉ admin mới được dùng nút này."
+    "not_admin": "⛔ Chỉ admin mới được dùng nút này.",
+    "not_upgrade_order": "⛔ Nút này chỉ dùng cho đơn nâng cấp."
   },
   "buttons": {
     "next": "NEXT PAGE ▶",
