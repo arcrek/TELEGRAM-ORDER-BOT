@@ -12,6 +12,7 @@ from src.database.models import Admin, AdminRole, Product, ProductVariation
 from src.database.models.base import Base
 from src.database.models.enums import DeliveryType
 from src.dashboard.auth import get_password_hash, create_access_token, get_db
+import src.dashboard.routers.variations as variations_router
 
 # Import all models to ensure they're registered
 from src.database.models import *  # noqa: F401, F403
@@ -328,6 +329,52 @@ def test_update_variation_success(client, auth_token, sample_products):
     assert data["price"] == 120000
     # Stock is calculated from pre-uploaded products (not manually set for PRE_UPLOADED products)
     assert "stock" in data
+
+
+@pytest.mark.asyncio
+async def test_editing_virtual_stock_sends_full_stock_upload_notification(
+    test_db, monkeypatch
+):
+    product = Product(
+        id="prod_virtual",
+        name="Virtual Product",
+        delivery_type=DeliveryType.VIRTUAL_ORDER,
+        upgrade_request_text="Reusable content",
+        is_active=True,
+    )
+    variation = ProductVariation(
+        id="var_virtual",
+        product_id=product.id,
+        name="Default",
+        price=10_000,
+        stock=8,
+        is_active=True,
+    )
+    test_db.add_all([product, variation])
+    test_db.commit()
+
+    sent = {}
+
+    async def noop():
+        pass
+
+    def capture(entries):
+        sent["entries"] = entries
+        return noop()
+
+    monkeypatch.setattr(variations_router, "_send_upload_notifications", capture)
+
+    response = await variations_router.update_variation(
+        "var_virtual",
+        variations_router.VariationUpdate(stock=3),
+        current_admin=None,
+        db=test_db,
+    )
+
+    assert response["stock"] == 3
+    assert sent["entries"][0]["product_id"] == product.id
+    assert "➕ Đã thêm: 3" in sent["entries"][0]["message"]
+    assert "📦 Tổng số lượng: 3" in sent["entries"][0]["message"]
 
 
 def test_update_variation_not_found(client, auth_token):

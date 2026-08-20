@@ -45,6 +45,7 @@ interface ProductGroup {
 interface Product {
   id: string
   name: string
+  delivery_type: string
 }
 
 interface BonusTier {
@@ -121,6 +122,7 @@ export function VariationsPage() {
     product_id: '',
     name: '',
     price: '',
+    stock: '',
     is_active: true,
     benefit_mode: 'both',
   })
@@ -223,7 +225,7 @@ export function VariationsPage() {
   // ── Form open/save ─────────────────────────────────────────────────
   const handleCreate = () => {
     setEditTarget(null)
-    setFormData({ product_id: urlProductId ?? '', name: '', price: '', is_active: true, benefit_mode: 'both' })
+    setFormData({ product_id: urlProductId ?? '', name: '', price: '', stock: '', is_active: true, benefit_mode: 'both' })
     setFormError(null)
     setFormOpen(true)
   }
@@ -234,6 +236,7 @@ export function VariationsPage() {
       product_id: v.product_id ?? '',
       name: v.name,
       price: String(v.price),
+      stock: String(v.stock),
       is_active: v.is_active,
       benefit_mode: v.benefit_mode ?? 'both',
     })
@@ -246,6 +249,9 @@ export function VariationsPage() {
     if (!formData.name.trim()) { setFormError(t('variations.nameRequired', 'Tên là bắt buộc')); return }
     const price = parseInt(formData.price)
     if (isNaN(price) || price < 0) { setFormError(t('variations.priceInvalid', 'Giá không hợp lệ')); return }
+    const isVirtualOrder = products.find(p => p.id === formData.product_id)?.delivery_type === 'virtual_order'
+    const stock = parseInt(formData.stock)
+    if (isVirtualOrder && (isNaN(stock) || stock < 0)) { setFormError(t('variations.stockInvalid', 'Tồn kho không hợp lệ')); return }
     setFormSaving(true)
     setFormError(null)
     try {
@@ -253,6 +259,7 @@ export function VariationsPage() {
         await apiClient.put(`/api/variations/${editTarget.id}`, {
           name: formData.name,
           price,
+          ...(isVirtualOrder ? { stock } : {}),
           is_active: formData.is_active,
           benefit_mode: formData.benefit_mode,
         })
@@ -262,6 +269,7 @@ export function VariationsPage() {
           product_id: formData.product_id,
           name: formData.name,
           price,
+          ...(isVirtualOrder ? { stock } : {}),
           is_active: formData.is_active,
         })
         toast.success(t('variations.created', 'Đã tạo phân loại'))
@@ -451,6 +459,10 @@ export function VariationsPage() {
     products.map(p => ({ value: p.id, label: p.name })),
     [products],
   )
+
+  const selectedProductIsVirtual = products.find(
+    p => p.id === formData.product_id,
+  )?.delivery_type === 'virtual_order'
 
   const benefitModeOptions = useMemo(() => [
     { value: 'both', label: t('variations.mode.both', 'Thưởng + Giảm giá') },
@@ -736,6 +748,20 @@ export function VariationsPage() {
               required
             />
           </FormField>
+
+          {selectedProductIsVirtual && (
+            <FormField label={t('variations.fieldFixedStock', 'Tồn kho cố định')} htmlFor={`${formId}-stock`}>
+              <Input
+                id={`${formId}-stock`}
+                type="number"
+                min="0"
+                value={formData.stock}
+                onChange={e => setFormData(d => ({ ...d, stock: e.target.value }))}
+                placeholder="0"
+                required
+              />
+            </FormField>
+          )}
 
           {editTarget && (
             <FormField label={t('variations.fieldMode', 'Chế độ ưu đãi')} htmlFor={`${formId}-mode`}>

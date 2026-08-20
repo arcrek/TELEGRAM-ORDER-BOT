@@ -21,7 +21,7 @@ import { apiClient, formatApiError } from '../shared/lib/api'
 import { useFormat } from '../shared/lib/format'
 import './ProductsPage.css'
 
-type DeliveryType = 'pre_uploaded' | 'supplier_based' | 'upgrade'
+type DeliveryType = 'pre_uploaded' | 'supplier_based' | 'upgrade' | 'virtual_order'
 
 interface Product {
   id: string
@@ -63,6 +63,7 @@ const DELIVERY_TYPE_VARIANT: Record<DeliveryType, 'info' | 'success' | 'neutral'
   pre_uploaded: 'info',
   supplier_based: 'success',
   upgrade: 'neutral',
+  virtual_order: 'success',
 }
 
 export function ProductsPage() {
@@ -207,7 +208,9 @@ export function ProductsPage() {
     const payload = {
       ...formData,
       description: formData.description || null,
-      upgrade_request_text: formData.delivery_type === 'upgrade' ? formData.upgrade_request_text || null : null,
+      upgrade_request_text: ['upgrade', 'virtual_order'].includes(formData.delivery_type)
+        ? formData.upgrade_request_text || null
+        : null,
     }
     try {
       if (editTarget) {
@@ -254,6 +257,7 @@ export function ProductsPage() {
     { value: 'pre_uploaded' as DeliveryType, label: t('products.type.pre_uploaded', 'Kho hàng') },
     { value: 'supplier_based' as DeliveryType, label: t('products.type.supplier_based', 'Nhà cung cấp') },
     { value: 'upgrade' as DeliveryType, label: t('products.type.upgrade', 'Nâng cấp') },
+    { value: 'virtual_order' as DeliveryType, label: t('products.type.virtual_order', 'Đơn ảo') },
   ], [t])
 
   // ── Column definitions ─────────────────────────────────────────────
@@ -513,9 +517,11 @@ export function ProductsPage() {
               </>
             )}
 
-            {detailProduct.delivery_type === 'upgrade' && detailProduct.upgrade_request_text && (
+            {['upgrade', 'virtual_order'].includes(detailProduct.delivery_type) && detailProduct.upgrade_request_text && (
               <>
-                <dt>{t('products.upgradeText', 'Nội dung yêu cầu')}</dt>
+                <dt>{detailProduct.delivery_type === 'virtual_order'
+                  ? t('products.virtualDeliveryText', 'Nội dung giao hàng')
+                  : t('products.upgradeText', 'Nội dung yêu cầu')}</dt>
                 <dd>{detailProduct.upgrade_request_text}</dd>
               </>
             )}
@@ -585,14 +591,22 @@ export function ProductsPage() {
             />
           </FormField>
 
-          {formData.delivery_type === 'upgrade' && (
-            <FormField label={t('products.fieldUpgradeText', 'Nội dung yêu cầu nâng cấp')} htmlFor={`${formId}-upgrade`}>
+          {['upgrade', 'virtual_order'].includes(formData.delivery_type) && (
+            <FormField
+              label={formData.delivery_type === 'virtual_order'
+                ? t('products.fieldVirtualDeliveryText', 'Nội dung giao hàng cố định')
+                : t('products.fieldUpgradeText', 'Nội dung yêu cầu nâng cấp')}
+              htmlFor={`${formId}-upgrade`}
+            >
               <EmojiAutocompleteTextarea
                 id={`${formId}-upgrade`}
                 value={formData.upgrade_request_text}
                 onChange={e => setFormData(d => ({ ...d, upgrade_request_text: e.target.value }))}
-                placeholder={t('products.upgradePlaceholder', 'Nội dung gửi đến nhà cung cấp')}
+                placeholder={formData.delivery_type === 'virtual_order'
+                  ? t('products.virtualDeliveryPlaceholder', 'Ví dụ: Liên hệ hỗ trợ để nhận tài khoản...')
+                  : t('products.upgradePlaceholder', 'Nội dung gửi đến nhà cung cấp')}
                 rows={3}
+                required={formData.delivery_type === 'virtual_order'}
               />
             </FormField>
           )}

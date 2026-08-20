@@ -2,18 +2,21 @@
 Balances router — admin management of user wallet balances.
 """
 
+import csv
+import io
 from datetime import datetime
 from typing import Literal, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
+from src.database.models.admin import Admin
+from src.database.models.bot_user import BotUser
 from src.database.services.balance_service import BalanceService
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.topup_service import TopupService
-from src.database.models.admin import Admin
-from src.database.models.bot_user import BotUser
-
 
 router = APIRouter()
 
@@ -129,6 +132,34 @@ async def list_balances(
         "per_page": per_page,
         "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 0,
     }
+
+
+@router.get("/export")
+async def export_active_users(
+    current_admin=Depends(require_viewer_or_admin),
+    db: Session = Depends(get_db),
+):
+    """Export active, started bot users to CSV."""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Username", "Name", "Telegram ID", "Balance"])
+    for user in BotUserService(db).get_active_users():
+        writer.writerow(
+            [
+                user.username or "",
+                " ".join(filter(None, [user.first_name, user.last_name])),
+                user.telegram_user_id,
+                user.balance,
+            ]
+        )
+
+    return Response(
+        content="\ufeff" + output.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=active_users_export.csv"
+        },
+    )
 
 
 @router.get("/{bot_user_id}", response_model=BalanceUserDetail)

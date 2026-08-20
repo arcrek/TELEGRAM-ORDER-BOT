@@ -29,12 +29,19 @@ class ProductService:
         Returns:
             Created Product instance
         """
+        delivery_type = product_data.get("delivery_type", DeliveryType.PRE_UPLOADED)
+        delivery_text = product_data.get("upgrade_request_text")
+        if delivery_type == DeliveryType.VIRTUAL_ORDER and not (
+            delivery_text or ""
+        ).strip():
+            raise ValueError("Virtual-order delivery content is required")
+
         product = Product(
             id=product_data["id"],
             name=product_data["name"],
             description=product_data.get("description"),
-            delivery_type=product_data.get("delivery_type", DeliveryType.PRE_UPLOADED),
-            upgrade_request_text=product_data.get("upgrade_request_text"),
+            delivery_type=delivery_type,
+            upgrade_request_text=delivery_text,
             is_active=product_data.get("is_active", True),
         )
         self.session.add(product)
@@ -163,6 +170,15 @@ class ProductService:
         product = self.get_product_by_id(product_id)
         if not product:
             return None
+
+        delivery_type = update_data.get("delivery_type", product.delivery_type)
+        delivery_text = update_data.get(
+            "upgrade_request_text", product.upgrade_request_text
+        )
+        if delivery_type == DeliveryType.VIRTUAL_ORDER and not (
+            delivery_text or ""
+        ).strip():
+            raise ValueError("Virtual-order delivery content is required")
         
         if "name" in update_data:
             product.name = update_data["name"]
@@ -216,4 +232,3 @@ class ProductService:
         self.session.delete(product)
         self.session.commit()
         return True
-

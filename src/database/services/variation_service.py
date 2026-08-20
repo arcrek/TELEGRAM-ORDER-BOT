@@ -132,7 +132,7 @@ class VariationService:
         """
         Decrease stock for a variation (used when order is placed).
         For PRE_UPLOADED products: validates availability from pre-uploaded products.
-        For SUPPLIER_BASED products: decreases the stock field directly.
+        For SUPPLIER_BASED and VIRTUAL_ORDER products: decreases stock directly.
         
         Args:
             variation_id: Variation ID
@@ -164,10 +164,10 @@ class VariationService:
             # Stock is managed through pre-uploaded products, so we don't modify variation.stock
             # The actual reduction happens when pre-uploaded products are marked as used
         elif product.delivery_type == DeliveryType.UPGRADE:
-            # UPGRADE products are not inventory-backed; nothing to decrement.
+            # UPGRADE has no stock.
             pass
         else:
-            # For SUPPLIER_BASED products, decrease the stock field directly
+            # Fixed-stock products decrease the stock field directly.
             if variation.stock < quantity:
                 raise ValueError(f"Insufficient stock. Available: {variation.stock}, Requested: {quantity}")
             variation.stock -= quantity
@@ -245,7 +245,11 @@ class VariationService:
                 }
             
             # Calculate stock from pre-uploaded products
-            calculated_stock = self.calculate_stock_from_pre_uploaded(variation.id)
+            calculated_stock = (
+                variation.stock
+                if variation.product.delivery_type == DeliveryType.VIRTUAL_ORDER
+                else self.calculate_stock_from_pre_uploaded(variation.id)
+            )
             
             grouped[variation.product_id]["variations"].append({
                 "id": variation.id,
@@ -306,8 +310,11 @@ class VariationService:
         # Group by product and filter by calculated stock
         grouped = {}
         for variation in variations:
-            # Calculate stock from pre-uploaded products
-            calculated_stock = self.calculate_stock_from_pre_uploaded(variation.id)
+            calculated_stock = (
+                variation.stock
+                if variation.product.delivery_type == DeliveryType.VIRTUAL_ORDER
+                else self.calculate_stock_from_pre_uploaded(variation.id)
+            )
             
             # Only include if stock is below threshold
             if calculated_stock > threshold:

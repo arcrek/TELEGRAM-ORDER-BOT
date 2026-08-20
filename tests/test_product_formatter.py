@@ -4,7 +4,7 @@ Tests for product list formatter.
 import pytest
 from telegram import InlineKeyboardMarkup
 from src.bot.messages.product_formatter import ProductFormatter
-from src.database.models import Product, DeliveryType
+from src.database.models import DeliveryType, Product, ProductVariation
 
 
 @pytest.fixture
@@ -47,6 +47,28 @@ class TestProductFormatter:
         product_buttons = [btn for btn in buttons if btn.callback_data and btn.callback_data.startswith("product_")]
         assert len(product_buttons) == 5
         assert product_buttons[0].text.startswith("Product")
+
+    def test_virtual_order_color_follows_fixed_stock(self, formatter):
+        products = [
+            Product(
+                id=f"virtual_{stock}",
+                name=f"Virtual {stock}",
+                delivery_type=DeliveryType.VIRTUAL_ORDER,
+                variations=[
+                    ProductVariation(
+                        id=f"variation_{stock}",
+                        name="Default",
+                        price=10_000,
+                        stock=stock,
+                    )
+                ],
+            )
+            for stock in (10, 0)
+        ]
+
+        buttons = formatter.create_product_keyboard(products).inline_keyboard[0]
+        assert buttons[0].style == "success"
+        assert buttons[1].style == "danger"
 
     def test_create_product_keyboard_long_name_is_moved_to_bottom(self, formatter):
         products = [

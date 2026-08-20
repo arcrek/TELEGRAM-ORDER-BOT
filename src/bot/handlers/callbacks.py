@@ -1243,12 +1243,13 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
         await query.edit_message_text(_t("balance.balance_paid_success", update))
 
         # Trigger order fulfillment asynchronously
+        fulfillment_succeeded = False
         try:
             from src.ipn import get_ipn_processor
             processor = get_ipn_processor()
             if processor:
                 loop = _asyncio.get_running_loop()
-                await loop.run_in_executor(
+                fulfillment_succeeded = await loop.run_in_executor(
                     None,
                     lambda: processor.process_balance_paid_order(
                         order_id=order_id, request_loop=loop
@@ -1258,6 +1259,21 @@ async def _pay_with_balance_locked(update, context, query, user_id, order_id) ->
                 logger.warning(f"IPN processor not available for balance-paid order {order_id}")
         except Exception as exc:
             logger.error(f"Error in fulfillment for balance-paid order {order_id}: {exc}", exc_info=True)
+
+        if fulfillment_succeeded:
+            status_session = get_session_factory()()
+            try:
+                final_order = OrderService(status_session).get_order_by_id(order_id)
+                delivered = (
+                    final_order is not None
+                    and final_order.status == OrderStatus.DELIVERED
+                )
+            finally:
+                status_session.close()
+            if delivered:
+                await query.edit_message_text(
+                    _t("balance.balance_paid_delivered", update)
+                )
 
         # Clear payment-related state
         state = state_manager.get_user_state(user_id)

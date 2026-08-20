@@ -66,6 +66,12 @@ class ProductFormatter:
         def _button_style(product: Product) -> str | None:
             if product.delivery_type == DeliveryType.UPGRADE:
                 return KeyboardButtonStyle.PRIMARY
+            if product.delivery_type == DeliveryType.VIRTUAL_ORDER:
+                return (
+                    KeyboardButtonStyle.SUCCESS
+                    if any(v.stock > 0 for v in product.variations)
+                    else KeyboardButtonStyle.DANGER
+                )
             if product.delivery_type == DeliveryType.PRE_UPLOADED:
                 in_stock = (
                     product.id in pre_uploaded_in_stock_ids

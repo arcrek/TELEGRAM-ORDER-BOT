@@ -242,7 +242,8 @@
     "done_customer_message": "🎉 Your upgrade order #{order_id} is complete. Thank you!",
     "done_already": "This order has already been marked as done.",
     "done_footer": "\n\n✅ Completed by @{admin} at {time}",
-    "not_admin": "⛔ Only admins can use this button."
+    "not_admin": "⛔ Only admins can use this button.",
+    "not_upgrade_order": "⛔ This button is only for upgrade orders."
   },
   "buttons": {
     "next": "Next ▶️",
@@ -299,6 +300,7 @@
     "insufficient_balance": "❌ Insufficient balance!\n\n💰 Balance: {balance} VND\n💵 Required: {total} VND",
     "topup_more_button": "➕ Top up more",
     "balance_paid_success": "✅ Payment successful via wallet balance!\n\nProcessing your order...",
+    "balance_paid_delivered": "✅ Payment successful via wallet balance!\n\n📦 Your order has been delivered.",
     "already_processed": "❌ This order has already been processed.",
     "preset_50k": "50,000 VND",
     "preset_100k": "100,000 VND",

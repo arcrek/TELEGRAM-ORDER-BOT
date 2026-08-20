@@ -242,7 +242,8 @@
     "done_customer_message": "🎉 Đơn nâng cấp #{order_id} đã hoàn tất. Cảm ơn bạn!",
     "done_already": "Đơn này đã được đánh dấu hoàn tất.",
     "done_footer": "\n\n✅ Hoàn tất bởi @{admin} lúc {time}",
-    "not_admin": "⛔ Chỉ admin mới được dùng nút này."
+    "not_admin": "⛔ Chỉ admin mới được dùng nút này.",
+    "not_upgrade_order": "⛔ Nút này chỉ dùng cho đơn nâng cấp."
   },
   "buttons": {
     "next": "NEXT PAGE ▶",
@@ -299,6 +300,7 @@
     "insufficient_balance": "❌ Số dư không đủ!\n\n💰 Số dư: {balance} VND\n💵 Cần: {total} VND",
     "topup_more_button": "➕ Nạp thêm",
     "balance_paid_success": "✅ Thanh toán thành công bằng số dư!\n\nĐang xử lý đơn hàng của bạn...",
+    "balance_paid_delivered": "✅ Thanh toán thành công bằng số dư!\n\n📦 Đơn hàng đã được giao.",
     "already_processed": "❌ Đơn hàng này đã được xử lý.",
     "preset_50k": "50.000 VND",
     "preset_100k": "100.000 VND",
