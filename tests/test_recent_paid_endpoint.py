@@ -16,9 +16,8 @@ from src.database.models.enums import OrderStatus
 from src.database.models.order import Order
 
 # Named temp-file SQLite (in-memory :memory: is per-connection and breaks pooling)
-_f = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-_path = _f.name
-_f.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as _f:
+    _path = _f.name
 atexit.register(lambda: os.path.exists(_path) and os.unlink(_path))
 
 engine = create_engine(f"sqlite:///{_path}", connect_args={"check_same_thread": False})

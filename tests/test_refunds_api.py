@@ -20,9 +20,8 @@ from src.database.models.order_item import OrderItem
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
 
-_f = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-_path = _f.name
-_f.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as _f:
+    _path = _f.name
 atexit.register(lambda: os.path.exists(_path) and os.unlink(_path))
 engine = create_engine(f"sqlite:///{_path}", connect_args={"check_same_thread": False})
 Base.metadata.create_all(engine)

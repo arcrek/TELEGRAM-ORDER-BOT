@@ -18,9 +18,8 @@ from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
 from src.database.services.bot_user_service import BotUserService
 
-test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-test_db_path = test_db_file.name
-test_db_file.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db_file:
+    test_db_path = test_db_file.name
 atexit.register(lambda: os.path.exists(test_db_path) and os.unlink(test_db_path))
 
 test_engine = create_engine(

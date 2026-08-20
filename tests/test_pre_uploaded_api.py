@@ -26,9 +26,8 @@ from src.database.models.product_variation import ProductVariation
 
 # ── Test DB setup ─────────────────────────────────────────────────────────────
 
-test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-test_db_path = test_db_file.name
-test_db_file.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db_file:
+    test_db_path = test_db_file.name
 
 
 def _cleanup_test_db() -> None:

@@ -29,9 +29,8 @@ from src.database.models.base import Base
 from src.database.models.enums import DeliveryType, OrderStatus
 
 # Create test database file
-test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-test_db_path = test_db_file.name
-test_db_file.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db_file:
+    test_db_path = test_db_file.name
 
 def cleanup_test_db():
     """Clean up test database file."""

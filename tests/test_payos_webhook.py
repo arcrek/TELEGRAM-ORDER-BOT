@@ -20,9 +20,8 @@ from src.database.models.enums import OrderStatus
 from src.payos.signature import create_hmac_sha256_hex
 
 # Create test database file (shared across tests)
-test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-test_db_path = test_db_file.name
-test_db_file.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db_file:
+    test_db_path = test_db_file.name
 
 
 def cleanup_test_db():

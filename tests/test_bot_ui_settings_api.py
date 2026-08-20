@@ -16,9 +16,8 @@ from src.dashboard.main import app
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
 
-test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
-test_db_path = test_db_file.name
-test_db_file.close()
+with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as test_db_file:
+    test_db_path = test_db_file.name
 
 
 def cleanup_test_db():
