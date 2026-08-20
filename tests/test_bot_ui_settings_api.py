@@ -2,6 +2,7 @@
 Tests for bot UI settings API endpoints.
 """
 import atexit
+import contextlib
 import os
 import tempfile
 
@@ -14,7 +15,6 @@ from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
-import contextlib
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
 test_db_path = test_db_file.name

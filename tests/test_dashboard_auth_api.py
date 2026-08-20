@@ -2,6 +2,7 @@
 Tests for dashboard authentication API endpoints.
 """
 import atexit
+import contextlib
 import os
 
 # Create test database with thread safety for SQLite
@@ -20,7 +21,6 @@ from src.dashboard.main import app
 from src.database.models import *
 from src.database.models.admin import Admin, AdminRole
 from src.database.models.base import Base
-import contextlib
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
 test_db_path = test_db_file.name

@@ -3,6 +3,7 @@ Tests for variations API endpoints.
 Following TDD: Write tests first, then implement endpoints.
 """
 import atexit
+import contextlib
 import os
 import tempfile
 
@@ -20,7 +21,6 @@ from src.database.models import *
 from src.database.models import Admin, AdminRole, Product, ProductVariation
 from src.database.models.base import Base
 from src.database.models.enums import DeliveryType
-import contextlib
 
 # Create test database file
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')

@@ -3,6 +3,7 @@ Tests for PayOS webhook endpoint.
 """
 
 import atexit
+import contextlib
 import os
 import tempfile
 
@@ -17,7 +18,6 @@ from src.database.models import Order
 from src.database.models.base import Base
 from src.database.models.enums import OrderStatus
 from src.payos.signature import create_hmac_sha256_hex
-import contextlib
 
 # Create test database file (shared across tests)
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")

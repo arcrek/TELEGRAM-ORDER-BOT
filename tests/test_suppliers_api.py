@@ -2,8 +2,9 @@
 Tests for suppliers API endpoints.
 Following TDD: Write tests first, then implement endpoints.
 """
-import pytest
 import contextlib
+
+import pytest
 
 pytestmark = pytest.mark.skip(reason="Supplier module disabled in dashboard API")
 import atexit

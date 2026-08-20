@@ -3,6 +3,7 @@ Tests for the POST /pre-uploaded-products/export endpoint.
 """
 
 import atexit
+import contextlib
 import os
 import tempfile
 
@@ -22,7 +23,6 @@ from src.database.models.enums import DeliveryType
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-import contextlib
 
 # ── Test DB setup ─────────────────────────────────────────────────────────────
 

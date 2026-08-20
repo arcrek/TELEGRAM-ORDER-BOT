@@ -2,6 +2,7 @@
 Tests for statistics API endpoints.
 """
 import atexit
+import contextlib
 import os
 import tempfile
 
@@ -17,7 +18,6 @@ from src.dashboard.main import app
 from src.database.models import *
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
-import contextlib
 
 # Create test database file
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
