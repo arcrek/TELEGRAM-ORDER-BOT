@@ -1,33 +1,35 @@
 """
 Product upload router.
 """
-import os
 import asyncio
 import logging
-from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import Session
+import os
+from typing import Any
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.utils.bot_instance import get_shared_bot_instance
 from src.dashboard.auth import get_current_admin, get_db
-from src.database.services.product_upload_service import ProductUploadService
-from src.database.services.bot_ui_settings_service import BotUiSettingsService
-from src.database.services.app_settings_service import AppSettingsService
+from src.database.connection import get_session_factory
+from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-from src.database.models.pre_uploaded_product import PreUploadedProduct
-from src.database.connection import get_session_factory
-from src.ipn import get_global_customer_bot
-from src.bot.utils.bot_instance import get_shared_bot_instance
-from src.bot.messages.emoji_renderer import render as render_emoji
+from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.bot_ui_settings_service import BotUiSettingsService
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.database.services.product_upload_service import ProductUploadService
+from src.ipn import get_global_customer_bot
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-def _get_bot_instance() -> Optional[Bot]:
+def _get_bot_instance() -> Bot | None:
     """Get bot instance for sending upload notifications."""
     bot = get_shared_bot_instance()
     if bot:
@@ -46,9 +48,9 @@ def _get_bot_instance() -> Optional[Bot]:
 
 def _collect_upload_notification_messages(
     db: Session,
-    products_data: List[Dict[str, Any]],
-    result: Dict[str, Any],
-) -> List[Dict[str, Any]]:
+    products_data: list[dict[str, Any]],
+    result: dict[str, Any],
+) -> list[dict[str, Any]]:
     """
     Build one notification entry per unique variation that was successfully uploaded.
 
@@ -67,7 +69,7 @@ def _collect_upload_notification_messages(
     ]
 
     # Count uploaded quantity per (product_id, variation_id)
-    variation_counts: Dict[tuple, int] = {}
+    variation_counts: dict[tuple, int] = {}
     for item in successful_items:
         key = (item["product_id"], item["variation_id"])
         variation_counts[key] = variation_counts.get(key, 0) + 1
@@ -94,8 +96,8 @@ def _build_upload_notification_entry(
     variation_id: str,
     added_qty: int,
     total_qty: int,
-    header: Optional[str] = None,
-) -> Optional[Dict[str, Any]]:
+    header: str | None = None,
+) -> dict[str, Any] | None:
     """Build the shared new-stock notification used by uploads and fixed stock."""
     product = db.query(Product).filter_by(id=product_id).first()
     variation = db.query(ProductVariation).filter_by(id=variation_id).first()
@@ -119,7 +121,7 @@ def _build_upload_notification_entry(
     }
 
 
-async def _send_upload_notifications(entries: List[Dict[str, Any]]) -> None:
+async def _send_upload_notifications(entries: list[dict[str, Any]]) -> None:
     """Broadcast each upload notification to all started users with action buttons."""
     try:
         bot = _get_bot_instance()
@@ -182,7 +184,7 @@ class ParseTextRequest(BaseModel):
 
 class ParseTextResponse(BaseModel):
     """Parse text content response schema."""
-    parsed_data: List[dict]
+    parsed_data: list[dict]
     format_type: str
     item_count: int
 
@@ -203,7 +205,7 @@ class DuplicateCheckItem(BaseModel):
 
 class DuplicateCheckRequest(BaseModel):
     """Request body for duplicate check."""
-    products: List[DuplicateCheckItem]
+    products: list[DuplicateCheckItem]
 
 
 class DuplicateCheckResponse(BaseModel):
@@ -211,12 +213,12 @@ class DuplicateCheckResponse(BaseModel):
     duplicate_count: int
     unique_count: int
     total: int
-    duplicates: List[dict]
+    duplicates: list[dict]
 
 
 class BulkUploadRequest(BaseModel):
     """Bulk upload request schema."""
-    products: List[ProductUploadItem]
+    products: list[ProductUploadItem]
     skip_duplicates: bool = False
 
 
@@ -225,7 +227,7 @@ class BulkUploadResponse(BaseModel):
     success: int
     failed: int
     duplicates_skipped: int = 0
-    errors: List[dict]
+    errors: list[dict]
 
 
 @router.post("/products/upload/parse", response_model=ParseTextResponse)
@@ -337,7 +339,7 @@ async def upload_products(
 @router.post("/products/upload/file")
 async def upload_file(
     file: UploadFile = File(...),
-    format_type: Optional[str] = None,
+    format_type: str | None = None,
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -374,7 +376,7 @@ async def upload_file(
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to parse file: {str(e)}"
+            detail=f"Failed to parse file: {e!s}"
         )
     
     # For now, return parsed data

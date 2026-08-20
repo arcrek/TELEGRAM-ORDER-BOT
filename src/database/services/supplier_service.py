@@ -2,12 +2,13 @@
 Supplier service layer.
 """
 import uuid
-from typing import Optional, List, Dict
-from sqlalchemy.orm import Session
+
 from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from src.database.models.enums import SupplierOrderStatus
 from src.database.models.supplier import Supplier
 from src.database.models.supplier_order import SupplierOrder
-from src.database.models.enums import SupplierOrderStatus
 
 
 class SupplierService:
@@ -33,7 +34,7 @@ class SupplierService:
 
     def get_supplier_by_telegram_id(
         self, telegram_user_id: int
-    ) -> Optional[Supplier]:
+    ) -> Supplier | None:
         """
         Get supplier by Telegram user ID.
         
@@ -49,7 +50,7 @@ class SupplierService:
             .first()
         )
 
-    def get_supplier_by_id(self, supplier_id: str) -> Optional[Supplier]:
+    def get_supplier_by_id(self, supplier_id: str) -> Supplier | None:
         """
         Get supplier by ID.
         
@@ -63,7 +64,7 @@ class SupplierService:
 
     def create_supplier(
         self, telegram_user_id: int, name: str, is_active: bool = True
-    ) -> Optional[Supplier]:
+    ) -> Supplier | None:
         """
         Create a new supplier.
         
@@ -95,7 +96,7 @@ class SupplierService:
 
     def update_supplier_status(
         self, supplier_id: str, is_active: bool
-    ) -> Optional[Supplier]:
+    ) -> Supplier | None:
         """
         Update supplier active status.
         
@@ -131,9 +132,9 @@ class SupplierService:
 
     def list_suppliers(
         self,
-        only_active: Optional[bool] = None,
+        only_active: bool | None = None,
         limit: int = 100,
-    ) -> List[Supplier]:
+    ) -> list[Supplier]:
         """
         List all suppliers with optional filtering.
         
@@ -155,7 +156,7 @@ class SupplierService:
         self,
         supplier_id: str,
         limit: int = 50,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Get order history for a supplier.
         
@@ -190,7 +191,7 @@ class SupplierService:
         
         return results
 
-    def get_supplier_statistics(self, supplier_id: str) -> Dict:
+    def get_supplier_statistics(self, supplier_id: str) -> dict:
         """
         Get performance statistics for a supplier.
         

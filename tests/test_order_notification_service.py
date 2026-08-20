@@ -1,19 +1,22 @@
 """
 Tests for OrderNotificationService.
 """
+from unittest.mock import ANY, Mock
+
 import pytest
-from unittest.mock import Mock, ANY
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.database.models import DeliveryType
 from src.database.models.base import Base
 from src.database.models.enums import OrderStatus
-from src.database.models import DeliveryType
+from src.database.services.notification_settings_service import (
+    NotificationSettingsService,
+)
+from src.database.services.order_notification_service import OrderNotificationService
 from src.database.services.order_service import OrderService
 from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService
-from src.database.services.notification_settings_service import NotificationSettingsService
-from src.database.services.order_notification_service import OrderNotificationService
 
 
 @pytest.fixture

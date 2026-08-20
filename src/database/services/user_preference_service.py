@@ -2,8 +2,9 @@
 User preference service layer for managing user language preferences.
 """
 import uuid
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from src.database.models.user_preference import UserPreference
 
 
@@ -68,7 +69,7 @@ class UserPreferenceService:
             self.session.refresh(preference)
             return preference
 
-    def get_user_preference(self, telegram_user_id: int) -> Optional[UserPreference]:
+    def get_user_preference(self, telegram_user_id: int) -> UserPreference | None:
         """
         Get user preference by Telegram user ID.
         

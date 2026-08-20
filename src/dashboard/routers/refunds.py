@@ -3,7 +3,7 @@
 Admin-facing strings are Vietnamese (consistent with admin-only flows).
 """
 
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -33,8 +33,8 @@ _INELIGIBLE_REASON = {
 # Schemas
 # --------------------------------------------------------------------------- #
 class RefundOrderItem(BaseModel):
-    product: Optional[str]
-    variation: Optional[str]
+    product: str | None
+    variation: str | None
     quantity: int
 
 
@@ -42,16 +42,16 @@ class RefundOrderRow(BaseModel):
     id: str
     status: str
     total_amount: int
-    created_at: Optional[str]
+    created_at: str | None
     items: list[RefundOrderItem]
     eligible: bool
-    ineligible_reason: Optional[str]
+    ineligible_reason: str | None
 
 
 class RefundUser(BaseModel):
     telegram_user_id: int
-    username: Optional[str]
-    name: Optional[str]
+    username: str | None
+    name: str | None
     balance: int
 
 
@@ -102,8 +102,8 @@ class ConfirmResult(BaseModel):
     order_id: str
     success: bool
     reason: str
-    refund_amount: Optional[int] = None
-    new_balance: Optional[int] = None
+    refund_amount: int | None = None
+    new_balance: int | None = None
 
 
 class ConfirmResponse(BaseModel):
@@ -130,8 +130,8 @@ def _resolve_user(db: Session, search: str):
 @router.get("/orders", response_model=RefundOrdersResponse)
 async def list_user_orders(
     search: str = Query(..., min_length=1),
-    start_date: Optional[str] = Query(None),
-    end_date: Optional[str] = Query(None),
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
     db: Session = Depends(get_db),
     _admin: Admin = Depends(require_viewer_or_admin),
 ):

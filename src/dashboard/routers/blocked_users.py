@@ -1,21 +1,21 @@
 """Blocked-users router — admin management of the user blocklist."""
 
 from datetime import datetime
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
 from src.database.services.block_service import BlockService
-
 
 router = APIRouter()
 
 
 class BlockedUserRow(BaseModel):
     id: int
-    telegram_user_id: Optional[int]
-    username: Optional[str]
+    telegram_user_id: int | None
+    username: str | None
     created_at: datetime
 
 
@@ -38,7 +38,7 @@ class DeleteBlockResponse(BaseModel):
 @router.get("", response_model=BlockedUserListResponse, include_in_schema=True)
 @router.get("/", response_model=BlockedUserListResponse, include_in_schema=False)
 async def list_blocked_users(
-    search: Optional[str] = None,
+    search: str | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
     db: Session = Depends(get_db),

@@ -28,18 +28,15 @@ def build_variant_file(data: ExportVariantData, labels: dict, tz) -> tuple[str, 
     labels keys: totals, order, date, price, qty, delivered, vnd
     tz: ZoneInfo (from resolve_tz).
     """
-    filename = "export_{}_{}.txt".format(
-        slugify_filename(data.product_name, data.product_id),
-        slugify_filename(data.variation_name, data.variation_id),
-    )
+    filename = f"export_{slugify_filename(data.product_name, data.product_id)}_{slugify_filename(data.variation_name, data.variation_id)}.txt"
 
     lines = [
-        "=== {} / {} ===".format(data.product_name, data.variation_name),
+        f"=== {data.product_name} / {data.variation_name} ===",
         labels["totals"].format(orders=data.total_orders, items=data.total_items),
         "",
     ]
     for entry in data.orders:
-        price_fmt = "{:,}".format(entry.price).replace(",", ".")
+        price_fmt = f"{entry.price:,}".replace(",", ".")
         qty = entry.quantity + entry.bonus_quantity
         date_str = format_local(entry.created_at, tz, "%Y-%m-%d %H:%M")
         lines.append(labels["order"].format(order_id=entry.order_id))
@@ -52,7 +49,7 @@ def build_variant_file(data: ExportVariantData, labels: dict, tz) -> tuple[str, 
         lines.append(labels["delivered"])
         for content in entry.contents:
             for content_line in (content.splitlines() or [content]):
-                lines.append("  {}".format(content_line))
+                lines.append(f"  {content_line}")
         lines.append("")
 
     return filename, "\n".join(lines).rstrip() + "\n"

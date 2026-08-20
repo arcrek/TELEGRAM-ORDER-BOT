@@ -3,11 +3,12 @@ Notification service for sending notifications to bot users.
 """
 import asyncio
 import logging
-from typing import List, Dict, Optional, Tuple
-from sqlalchemy.orm import Session
 from io import BytesIO
+
+from sqlalchemy.orm import Session
 from telegram import Bot, InputFile
 from telegram.error import Forbidden, TelegramError
+
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
@@ -18,14 +19,14 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     """Service for sending notifications to bot users."""
 
-    def __init__(self, session: Session, bot: Optional[Bot] = None):
+    def __init__(self, session: Session, bot: Bot | None = None):
         self.session = session
         self.bot = bot
         self.bot_user_service = BotUserService(session)
         self._is_async_send_message = bot is not None and asyncio.iscoroutinefunction(bot.send_message)
         self._is_async_send_photo = bot is not None and asyncio.iscoroutinefunction(bot.send_photo)
 
-    def _render(self, message: str) -> Tuple[str, Optional[str]]:
+    def _render(self, message: str) -> tuple[str, str | None]:
         """Expand {emo:id} tokens to <tg-emoji> HTML. Returns (text, parse_mode).
 
         parse_mode is "HTML" when any token was expanded, else None (plain text).
@@ -36,10 +37,10 @@ class NotificationService:
         self,
         telegram_user_id: int,
         message: str,
-        image_bytes: Optional[bytes] = None,
-        file_id_holder: Optional[dict] = None,
-        parse_mode: Optional[str] = None,
-    ) -> Dict[str, any]:
+        image_bytes: bytes | None = None,
+        file_id_holder: dict | None = None,
+        parse_mode: str | None = None,
+    ) -> dict[str, any]:
         """Send a notification (optionally with one image) to a single user.
 
         When parse_mode is None the message is rendered here (expanding {emo:id}
@@ -92,8 +93,8 @@ class NotificationService:
         telegram_user_id: int,
         message: str,
         image_bytes: bytes,
-        file_id_holder: Optional[dict],
-        parse_mode: Optional[str] = None,
+        file_id_holder: dict | None,
+        parse_mode: str | None = None,
     ) -> None:
         """Send a photo, reusing a captured file_id across a broadcast when available."""
         holder = file_id_holder if file_id_holder is not None else {"file_id": None}
@@ -145,11 +146,11 @@ class NotificationService:
 
     async def _broadcast_to_users(
         self,
-        user_ids: List[int],
+        user_ids: list[int],
         message: str,
-        image_bytes: Optional[bytes],
+        image_bytes: bytes | None,
         label: str,
-    ) -> Dict[str, any]:
+    ) -> dict[str, any]:
         """Send a notification to a list of user IDs, sharing a single image upload."""
         results = {"total": len(user_ids), "success": 0, "failed": 0, "details": []}
         file_id_holder: dict = {"file_id": None}
@@ -171,50 +172,50 @@ class NotificationService:
         return results
 
     def send_notification_to_user(
-        self, telegram_user_id: int, message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, telegram_user_id: int, message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to a single user (synchronous wrapper)."""
         return self._run_async(
             self.send_notification_to_user_async(telegram_user_id, message, image_bytes)
         )
 
     async def send_notification_to_all_started_async(
-        self, message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to all users who pressed /start (async)."""
         user_ids = [u.telegram_user_id for u in self.bot_user_service.get_all_started_users()]
         return await self._broadcast_to_users(user_ids, message, image_bytes, "Notification broadcast")
 
     def send_notification_to_all_started(
-        self, message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to all users who pressed /start (synchronous wrapper)."""
         return self._run_async(self.send_notification_to_all_started_async(message, image_bytes))
 
     async def send_notification_to_active_users_async(
-        self, message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to active users only (async)."""
         user_ids = [u.telegram_user_id for u in self.bot_user_service.get_active_users()]
         return await self._broadcast_to_users(user_ids, message, image_bytes, "Notification to active users")
 
     def send_notification_to_active_users(
-        self, message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to active users only (synchronous wrapper)."""
         return self._run_async(self.send_notification_to_active_users_async(message, image_bytes))
 
     async def send_notification_to_multiple_users_async(
-        self, telegram_user_ids: List[int], message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, telegram_user_ids: list[int], message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to multiple specific users (async)."""
         return await self._broadcast_to_users(
             telegram_user_ids, message, image_bytes, "Notification to multiple users"
         )
 
     def send_notification_to_multiple_users(
-        self, telegram_user_ids: List[int], message: str, image_bytes: Optional[bytes] = None
-    ) -> Dict[str, any]:
+        self, telegram_user_ids: list[int], message: str, image_bytes: bytes | None = None
+    ) -> dict[str, any]:
         """Send notification to multiple specific users (synchronous wrapper)."""
         return self._run_async(
             self.send_notification_to_multiple_users_async(telegram_user_ids, message, image_bytes)

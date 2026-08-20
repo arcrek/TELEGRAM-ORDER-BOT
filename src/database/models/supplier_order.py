@@ -1,9 +1,10 @@
 """
 Supplier order model.
 """
-from sqlalchemy import Column, String, BigInteger, DateTime, ForeignKey, Enum
+from sqlalchemy import BigInteger, Column, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 from src.database.models.enums import SupplierOrderStatus
 

@@ -1,7 +1,8 @@
+from sqlalchemy.orm import sessionmaker
+
 from src.database.connection import create_engine_instance
 from src.database.models.base import Base
 from src.database.models.order import Order
-from sqlalchemy.orm import sessionmaker
 
 
 def test_order_has_nullable_paid_at():

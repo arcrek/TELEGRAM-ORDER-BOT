@@ -4,8 +4,9 @@ Tests for Admin model.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
+
 from src.database.models.admin import Admin, AdminRole
+from src.database.models.base import Base
 
 
 @pytest.fixture

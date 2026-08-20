@@ -2,10 +2,15 @@
 Background task for auto-cancelling unpaid orders and warning users before expiry.
 """
 import logging
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+
 from src.database.connection import get_session_factory
-from src.database.services.auto_cancel_service import AutoCancelService, PAYMENT_EXPIRE_MINUTES
+from src.database.services.auto_cancel_service import (
+    PAYMENT_EXPIRE_MINUTES,
+    AutoCancelService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +78,7 @@ class AutoCancelTask:
                     f"Cancelled {topup_results['cancelled']}, Skipped {topup_results['skipped']}"
                 )
         except Exception as e:
-            logger.error(f"Error in auto-cancel task: {str(e)}", exc_info=True)
+            logger.error(f"Error in auto-cancel task: {e!s}", exc_info=True)
         finally:
             session.close()
 

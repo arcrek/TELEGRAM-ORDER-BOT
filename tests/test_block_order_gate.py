@@ -2,9 +2,11 @@
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models.base import Base
 from src.database.services.block_service import BlockService
 from src.i18n.bot_translations import get_translation

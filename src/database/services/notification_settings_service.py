@@ -2,8 +2,10 @@
 Service layer for global notification settings.
 """
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from src.database.models.notification_settings import NotificationSettings
 
 
@@ -50,7 +52,7 @@ class NotificationSettingsService:
         self.session.refresh(settings)
         return settings
 
-    def _parse_whitelist_target(self, value: Any) -> Optional[Dict[str, Optional[int]]]:
+    def _parse_whitelist_target(self, value: Any) -> dict[str, int | None] | None:
         """
         Parse one whitelist target value.
 
@@ -86,7 +88,7 @@ class NotificationSettingsService:
         except (TypeError, ValueError):
             return None
 
-        message_thread_id: Optional[int] = None
+        message_thread_id: int | None = None
         if raw_thread_id is not None:
             try:
                 message_thread_id = int(raw_thread_id)
@@ -100,7 +102,7 @@ class NotificationSettingsService:
             "message_thread_id": message_thread_id,
         }
 
-    def _target_to_storage_value(self, target: Dict[str, Optional[int]]) -> str:
+    def _target_to_storage_value(self, target: dict[str, int | None]) -> str:
         """Convert parsed target to canonical string for storage."""
         chat_id = int(target["chat_id"])
         message_thread_id = target.get("message_thread_id")
@@ -108,7 +110,7 @@ class NotificationSettingsService:
             return f"{chat_id}:{int(message_thread_id)}"
         return str(chat_id)
 
-    def _parse_targets_field(self, raw: Optional[str]) -> List[Dict[str, Optional[int]]]:
+    def _parse_targets_field(self, raw: str | None) -> list[dict[str, int | None]]:
         """Parse a JSON-encoded targets column into deduplicated target dicts."""
         if not raw:
             return []
@@ -118,7 +120,7 @@ class NotificationSettingsService:
         except (TypeError, ValueError):
             return []
 
-        targets: List[Dict[str, Optional[int]]] = []
+        targets: list[dict[str, int | None]] = []
         seen = set()
         if isinstance(data, list):
             for value in data:
@@ -133,8 +135,8 @@ class NotificationSettingsService:
         return targets
 
     def get_whitelist_targets(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[Dict[str, Optional[int]]]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[dict[str, int | None]]:
         """
         Get parsed whitelist targets from settings.
 
@@ -150,8 +152,8 @@ class NotificationSettingsService:
         return self._parse_targets_field(settings.order_notify_whitelist_chat_ids)
 
     def get_upgrade_targets(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[Dict[str, Optional[int]]]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[dict[str, int | None]]:
         """
         Get parsed UPGRADE-channel targets used for forwarding customer
         account-info replies and the Done button. When empty, callers
@@ -162,8 +164,8 @@ class NotificationSettingsService:
         return self._parse_targets_field(settings.upgrade_notify_chat_ids)
 
     def get_topup_targets(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[Dict[str, Optional[int]]]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[dict[str, int | None]]:
         """
         Get parsed BALANCE_TOPUP_PAID notification targets. When empty,
         callers should fall back to ``get_whitelist_targets``.
@@ -173,13 +175,13 @@ class NotificationSettingsService:
         return self._parse_targets_field(settings.topup_notify_chat_ids)
 
     def get_whitelist_chat_ids(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[int]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[int]:
         """
         Backward-compatible view of whitelist targets as chat IDs only.
         """
         targets = self.get_whitelist_targets(settings)
-        ids: List[int] = []
+        ids: list[int] = []
         seen = set()
         for target in targets:
             chat_id = int(target["chat_id"])
@@ -190,8 +192,8 @@ class NotificationSettingsService:
         return ids
 
     def get_whitelist_entries(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[str]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[str]:
         """
         Get whitelist in text entry format suitable for UI display/editing.
         """
@@ -199,8 +201,8 @@ class NotificationSettingsService:
         return [self._target_to_storage_value(target) for target in targets]
 
     def get_upgrade_entries(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[str]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[str]:
         """
         Get UPGRADE channel chat IDs in text entry format for UI display/editing.
         """
@@ -208,17 +210,17 @@ class NotificationSettingsService:
         return [self._target_to_storage_value(target) for target in targets]
 
     def get_topup_entries(
-        self, settings: Optional[NotificationSettings] = None
-    ) -> List[str]:
+        self, settings: NotificationSettings | None = None
+    ) -> list[str]:
         """
         Get topup-notification chat IDs in text entry format for UI display/editing.
         """
         targets = self.get_topup_targets(settings)
         return [self._target_to_storage_value(target) for target in targets]
 
-    def _normalize_chat_ids(self, values: List[Any]) -> List[str]:
+    def _normalize_chat_ids(self, values: list[Any]) -> list[str]:
         """Parse + dedupe a raw list of chat-id values into canonical strings."""
-        normalized_entries: List[str] = []
+        normalized_entries: list[str] = []
         seen = set()
         for value in values:
             parsed = self._parse_whitelist_target(value)
@@ -233,15 +235,15 @@ class NotificationSettingsService:
     def update_settings(
         self,
         *,
-        order_notify_enabled: Optional[bool] = None,
-        order_notify_on_created: Optional[bool] = None,
-        order_notify_on_paid: Optional[bool] = None,
-        topup_notify_on_paid: Optional[bool] = None,
-        whitelist_chat_ids: Optional[List[Any]] = None,
-        upgrade_chat_ids: Optional[List[Any]] = None,
-        topup_chat_ids: Optional[List[Any]] = None,
-        header_placeholder_id: Optional[int] = None,
-        footer_placeholder_id: Optional[int] = None,
+        order_notify_enabled: bool | None = None,
+        order_notify_on_created: bool | None = None,
+        order_notify_on_paid: bool | None = None,
+        topup_notify_on_paid: bool | None = None,
+        whitelist_chat_ids: list[Any] | None = None,
+        upgrade_chat_ids: list[Any] | None = None,
+        topup_chat_ids: list[Any] | None = None,
+        header_placeholder_id: int | None = None,
+        footer_placeholder_id: int | None = None,
     ) -> NotificationSettings:
         """
         Update notification settings.

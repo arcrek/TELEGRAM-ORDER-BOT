@@ -6,18 +6,17 @@ Both the order/topup status transition and the balance change happen inside a si
 transaction so they either both succeed or both roll back.
 """
 
-from typing import Optional
 from uuid import uuid4
 
-from sqlalchemy import update, select, func
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from src.database.models import (
+    BalanceTransaction,
     BotUser,
     Order,
-    BalanceTransaction,
 )
-from src.database.models.enums import OrderStatus, BalanceTxKind
+from src.database.models.enums import BalanceTxKind, OrderStatus
 
 
 class BalanceService:
@@ -219,8 +218,8 @@ class BalanceService:
             (success, reason) where reason is one of:
             'ok' | 'not_found' | 'already_processed'
         """
-        from src.database.models.topup_order import TopupOrder
         from src.database.models.enums import TopupStatus
+        from src.database.models.topup_order import TopupOrder
 
         # SELECT first to get bot_user_id and amount (needed after UPDATE).
         topup = self.session.execute(
@@ -275,7 +274,7 @@ class BalanceService:
         action: str,
         amount: int,
         admin_id: str,
-        reason: Optional[str] = None,
+        reason: str | None = None,
     ) -> tuple[bool, str, int]:
         """
         Admin balance adjustment.
@@ -382,7 +381,7 @@ class BalanceService:
     def list_users_with_balance(
         self,
         *,
-        search: Optional[str] = None,
+        search: str | None = None,
         page: int = 1,
         per_page: int = 15,
         sort_by: str = "balance",
@@ -396,9 +395,10 @@ class BalanceService:
             bot_user_id, telegram_user_id, username, first_name, last_name,
             balance, total_topup, last_topup_at.
         """
-        from src.database.models.topup_order import TopupOrder
-        from src.database.models.enums import TopupStatus
         from sqlalchemy import case
+
+        from src.database.models.enums import TopupStatus
+        from src.database.models.topup_order import TopupOrder
 
         # Subquery: per-user topup aggregates (PAID only).
         topup_sub = (
@@ -434,8 +434,8 @@ class BalanceService:
         # Search filter.
         if search:
             pattern = f"%{search}%"
-            from sqlalchemy import or_, cast
             from sqlalchemy import String as SAString
+            from sqlalchemy import cast, or_
 
             query = query.filter(
                 or_(
@@ -486,15 +486,16 @@ class BalanceService:
         ]
         return items, total
 
-    def get_user_summary(self, bot_user_id: str) -> Optional[dict]:
+    def get_user_summary(self, bot_user_id: str) -> dict | None:
         """
         Return balance summary dict for a single user, or None if not found.
         Dict keys: bot_user_id, telegram_user_id, username, first_name, last_name,
         balance, total_topup, last_topup_at (ISO string or None).
         """
-        from src.database.models.topup_order import TopupOrder
-        from src.database.models.enums import TopupStatus
         from sqlalchemy import case
+
+        from src.database.models.enums import TopupStatus
+        from src.database.models.topup_order import TopupOrder
 
         user = self.session.execute(
             select(BotUser).where(BotUser.id == bot_user_id)

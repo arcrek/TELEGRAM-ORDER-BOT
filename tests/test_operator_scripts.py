@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SYSTEM_PATH = "/usr/bin:/bin"
 DOCTOR_LABELS = (

@@ -2,22 +2,23 @@
 import atexit
 import os
 import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 
+from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
-from src.dashboard.auth import get_password_hash, create_access_token, get_db
-from src.database.models import *  # noqa: F401,F403
-from src.database.models.base import Base
+from src.database.models import *
 from src.database.models.admin import Admin, AdminRole
+from src.database.models.base import Base
 from src.database.models.bot_user import BotUser
+from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.models.order import Order
 from src.database.models.order_item import OrderItem
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-from src.database.models.enums import OrderStatus, DeliveryType
 
 _f = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
 _path = _f.name

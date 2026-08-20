@@ -21,7 +21,8 @@ from src.database.services.balance_service import BalanceService
 from src.database.services.bot_user_service import BotUserService
 from src.database.services.order_service import OrderService
 from src.utils.datetime_format import format_local, resolve_tz
-from src.utils.refund_calc import compute_refund as _compute_refund, parse_duration_to_days
+from src.utils.refund_calc import compute_refund as _compute_refund
+from src.utils.refund_calc import parse_duration_to_days
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +202,7 @@ async def handle_refund_credit(
         if success:
             # Read the new balance to display it.
             from sqlalchemy import select
+
             from src.database.models import BotUser
 
             bot_user = session.execute(

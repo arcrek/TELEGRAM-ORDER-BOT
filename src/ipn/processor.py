@@ -11,21 +11,23 @@ import threading
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Dict, Any
-from src.database.connection import get_session_factory
-from src.database.services.order_service import OrderService
-from src.database.services.delivery_service import DeliveryService
-from src.database.services.pre_uploaded_service import PreUploadedService
-from src.database.services.supplier_order_service import SupplierOrderService
-from src.database.services.order_notification_service import OrderNotificationService
-from src.database.services.balance_service import BalanceService
-from src.database.services.topup_service import TopupService
-from src.database.services.app_settings_service import AppSettingsService
-from src.database.models import Order
-from src.database.models.enums import OrderStatus, DeliveryType
+from typing import Any
+
 from telegram import Bot
 from telegram.error import TelegramError
+
 from src.bot.states.state_manager import StateManager
+from src.database.connection import get_session_factory
+from src.database.models import Order
+from src.database.models.enums import DeliveryType, OrderStatus
+from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.balance_service import BalanceService
+from src.database.services.delivery_service import DeliveryService
+from src.database.services.order_notification_service import OrderNotificationService
+from src.database.services.order_service import OrderService
+from src.database.services.pre_uploaded_service import PreUploadedService
+from src.database.services.supplier_order_service import SupplierOrderService
+from src.database.services.topup_service import TopupService
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +90,7 @@ def run_async(coro):
     except RuntimeError:
         return asyncio.run(coro)
     except Exception as e:
-        logger.error(f"Error in run_async: {str(e)}", exc_info=True)
+        logger.error(f"Error in run_async: {e!s}", exc_info=True)
         raise
 
 
@@ -120,7 +122,7 @@ class IPNOrderProcessor:
     Payment-agnostic processor for order id, transaction id, and amount.
     """
 
-    def __init__(self, bot: Optional[Bot] = None, supplier_bot: Optional[Bot] = None):
+    def __init__(self, bot: Bot | None = None, supplier_bot: Bot | None = None):
         """
         Initialize IPN order processor.
 
@@ -238,7 +240,7 @@ class IPNOrderProcessor:
                 return self._run_fulfillment(session, order)
 
         except Exception as e:
-            logger.error(f"Error processing payment success: {str(e)}", exc_info=True)
+            logger.error(f"Error processing payment success: {e!s}", exc_info=True)
             session.rollback()
             return False
         finally:
@@ -283,14 +285,14 @@ class IPNOrderProcessor:
                             messages_deleted += 1
                             logger.info(f"✓ Deleted message {msg_id}")
                         except Exception as e:
-                            logger.warning(f"Could not delete message {msg_id}: {str(e)}")
+                            logger.warning(f"Could not delete message {msg_id}: {e!s}")
 
                     # Clear payment message IDs from database
                     order.payment_message_ids = None
                     session.commit()
                     logger.info(f"✓ Successfully deleted {messages_deleted}/{len(message_ids)} payment messages for order {order_id}")
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse payment_message_ids: {str(e)}")
+                    logger.error(f"Failed to parse payment_message_ids: {e!s}")
             else:
                 logger.info(f"No payment message IDs in database for order {order_id}")
         else:
@@ -326,13 +328,13 @@ class IPNOrderProcessor:
                         )
                         run_async(self.bot.send_message(chat_id=order.user_id, text=user_message))
                     except Exception as e:
-                        logger.error(f"Failed to send supplier disabled notification: {str(e)}")
+                        logger.error(f"Failed to send supplier disabled notification: {e!s}")
                 delivery_success = False
             else:
                 logger.error(f"Unknown delivery type: {delivery_type} for order {order_id}")
                 return False
         except Exception as e:
-            logger.error(f"Error during delivery processing for order {order_id}: {str(e)}", exc_info=True)
+            logger.error(f"Error during delivery processing for order {order_id}: {e!s}", exc_info=True)
             return False
 
         if delivery_success:
@@ -395,7 +397,7 @@ class IPNOrderProcessor:
                         messages_deleted += 1
                         logger.info(f"✓ Deleted topup payment message {msg_id}")
                     except Exception as e:
-                        logger.warning(f"Could not delete topup payment message {msg_id}: {str(e)}")
+                        logger.warning(f"Could not delete topup payment message {msg_id}: {e!s}")
                 # Clear stored message IDs.
                 topup.payment_message_ids = None
                 session.commit()
@@ -404,7 +406,7 @@ class IPNOrderProcessor:
                     f"payment messages for topup {topup_id}"
                 )
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse payment_message_ids for topup {topup_id}: {str(e)}")
+                logger.error(f"Failed to parse payment_message_ids for topup {topup_id}: {e!s}")
         elif not self.bot:
             logger.warning(f"Bot instance not available to delete payment messages for topup {topup_id}")
 
@@ -421,7 +423,7 @@ class IPNOrderProcessor:
                 run_async(self.bot.send_message(chat_id=topup.user_id, text=user_msg))
                 logger.info(f"✓ Sent topup success message to user {topup.user_id}")
             except Exception as e:
-                logger.error(f"Failed to send topup success message for {topup_id}: {str(e)}")
+                logger.error(f"Failed to send topup success message for {topup_id}: {e!s}")
 
         # 5. Admin-channel notification.
         # All session work is done synchronously here (executor thread) via
@@ -494,7 +496,7 @@ class IPNOrderProcessor:
             return self._run_fulfillment(session, order)
 
         except Exception as e:
-            logger.error(f"Error in process_balance_paid_order for {order_id}: {str(e)}", exc_info=True)
+            logger.error(f"Error in process_balance_paid_order for {order_id}: {e!s}", exc_info=True)
             session.rollback()
             return False
         finally:
@@ -539,12 +541,12 @@ class IPNOrderProcessor:
                         text=error_message,
                     ))
                 except TelegramError as e:
-                    logger.error(f"Failed to send failure notification: {str(e)}")
+                    logger.error(f"Failed to send failure notification: {e!s}")
 
             return True
 
         except Exception as e:
-            logger.error(f"Error processing payment failure: {str(e)}", exc_info=True)
+            logger.error(f"Error processing payment failure: {e!s}", exc_info=True)
             session.rollback()
             return False
         finally:
@@ -637,7 +639,7 @@ class IPNOrderProcessor:
             try:
                 run_async(self.bot.send_message(chat_id=user_id, text=error_message))
             except TelegramError as e:
-                logger.error(f"Failed to send partial delivery notification: {str(e)}")
+                logger.error(f"Failed to send partial delivery notification: {e!s}")
 
         # Treat partial delivery as failure so upstream returns processed=False
         raise RuntimeError(f"Partial delivery failure for order {order_id}")
@@ -667,7 +669,7 @@ class IPNOrderProcessor:
         # always have one product per order).
         product_name = "?"
         variation_name = "?"
-        custom_prompt: Optional[str] = None
+        custom_prompt: str | None = None
         if order.items:
             first_item = order.items[0]
             if first_item.product:
@@ -705,7 +707,7 @@ class IPNOrderProcessor:
             sent_msg = run_async(self.bot.send_message(chat_id=user_id, text=prompt))
         except TelegramError as e:
             logger.error(
-                f"Failed to send UPGRADE prompt for order {order_id}: {str(e)}"
+                f"Failed to send UPGRADE prompt for order {order_id}: {e!s}"
             )
             return
 
@@ -821,12 +823,12 @@ class IPNOrderProcessor:
                         )
                     except TelegramError as e:
                         logger.error(
-                            f"Failed to send notification to supplier {supplier.id}: {str(e)}"
+                            f"Failed to send notification to supplier {supplier.id}: {e!s}"
                         )
                         raise
                     except Exception as e:
                         logger.error(
-                            f"Error sending notification to supplier {supplier.id}: {str(e)}", exc_info=True
+                            f"Error sending notification to supplier {supplier.id}: {e!s}", exc_info=True
                         )
                         raise
 
@@ -840,15 +842,15 @@ class IPNOrderProcessor:
                     )
                     run_async(self.bot.send_message(chat_id=user_id, text=user_message))
                 except TelegramError as e:
-                    logger.error(f"Failed to send supplier delivery confirmation: {str(e)}")
+                    logger.error(f"Failed to send supplier delivery confirmation: {e!s}")
                     raise
 
         except Exception as e:
-            logger.error(f"Error handling supplier delivery: {str(e)}", exc_info=True)
+            logger.error(f"Error handling supplier delivery: {e!s}", exc_info=True)
             raise
 
     def _send_pre_uploaded_products(
-        self, user_id: int, order_id: str, products: list[Dict[str, Any]]
+        self, user_id: int, order_id: str, products: list[dict[str, Any]]
     ) -> str:
         """
         Send pre-uploaded products to user via Telegram and save to file.
@@ -910,7 +912,7 @@ class IPNOrderProcessor:
                     product_id = product.get('id', 'N/A')
                     product_lines += f"[Product ID: {product_id} - No delivery data available]\n"
                 else:
-                    product_lines += f"{str(product_data)}\n"
+                    product_lines += f"{product_data!s}\n"
 
             file_content = file_header + product_lines
             logger.info(f"File content:\n{file_content}")
@@ -924,9 +926,9 @@ class IPNOrderProcessor:
                     file_path.write_text(file_content, encoding='utf-8')
                     logger.info(f"Delivery data saved to file: {file_path}")
             except PermissionError as e:
-                logger.warning(f"Could not save delivery data to file: {str(e)}")
+                logger.warning(f"Could not save delivery data to file: {e!s}")
             except Exception as e:
-                logger.error(f"Error saving delivery data to file: {str(e)}")
+                logger.error(f"Error saving delivery data to file: {e!s}")
 
             sent_ok = False
             try:
@@ -967,10 +969,10 @@ class IPNOrderProcessor:
                     logger.error(f"Delivery file does not exist at {file_path}. Cannot send to user.")
                     raise RuntimeError("Delivery file does not exist; cannot send")
             except TelegramError as e:
-                logger.error(f"Telegram error sending delivery to user {user_id}: {str(e)}", exc_info=True)
+                logger.error(f"Telegram error sending delivery to user {user_id}: {e!s}", exc_info=True)
                 raise
             except Exception as e:
-                logger.error(f"Failed to send delivery to user {user_id}: {str(e)}", exc_info=True)
+                logger.error(f"Failed to send delivery to user {user_id}: {e!s}", exc_info=True)
                 raise
 
             # Delete the delivery file only after successful delivery
@@ -980,21 +982,21 @@ class IPNOrderProcessor:
                         file_path.unlink()
                         logger.info(f"✓ Delivery file deleted after successful delivery: {file_path}")
                 except Exception as e:
-                    logger.warning(f"Could not delete delivery file: {str(e)}")
+                    logger.warning(f"Could not delete delivery file: {e!s}")
 
             return product_lines.strip()
 
         except TelegramError as e:
-            logger.error(f"Failed to send pre-uploaded products: {str(e)}")
+            logger.error(f"Failed to send pre-uploaded products: {e!s}")
             raise
         except Exception as e:
-            logger.error(f"Error in _send_pre_uploaded_products: {str(e)}", exc_info=True)
+            logger.error(f"Error in _send_pre_uploaded_products: {e!s}", exc_info=True)
             raise
 
 
 # Global bot instances (set by bot applications)
-_global_bot: Optional[Bot] = None
-_global_supplier_bot: Optional[Bot] = None
+_global_bot: Bot | None = None
+_global_supplier_bot: Bot | None = None
 
 
 def set_global_bot(bot: Bot) -> None:
@@ -1019,7 +1021,7 @@ def set_global_supplier_bot(bot: Bot) -> None:
     _global_supplier_bot = bot
 
 
-def get_global_customer_bot() -> Optional[Bot]:
+def get_global_customer_bot() -> Bot | None:
     """
     Get the global customer bot instance.
 
@@ -1029,7 +1031,7 @@ def get_global_customer_bot() -> Optional[Bot]:
     return _global_bot
 
 
-def _create_bot_from_env() -> Optional[Bot]:
+def _create_bot_from_env() -> Bot | None:
     """
     Create a Bot instance from environment variable if available.
     Used when running in IPN server container.
@@ -1048,7 +1050,7 @@ def _create_bot_from_env() -> Optional[Bot]:
     return None
 
 
-def _create_supplier_bot_from_env() -> Optional[Bot]:
+def _create_supplier_bot_from_env() -> Bot | None:
     """
     Create a supplier Bot instance from environment variable if available.
 

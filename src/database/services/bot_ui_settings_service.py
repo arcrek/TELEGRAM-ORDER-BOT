@@ -1,8 +1,9 @@
 """
 Service layer for global bot UI settings.
 """
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from src.database.models.bot_ui_settings import BotUiSettings
 
 
@@ -35,7 +36,7 @@ class BotUiSettingsService:
         return settings
 
     @staticmethod
-    def _normalize_text(value: Optional[str]) -> Optional[str]:
+    def _normalize_text(value: str | None) -> str | None:
         if value is None:
             return None
         trimmed = str(value).strip()
@@ -44,9 +45,9 @@ class BotUiSettingsService:
     def update_settings(
         self,
         *,
-        product_choose_text: Optional[str] = None,
-        variation_choose_text: Optional[str] = None,
-        upload_notification_header: Optional[str] = None,
+        product_choose_text: str | None = None,
+        variation_choose_text: str | None = None,
+        upload_notification_header: str | None = None,
     ) -> BotUiSettings:
         settings = self.get_settings()
         settings.product_choose_text = self._normalize_text(product_choose_text)

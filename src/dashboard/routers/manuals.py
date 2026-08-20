@@ -1,15 +1,15 @@
 """Manuals router — admin management of product user guides."""
 
 import uuid
-from typing import Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field, ConfigDict
-from src.dashboard.auth import get_current_admin, require_admin_role, get_db
-from src.database.services.manual_service import ManualService
-from src.database.models.product import Product
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy.orm import Session
+
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
+from src.database.models.product import Product
+from src.database.services.manual_service import ManualService
 
 router = APIRouter()
 
@@ -28,11 +28,11 @@ class ManualCreate(BaseModel):
 
 
 class ManualUpdate(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = Field(None, max_length=4000)
-    is_active: Optional[bool] = None
-    sort_order: Optional[int] = None
-    product_ids: Optional[list[str]] = None
+    title: str | None = None
+    content: str | None = Field(None, max_length=4000)
+    is_active: bool | None = None
+    sort_order: int | None = None
+    product_ids: list[str] | None = None
 
 
 class ManualResponse(BaseModel):

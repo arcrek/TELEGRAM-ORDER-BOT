@@ -1,8 +1,9 @@
 """Block service — manage the blocklist and check whether a user is blocked."""
 
-from typing import Optional
+
 from sqlalchemy import String, cast, func, or_
 from sqlalchemy.orm import Session
+
 from src.database.models.blocked_users import BlockedUser
 
 
@@ -13,7 +14,7 @@ class BlockService:
         self.session = session
 
     @staticmethod
-    def parse_identifier(identifier: str) -> tuple[Optional[int], Optional[str]]:
+    def parse_identifier(identifier: str) -> tuple[int | None, str | None]:
         """Parse a raw identifier into (telegram_user_id, username).
 
         All-digits (optionally signed) → numeric id; otherwise a username
@@ -28,7 +29,7 @@ class BlockService:
         return int(raw), None
 
     def is_blocked(
-        self, telegram_user_id: Optional[int], username: Optional[str]
+        self, telegram_user_id: int | None, username: str | None
     ) -> bool:
         """True if the id OR the (case-insensitive) username is blocked."""
         conditions = []
@@ -48,8 +49,8 @@ class BlockService:
     def add_block(
         self,
         *,
-        telegram_user_id: Optional[int] = None,
-        username: Optional[str] = None,
+        telegram_user_id: int | None = None,
+        username: str | None = None,
     ) -> BlockedUser:
         """Create a block row (idempotent). Raises ValueError if no identifier."""
         if telegram_user_id is None and not username:
@@ -104,7 +105,7 @@ class BlockService:
 
     def list_blocked(
         self,
-        search: Optional[str] = None,
+        search: str | None = None,
         page: int = 1,
         per_page: int = 15,
     ) -> tuple[list[BlockedUser], int]:

@@ -5,9 +5,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from src.database.models.base import Base
-from src.dashboard.main import app
+
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
+from src.dashboard.main import app
+from src.database.models.base import Base
 
 
 @pytest.fixture

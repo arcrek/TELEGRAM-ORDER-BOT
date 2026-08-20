@@ -1,8 +1,9 @@
 """
 Topup order model for balance top-up requests.
 """
-from sqlalchemy import Column, String, BigInteger, DateTime, Enum, Text
+from sqlalchemy import BigInteger, Column, DateTime, Enum, String, Text
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 from src.database.models.enums import TopupStatus
 

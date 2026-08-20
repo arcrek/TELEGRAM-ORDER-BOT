@@ -2,10 +2,11 @@
 Product supplier assignment service layer.
 """
 import uuid
-from typing import Optional, List, Dict
+
 from sqlalchemy.orm import Session
-from src.database.models.product_supplier_assignment import ProductSupplierAssignment
+
 from src.database.models.product import Product
+from src.database.models.product_supplier_assignment import ProductSupplierAssignment
 from src.database.models.supplier import Supplier
 
 
@@ -35,7 +36,7 @@ class ProductSupplierAssignmentService:
         product_id: str,
         supplier_id: str,
         is_primary: bool = False,
-    ) -> Optional[ProductSupplierAssignment]:
+    ) -> ProductSupplierAssignment | None:
         """
         Create a product-supplier assignment.
         
@@ -90,7 +91,7 @@ class ProductSupplierAssignmentService:
         self,
         product_id: str,
         supplier_id: str,
-    ) -> Optional[ProductSupplierAssignment]:
+    ) -> ProductSupplierAssignment | None:
         """
         Get assignment by product and supplier IDs.
         
@@ -107,7 +108,7 @@ class ProductSupplierAssignmentService:
             .first()
         )
 
-    def get_assignments_by_product(self, product_id: str) -> List[ProductSupplierAssignment]:
+    def get_assignments_by_product(self, product_id: str) -> list[ProductSupplierAssignment]:
         """
         Get all assignments for a product.
         
@@ -124,7 +125,7 @@ class ProductSupplierAssignmentService:
             .all()
         )
 
-    def get_assignments_by_supplier(self, supplier_id: str) -> List[ProductSupplierAssignment]:
+    def get_assignments_by_supplier(self, supplier_id: str) -> list[ProductSupplierAssignment]:
         """
         Get all assignments for a supplier.
         
@@ -141,7 +142,7 @@ class ProductSupplierAssignmentService:
             .all()
         )
 
-    def get_primary_supplier_for_product(self, product_id: str) -> Optional[Supplier]:
+    def get_primary_supplier_for_product(self, product_id: str) -> Supplier | None:
         """
         Get the primary supplier for a product.
         
@@ -165,8 +166,8 @@ class ProductSupplierAssignmentService:
         self,
         product_id: str,
         supplier_id: str,
-        is_primary: Optional[bool] = None,
-    ) -> Optional[ProductSupplierAssignment]:
+        is_primary: bool | None = None,
+    ) -> ProductSupplierAssignment | None:
         """
         Update an assignment.
         
@@ -221,7 +222,7 @@ class ProductSupplierAssignmentService:
         
         return True
 
-    def get_products_by_supplier(self, supplier_id: str) -> List[Dict]:
+    def get_products_by_supplier(self, supplier_id: str) -> list[dict]:
         """
         Get all products assigned to a supplier with product details.
         
@@ -247,7 +248,7 @@ class ProductSupplierAssignmentService:
         
         return results
 
-    def get_suppliers_by_product(self, product_id: str) -> List[Dict]:
+    def get_suppliers_by_product(self, product_id: str) -> list[dict]:
         """
         Get all suppliers assigned to a product with supplier details.
         

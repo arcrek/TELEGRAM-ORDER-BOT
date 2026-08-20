@@ -2,23 +2,25 @@
 Authentication router.
 """
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-from src.database.models.admin import Admin, AdminRole
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import (
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     authenticate_admin,
     create_access_token,
-    get_password_hash,
     get_admin_by_username,
     get_current_admin,
-    require_admin_role,
     get_db,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
+    get_password_hash,
+    require_admin_role,
 )
+from src.database.models.admin import Admin, AdminRole
 from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()

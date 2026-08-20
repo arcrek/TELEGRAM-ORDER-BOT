@@ -8,9 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from src.database.models.base import Base
 from src.dashboard.auth import get_db
 from src.dashboard.routers import emoji_thumbnails
+from src.database.models.base import Base
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 
 

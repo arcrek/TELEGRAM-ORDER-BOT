@@ -1,9 +1,10 @@
 """
 Product supplier assignment model.
 """
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

@@ -2,8 +2,10 @@
 Bonus tier service for managing bonus configurations.
 """
 import uuid
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from src.database.models.bonus_tier import BonusTier
 from src.database.models.product_variation import ProductVariation
 
@@ -26,7 +28,7 @@ class BonusTierService:
         min_quantity: int,
         bonus_quantity: int,
         is_active: bool = True,
-        tier_id: Optional[str] = None,
+        tier_id: str | None = None,
     ) -> BonusTier:
         """
         Create a new bonus tier.
@@ -75,7 +77,7 @@ class BonusTierService:
         
         return bonus_tier
 
-    def get_bonus_tier_by_id(self, tier_id: str) -> Optional[BonusTier]:
+    def get_bonus_tier_by_id(self, tier_id: str) -> BonusTier | None:
         """
         Get a bonus tier by ID.
         
@@ -91,7 +93,7 @@ class BonusTierService:
         self,
         variation_id: str,
         only_active: bool = True,
-    ) -> List[BonusTier]:
+    ) -> list[BonusTier]:
         """
         Get all bonus tiers for a variation, sorted by min_quantity ascending.
         
@@ -112,8 +114,8 @@ class BonusTierService:
     def update_bonus_tier(
         self,
         tier_id: str,
-        update_data: Dict[str, Any],
-    ) -> Optional[BonusTier]:
+        update_data: dict[str, Any],
+    ) -> BonusTier | None:
         """
         Update a bonus tier.
         
@@ -177,7 +179,7 @@ class BonusTierService:
         variation_id: str,
         quantity: int,
         stock: int,
-    ) -> Optional[BonusTier]:
+    ) -> BonusTier | None:
         """
         Get the best applicable bonus tier that fits within available stock.
         
@@ -291,9 +293,9 @@ class BonusTierService:
 
     def get_all_bonus_tiers_for_variations(
         self,
-        variation_ids: List[str],
+        variation_ids: list[str],
         only_active: bool = True,
-    ) -> Dict[str, List[BonusTier]]:
+    ) -> dict[str, list[BonusTier]]:
         """
         Get bonus tiers for multiple variations in one query.
         
@@ -314,7 +316,7 @@ class BonusTierService:
         tiers = query.order_by(BonusTier.min_quantity.asc()).all()
         
         # Group by variation_id
-        result: Dict[str, List[BonusTier]] = {vid: [] for vid in variation_ids}
+        result: dict[str, list[BonusTier]] = {vid: [] for vid in variation_ids}
         for tier in tiers:
             result[tier.variation_id].append(tier)
         

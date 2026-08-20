@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
 
 from src.bot.handlers.emoji_admin import extract_units_from_message
 
@@ -9,13 +8,13 @@ class FakeEntity:
     type: str
     offset: int
     length: int
-    custom_emoji_id: Optional[str] = None
+    custom_emoji_id: str | None = None
 
 
 @dataclass
 class FakeMessage:
     text: str
-    entities: List[FakeEntity] = field(default_factory=list)
+    entities: list[FakeEntity] = field(default_factory=list)
 
 
 def test_extract_units_from_message():

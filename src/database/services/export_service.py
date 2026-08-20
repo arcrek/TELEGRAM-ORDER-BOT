@@ -10,7 +10,6 @@ import json
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -52,7 +51,7 @@ class ExportVariantData:
         return sum(len(o.contents) for o in self.orders)
 
 
-def _render_delivery_content(raw_data: Optional[str]) -> str:
+def _render_delivery_content(raw_data: str | None) -> str:
     """Render one PreUploadedProduct.product_data exactly the way the delivery
     flow shows it to the customer (mirrors src/ipn/processor.py)."""
     if not raw_data:
@@ -112,7 +111,7 @@ class ExportService:
 
     def get_variant_export(
         self, user_id: int, product_id: str, variation_id: str
-    ) -> Optional[ExportVariantData]:
+    ) -> ExportVariantData | None:
         product = self.session.get(Product, product_id)
         variation = self.session.get(ProductVariation, variation_id)
         if product is None or variation is None:

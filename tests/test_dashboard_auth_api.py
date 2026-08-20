@@ -1,23 +1,25 @@
 """
 Tests for dashboard authentication API endpoints.
 """
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
-from src.database.models.admin import Admin, AdminRole
-from src.dashboard.auth import get_db
-from src.dashboard.main import app
-
-# Import all models to ensure they're registered with Base
-from src.database.models import *  # noqa: F401, F403
+import atexit
+import os
 
 # Create test database with thread safety for SQLite
 # Use a file-based database for tests to ensure table persistence across connections
 import tempfile
-import os
-import atexit
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from src.dashboard.auth import get_db
+from src.dashboard.main import app
+
+# Import all models to ensure they're registered with Base
+from src.database.models import *
+from src.database.models.admin import Admin, AdminRole
+from src.database.models.base import Base
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
 test_db_path = test_db_file.name

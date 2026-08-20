@@ -2,8 +2,10 @@
 Notification settings model for global order notification configuration.
 """
 import uuid
-from sqlalchemy import Column, String, Boolean, Text, DateTime, Integer
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

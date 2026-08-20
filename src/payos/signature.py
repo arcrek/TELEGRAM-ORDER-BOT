@@ -12,10 +12,10 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-from typing import Any, Dict
+from typing import Any
 
 
-def _sort_obj_by_key(obj: Dict[str, Any]) -> Dict[str, Any]:
+def _sort_obj_by_key(obj: dict[str, Any]) -> dict[str, Any]:
     return dict(sorted(obj.items(), key=lambda kv: kv[0]))
 
 
@@ -49,7 +49,7 @@ def _normalize_value(value: Any) -> str:
     return str(value)
 
 
-def to_sorted_query_string(data: Dict[str, Any]) -> str:
+def to_sorted_query_string(data: dict[str, Any]) -> str:
     sorted_data = _sort_obj_by_key(data)
     parts: list[str] = []
     for key, value in sorted_data.items():
@@ -57,7 +57,7 @@ def to_sorted_query_string(data: Dict[str, Any]) -> str:
     return "&".join(parts)
 
 
-def create_hmac_sha256_hex(data: Dict[str, Any], checksum_key: str) -> str:
+def create_hmac_sha256_hex(data: dict[str, Any], checksum_key: str) -> str:
     raw = to_sorted_query_string(data)
     return hmac.new(
         checksum_key.encode("utf-8"),
@@ -85,7 +85,7 @@ def create_payment_request_signature(
     return create_hmac_sha256_hex(data, checksum_key)
 
 
-def verify_webhook_signature(*, data: Dict[str, Any], signature: str, checksum_key: str) -> bool:
+def verify_webhook_signature(*, data: dict[str, Any], signature: str, checksum_key: str) -> bool:
     expected = create_hmac_sha256_hex(data, checksum_key)
     return hmac.compare_digest(expected.lower(), (signature or "").lower())
 

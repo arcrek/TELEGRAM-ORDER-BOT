@@ -2,8 +2,10 @@
 Image-of-the-day (IOTD) settings model.
 """
 import uuid
-from sqlalchemy import Column, String, Text, DateTime
+
+from sqlalchemy import Column, DateTime, String, Text
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

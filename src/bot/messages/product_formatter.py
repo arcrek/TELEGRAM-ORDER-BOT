@@ -2,13 +2,14 @@
 Product list formatter for Telegram messages.
 """
 import unicodedata
-from typing import List, Optional, Set, Tuple
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import KeyboardButtonStyle
-from src.database.models import Product
-from src.database.models.enums import DeliveryType
+
 from src.bot.messages.emoji_renderer import split_icon
 from src.bot.utils.language import t
+from src.database.models import Product
+from src.database.models.enums import DeliveryType
 
 
 class ProductFormatter:
@@ -27,18 +28,18 @@ class ProductFormatter:
             width += 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
         return width
 
-    def format_product_list(self, product_choose_text: Optional[str] = None) -> str:
+    def format_product_list(self, product_choose_text: str | None = None) -> str:
         """Return product choose text only."""
         if product_choose_text and product_choose_text.strip():
             return product_choose_text.strip()
         # Telegram requires non-empty message text.
-        return "​"
+        return "\u200b"
 
     def create_product_keyboard(
         self,
-        products: List[Product],
-        update: Optional[Update] = None,
-        pre_uploaded_in_stock_ids: Optional[Set[str]] = None,
+        products: list[Product],
+        update: Update | None = None,
+        pre_uploaded_in_stock_ids: set[str] | None = None,
         emoji_service=None,
     ) -> InlineKeyboardMarkup:
         """Create inline keyboard for product selection with order history button at bottom.
@@ -47,7 +48,7 @@ class ProductFormatter:
         name becomes the button's custom-emoji icon (Bot API 9.4) and is removed
         from the visible label; layout/width is computed on the cleaned label.
         """
-        def _label_and_icon(product: Product) -> Tuple[str, Optional[str]]:
+        def _label_and_icon(product: Product) -> tuple[str, str | None]:
             if emoji_service is None:
                 return product.name, None
             return split_icon(product.name, emoji_service)

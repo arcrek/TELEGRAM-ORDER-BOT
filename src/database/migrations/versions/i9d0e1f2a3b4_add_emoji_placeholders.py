@@ -5,9 +5,8 @@ Revises: h8c9d0e1f2a3
 Create Date: 2026-06-22 00:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "i9d0e1f2a3b4"
 down_revision = "h8c9d0e1f2a3"

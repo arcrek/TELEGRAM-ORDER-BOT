@@ -1,13 +1,16 @@
 """
 Suppliers router.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_current_admin, get_db
+from src.database.services.product_supplier_assignment_service import (
+    ProductSupplierAssignmentService,
+)
 from src.database.services.supplier_service import SupplierService
-from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
 from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
@@ -33,7 +36,7 @@ class SupplierResponse(BaseModel):
 @router.get("", include_in_schema=True)
 @router.get("/", include_in_schema=False)
 async def list_suppliers(
-    only_active: Optional[bool] = Query(None, description="Filter by active status"),
+    only_active: bool | None = Query(None, description="Filter by active status"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):

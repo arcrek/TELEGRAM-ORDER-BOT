@@ -6,7 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
-from src.database.services.notification_settings_service import NotificationSettingsService
+from src.database.services.notification_settings_service import (
+    NotificationSettingsService,
+)
 
 
 @pytest.fixture

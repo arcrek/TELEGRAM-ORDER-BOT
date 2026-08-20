@@ -1,12 +1,25 @@
 """
 Tests for statistics service.
 """
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from sqlalchemy.orm import Session
-from src.database.connection import create_engine_instance, get_session_factory, init_database
-from src.database.models import Order, OrderItem, Product, ProductVariation, TopupOrder, AppSettings
-from src.database.models.enums import OrderStatus, DeliveryType, TopupStatus
+
+from src.database.connection import (
+    create_engine_instance,
+    get_session_factory,
+    init_database,
+)
+from src.database.models import (
+    AppSettings,
+    Order,
+    OrderItem,
+    Product,
+    ProductVariation,
+    TopupOrder,
+)
+from src.database.models.enums import DeliveryType, OrderStatus, TopupStatus
 from src.database.services.statistics_service import StatisticsService
 
 

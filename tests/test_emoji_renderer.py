@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 from src.bot.messages.emoji_renderer import (
     parse_emoji_units,
@@ -15,7 +14,7 @@ class FakeEntity:
     type: str
     offset: int
     length: int
-    custom_emoji_id: Optional[str] = None
+    custom_emoji_id: str | None = None
 
 
 def test_parse_emoji_only():
@@ -207,4 +206,4 @@ def test_split_icon_icon_only_keeps_non_empty_button_text():
     svc = FakeIconService(first_emoji={1: "111"}, plain={1: "⭐"})
     text, icon = split_icon("{emo:1}", svc)
     assert icon == "111"
-    assert text == "​"
+    assert text == "\u200b"

@@ -8,12 +8,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.database.models import *  # noqa: F401,F403
-from src.database.models.base import Base
-from src.database.models.order import Order
-from src.database.models.enums import OrderStatus
+from src.dashboard.auth import get_current_admin, get_db
 from src.dashboard.main import app
-from src.dashboard.auth import get_db, get_current_admin
+from src.database.models import *
+from src.database.models.base import Base
+from src.database.models.enums import OrderStatus
+from src.database.models.order import Order
 
 # Named temp-file SQLite (in-memory :memory: is per-connection and breaks pooling)
 _f = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
@@ -93,8 +93,9 @@ def test_recent_paid_requires_auth():
 
 
 def test_list_recently_paid_compiles_for_postgres():
-    from sqlalchemy.dialects import postgresql
     from sqlalchemy import select
+    from sqlalchemy.dialects import postgresql
+
     from src.database.models.order import Order
     stmt = select(Order).where(Order.paid_at.isnot(None), Order.paid_at > datetime(2026, 1, 1))
     # Must not raise for the Postgres dialect.

@@ -2,9 +2,10 @@
 Statistics router.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.statistics_service import StatisticsService
 
@@ -12,9 +13,9 @@ router = APIRouter()
 
 
 def _resolve_range(
-    range_: Optional[str],
-    from_: Optional[str],
-    to_: Optional[str],
+    range_: str | None,
+    from_: str | None,
+    to_: str | None,
 ):
     """Resolve (start_date, end_date) as naive UTC datetimes.
 
@@ -54,9 +55,9 @@ def _resolve_range(
 
 @router.get("/overview")
 async def get_statistics_overview(
-    range: Optional[str] = Query(None, description="Preset: today|7d|30d|90d|custom"),
-    from_date: Optional[str] = Query(None, alias="from", description="ISO date for custom range"),
-    to_date: Optional[str] = Query(None, alias="to", description="ISO date for custom range"),
+    range: str | None = Query(None, description="Preset: today|7d|30d|90d|custom"),
+    from_date: str | None = Query(None, alias="from", description="ISO date for custom range"),
+    to_date: str | None = Query(None, alias="to", description="ISO date for custom range"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
@@ -68,7 +69,7 @@ async def get_statistics_overview(
 
 @router.get("/orders/count")
 async def get_orders_count(
-    period: Optional[str] = Query(None, description="Period: today, this_week, this_month, or None for all time"),
+    period: str | None = Query(None, description="Period: today, this_week, this_month, or None for all time"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -88,7 +89,7 @@ async def get_orders_count(
 
 @router.get("/revenue")
 async def get_revenue(
-    period: Optional[str] = Query(None, description="Period: today, this_week, this_month, or None for all time"),
+    period: str | None = Query(None, description="Period: today, this_week, this_month, or None for all time"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):

@@ -3,7 +3,6 @@ EmojiThumbnailService — cache CRUD for custom-emoji thumbnails, plus a
 negative-cache staleness check.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -16,7 +15,7 @@ class EmojiThumbnailService:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def get(self, custom_emoji_id: str) -> Optional[EmojiThumbnail]:
+    def get(self, custom_emoji_id: str) -> EmojiThumbnail | None:
         return self.session.get(EmojiThumbnail, custom_emoji_id)
 
     def store(self, custom_emoji_id: str, data: bytes, mime: str) -> EmojiThumbnail:

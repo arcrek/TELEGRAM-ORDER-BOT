@@ -5,15 +5,16 @@ Order service layer for business logic.
 import secrets
 import uuid
 from datetime import datetime
-from typing import Optional, List, Dict
-from sqlalchemy import update, select
-from sqlalchemy.sql import func
+
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.sql import func
+
 from src.database.models import Order, OrderItem
-from src.database.models.enums import OrderStatus
 from src.database.models.bot_user import BotUser
-from src.database.services.variation_service import VariationService
+from src.database.models.enums import OrderStatus
 from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.variation_service import VariationService
 
 
 class OrderService:
@@ -124,8 +125,8 @@ class OrderService:
         Returns:
             Actual available stock count
         """
-        from src.database.services.product_service import ProductService
         from src.database.models.enums import DeliveryType
+        from src.database.services.product_service import ProductService
 
         variation = self.variation_service.get_variation_by_id(variation_id)
         if not variation:
@@ -247,8 +248,8 @@ class OrderService:
         # For PRE_UPLOADED products, atomically reserve the exact rows now so no
         # concurrent order can claim the same stock while this order is PENDING.
         from src.database.models.enums import DeliveryType
-        from src.database.services.product_service import ProductService
         from src.database.services.pre_uploaded_service import PreUploadedService
+        from src.database.services.product_service import ProductService
 
         product_service = ProductService(self.session)
         product = product_service.get_product_by_id(variation.product_id)
@@ -271,7 +272,7 @@ class OrderService:
 
         return order
 
-    def get_order_by_id(self, order_id: str) -> Optional[Order]:
+    def get_order_by_id(self, order_id: str) -> Order | None:
         """
         Get order by ID.
 
@@ -283,7 +284,7 @@ class OrderService:
         """
         return self.session.query(Order).filter_by(id=order_id).first()
 
-    def get_oldest_awaiting_upgrade_order(self, user_id: int) -> Optional[Order]:
+    def get_oldest_awaiting_upgrade_order(self, user_id: int) -> Order | None:
         """
         Get the oldest order from this user that is waiting for upgrade
         account info (UPGRADE delivery type, post-payment, customer hasn't
@@ -298,7 +299,7 @@ class OrderService:
 
     def get_order_by_upgrade_prompt_msg_id(
         self, user_id: int, message_id: int
-    ) -> Optional[Order]:
+    ) -> Order | None:
         """
         Find an UPGRADE order by the Telegram message ID of the account-info
         prompt sent to the customer. Used to relay additional customer replies
@@ -313,9 +314,9 @@ class OrderService:
     def get_user_orders(
         self,
         user_id: int,
-        status: Optional[OrderStatus] = None,
+        status: OrderStatus | None = None,
         limit: int = 50,
-    ) -> List[Order]:
+    ) -> list[Order]:
         """
         Get orders for a user.
 
@@ -336,8 +337,8 @@ class OrderService:
         self,
         order_id: str,
         status: OrderStatus,
-        payment_transaction_id: Optional[str] = None,
-    ) -> Optional[Order]:
+        payment_transaction_id: str | None = None,
+    ) -> Order | None:
         """
         Update order status.
 
@@ -380,18 +381,18 @@ class OrderService:
         self,
         page: int = 1,
         per_page: int = 15,
-        status: Optional[OrderStatus] = None,
-        user_id: Optional[int] = None,
-        product_id: Optional[str] = None,
-        search: Optional[str] = None,
-        sort_by: Optional[str] = None,
-        sort_order: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        delivery_search: Optional[str] = None,
-        delivery_start_date: Optional[str] = None,
-        delivery_end_date: Optional[str] = None,
-    ) -> List[Order]:
+        status: OrderStatus | None = None,
+        user_id: int | None = None,
+        product_id: str | None = None,
+        search: str | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        delivery_search: str | None = None,
+        delivery_start_date: str | None = None,
+        delivery_end_date: str | None = None,
+    ) -> list[Order]:
         """
         List orders with pagination, filters, and search.
 
@@ -414,7 +415,9 @@ class OrderService:
             List of Order instances
         """
         from datetime import datetime
-        from sqlalchemy import exists, and_
+
+        from sqlalchemy import and_, exists
+
         from src.database.models.pre_uploaded_product import PreUploadedProduct
 
         query = self.session.query(Order)
@@ -509,15 +512,15 @@ class OrderService:
 
     def get_total_count(
         self,
-        status: Optional[OrderStatus] = None,
-        user_id: Optional[int] = None,
-        product_id: Optional[str] = None,
-        search: Optional[str] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        delivery_search: Optional[str] = None,
-        delivery_start_date: Optional[str] = None,
-        delivery_end_date: Optional[str] = None,
+        status: OrderStatus | None = None,
+        user_id: int | None = None,
+        product_id: str | None = None,
+        search: str | None = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        delivery_search: str | None = None,
+        delivery_start_date: str | None = None,
+        delivery_end_date: str | None = None,
     ) -> int:
         """
         Get total count of orders matching filters.
@@ -536,8 +539,10 @@ class OrderService:
         Returns:
             Total count
         """
-        from sqlalchemy import func, exists, and_
         from datetime import datetime
+
+        from sqlalchemy import and_, exists, func
+
         from src.database.models.pre_uploaded_product import PreUploadedProduct
 
         query = self.session.query(func.count(Order.id))
@@ -604,7 +609,7 @@ class OrderService:
 
         return query.scalar() or 0
 
-    def get_buyer_info_map(self, telegram_user_ids: List[int]) -> Dict[int, Dict]:
+    def get_buyer_info_map(self, telegram_user_ids: list[int]) -> dict[int, dict]:
         """Return {telegram_user_id: {username, name}} for a batch of IDs."""
         if not telegram_user_ids:
             return {}
@@ -636,7 +641,7 @@ class OrderService:
         )
         return self.session.execute(stmt).unique().scalars().all()
 
-    def get_order_with_details(self, order_id: str) -> Optional[Dict]:
+    def get_order_with_details(self, order_id: str) -> dict | None:
         """
         Get order with all related details (items, products, variations).
 
@@ -652,7 +657,7 @@ class OrderService:
 
         # If this is a PRE_UPLOADED order, delivery data is stored in pre_uploaded_products
         # rows linked to the order via used_by_order_id. We attach that data per item.
-        delivered_by_variation: Dict[str, list] = {}
+        delivered_by_variation: dict[str, list] = {}
         try:
             from src.database.models.pre_uploaded_product import PreUploadedProduct
             from src.database.services.pre_uploaded_service import PreUploadedService

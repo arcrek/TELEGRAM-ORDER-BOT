@@ -1,11 +1,17 @@
 """
 Tests for notification command handlers.
 """
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from telegram import Update, Message, User
+from telegram import Message, Update, User
 from telegram.ext import ContextTypes
-from src.bot.handlers.notification_commands import notify_all, notify_user, notify_active
+
+from src.bot.handlers.notification_commands import (
+    notify_active,
+    notify_all,
+    notify_user,
+)
 
 
 @pytest.fixture

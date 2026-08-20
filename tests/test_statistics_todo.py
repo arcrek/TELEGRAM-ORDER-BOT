@@ -8,8 +8,9 @@ ORDER BY expressions"). SQLite silently renders a plain DISTINCT, so the error
 never surfaced in tests — only in production, where the failing endpoint made
 the whole todo panel render empty.
 """
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,7 @@ from src.database.connection import (
     init_database,
 )
 from src.database.models import Order, OrderItem, Product
-from src.database.models.enums import OrderStatus, DeliveryType
+from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.statistics_service import StatisticsService
 
 

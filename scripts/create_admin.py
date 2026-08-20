@@ -14,14 +14,14 @@ import sys
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from src.dashboard.auth import get_password_hash
 from src.database.connection import (
+    create_engine_instance,
     get_session_factory,
     init_database,
-    create_engine_instance,
 )
-from src.database.services.admin_service import AdminService
 from src.database.models.admin import AdminRole
-from src.dashboard.auth import get_password_hash
+from src.database.services.admin_service import AdminService
 
 
 def create_first_admin(

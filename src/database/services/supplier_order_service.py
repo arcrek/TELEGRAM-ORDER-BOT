@@ -2,13 +2,14 @@
 Supplier order service layer.
 """
 import uuid
-from typing import Optional, List
+
 from sqlalchemy.orm import Session
-from src.database.models.supplier_order import SupplierOrder
+
+from src.database.models.enums import SupplierOrderStatus
 from src.database.models.order import Order
 from src.database.models.product import Product
 from src.database.models.supplier import Supplier
-from src.database.models.enums import SupplierOrderStatus
+from src.database.models.supplier_order import SupplierOrder
 
 
 class SupplierOrderService:
@@ -32,7 +33,7 @@ class SupplierOrderService:
         """
         return f"supp_{uuid.uuid4().hex[:8]}"
 
-    def get_supplier_for_product(self, product_id: str) -> Optional[Supplier]:
+    def get_supplier_for_product(self, product_id: str) -> Supplier | None:
         """
         Get the supplier for a product.
         First tries to get primary supplier from assignments, then falls back to first active supplier.
@@ -44,7 +45,9 @@ class SupplierOrderService:
             Supplier instance or None if not found
         """
         # Try to get primary supplier from assignments
-        from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
+        from src.database.services.product_supplier_assignment_service import (
+            ProductSupplierAssignmentService,
+        )
         assignment_service = ProductSupplierAssignmentService(self.session)
         primary_supplier = assignment_service.get_primary_supplier_for_product(product_id)
         
@@ -61,7 +64,7 @@ class SupplierOrderService:
 
     def create_supplier_order(
         self, order_id: str, supplier_id: str
-    ) -> Optional[SupplierOrder]:
+    ) -> SupplierOrder | None:
         """
         Create a supplier order record.
         
@@ -94,7 +97,7 @@ class SupplierOrderService:
         
         return supplier_order
 
-    def create_supplier_orders_for_order(self, order_id: str) -> List[SupplierOrder]:
+    def create_supplier_orders_for_order(self, order_id: str) -> list[SupplierOrder]:
         """
         Create supplier orders for all items in an order.
         
@@ -131,7 +134,7 @@ class SupplierOrderService:
         
         return supplier_orders
 
-    def format_order_notification(self, order_id: str) -> Optional[str]:
+    def format_order_notification(self, order_id: str) -> str | None:
         """
         Format order notification message for supplier.
         
@@ -177,7 +180,7 @@ class SupplierOrderService:
 
     def update_notification_message_id(
         self, supplier_order_id: str, message_id: int
-    ) -> Optional[SupplierOrder]:
+    ) -> SupplierOrder | None:
         """
         Update the notification message ID for a supplier order.
         
@@ -204,7 +207,7 @@ class SupplierOrderService:
 
     def get_supplier_order_by_id(
         self, supplier_order_id: str
-    ) -> Optional[SupplierOrder]:
+    ) -> SupplierOrder | None:
         """
         Get supplier order by ID.
         

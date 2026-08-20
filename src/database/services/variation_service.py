@@ -1,9 +1,10 @@
 """
 Product variation service layer for business logic.
 """
-from typing import Optional, List
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
 from src.database.models import ProductVariation
 from src.database.models.enums import DeliveryType, OrderStatus
 
@@ -43,7 +44,7 @@ class VariationService:
         self.session.refresh(variation)
         return variation
 
-    def get_variation_by_id(self, variation_id: str) -> Optional[ProductVariation]:
+    def get_variation_by_id(self, variation_id: str) -> ProductVariation | None:
         """
         Get variation by ID.
         
@@ -59,7 +60,7 @@ class VariationService:
         self,
         product_id: str,
         only_active: bool = True,
-    ) -> List[ProductVariation]:
+    ) -> list[ProductVariation]:
         """
         List variations for a product.
         
@@ -81,7 +82,7 @@ class VariationService:
         self,
         variation_id: str,
         update_data: dict,
-    ) -> Optional[ProductVariation]:
+    ) -> ProductVariation | None:
         """
         Update a variation.
         
@@ -115,7 +116,7 @@ class VariationService:
         self.session.refresh(variation)
         return variation
 
-    def update_stock(self, variation_id: str, new_stock: int) -> Optional[ProductVariation]:
+    def update_stock(self, variation_id: str, new_stock: int) -> ProductVariation | None:
         """
         Update stock for a variation.
         
@@ -128,7 +129,7 @@ class VariationService:
         """
         return self.update_variation(variation_id, {"stock": new_stock})
 
-    def decrease_stock(self, variation_id: str, quantity: int) -> Optional[ProductVariation]:
+    def decrease_stock(self, variation_id: str, quantity: int) -> ProductVariation | None:
         """
         Decrease stock for a variation (used when order is placed).
         For PRE_UPLOADED products: validates availability from pre-uploaded products.
@@ -208,9 +209,9 @@ class VariationService:
 
     def list_all_variations_grouped(
         self,
-        product_id: Optional[str] = None,
-        only_active: Optional[bool] = None,
-    ) -> List[dict]:
+        product_id: str | None = None,
+        only_active: bool | None = None,
+    ) -> list[dict]:
         """
         List all variations grouped by product.
         
@@ -290,7 +291,7 @@ class VariationService:
     def get_low_stock_variations(
         self,
         threshold: int = 5,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         Get variations with stock below threshold, grouped by product.
         

@@ -2,8 +2,10 @@
 User preference model for storing user settings like language.
 """
 import uuid
-from sqlalchemy import Column, String, BigInteger, DateTime
+
+from sqlalchemy import BigInteger, Column, DateTime, String
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

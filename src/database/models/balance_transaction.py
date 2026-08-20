@@ -2,8 +2,10 @@
 Balance transaction model — append-only audit log of every balance change.
 """
 import uuid
-from sqlalchemy import Column, String, BigInteger, DateTime, Enum, Text, Index
+
+from sqlalchemy import BigInteger, Column, DateTime, Enum, Index, String, Text
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 from src.database.models.enums import BalanceTxKind
 

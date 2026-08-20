@@ -3,6 +3,7 @@ Tests for product list formatter.
 """
 import pytest
 from telegram import InlineKeyboardMarkup
+
 from src.bot.messages.product_formatter import ProductFormatter
 from src.database.models import DeliveryType, Product, ProductVariation
 

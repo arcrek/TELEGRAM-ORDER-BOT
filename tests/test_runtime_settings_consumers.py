@@ -148,7 +148,7 @@ async def test_setadmin_list_labels_configured_owner(monkeypatch):
     )
     monkeypatch.setattr(
         "src.database.services.bot_admin_service.BotAdminService",
-        lambda _session: SimpleNamespace(list_all=lambda: []),
+        lambda _session: SimpleNamespace(list_all=list),
     )
     monkeypatch.setattr(
         commands,

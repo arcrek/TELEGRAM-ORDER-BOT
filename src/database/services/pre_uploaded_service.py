@@ -3,13 +3,15 @@ Pre-uploaded product service layer.
 """
 
 import json
-from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from sqlalchemy import text, or_
-from sqlalchemy.orm import Session
+from typing import Any
+
 from dateutil.relativedelta import relativedelta
-from src.database.models.pre_uploaded_product import PreUploadedProduct
+from sqlalchemy import or_, text
+from sqlalchemy.orm import Session
+
 from src.database.models.order import Order
+from src.database.models.pre_uploaded_product import PreUploadedProduct
 
 # Number of days ahead to consider a record "expiring soon"
 EXPIRING_SOON_DAYS = 3
@@ -29,7 +31,7 @@ class PreUploadedService:
 
     def get_available_product(
         self, variation_id: str, quantity: int = 1
-    ) -> Optional[PreUploadedProduct]:
+    ) -> PreUploadedProduct | None:
         """
         Get an available (unreserved) pre-uploaded product for a variation.
         """
@@ -63,7 +65,7 @@ class PreUploadedService:
         )
         return products
 
-    def get_in_stock_product_ids(self, product_ids: List[str]) -> set[str]:
+    def get_in_stock_product_ids(self, product_ids: list[str]) -> set[str]:
         """
         Return the subset of product_ids that have at least one available
         (is_used=False, unreserved) pre-uploaded item across any of their variations.
@@ -175,7 +177,7 @@ class PreUploadedService:
 
     def mark_product_as_used(
         self, product_id: str, order_id: str
-    ) -> Optional[PreUploadedProduct]:
+    ) -> PreUploadedProduct | None:
         """
         Mark a pre-uploaded product as used.
 
@@ -204,7 +206,7 @@ class PreUploadedService:
         self.session.refresh(product)
         return product
 
-    def get_product_data(self, product: PreUploadedProduct) -> Dict[str, Any]:
+    def get_product_data(self, product: PreUploadedProduct) -> dict[str, Any]:
         """
         Parse product data from JSON string or plain text.
 
@@ -241,7 +243,7 @@ class PreUploadedService:
             # Return as a dict with the raw text
             return {"delivery_data": raw_data}
 
-    def deliver_order(self, order_id: str) -> Optional[Dict[str, Any]]:
+    def deliver_order(self, order_id: str) -> dict[str, Any] | None:
         """
         Deliver pre-uploaded products for an order.
 
@@ -351,7 +353,7 @@ class PreUploadedService:
         self.session.commit()
         return products
 
-    def get_inventory_stats_by_product(self) -> List[Dict[str, Any]]:
+    def get_inventory_stats_by_product(self) -> list[dict[str, Any]]:
         """
         Compute per-variant inventory statistics for all PRE_UPLOADED products.
 
@@ -367,24 +369,24 @@ class PreUploadedService:
         Returns:
             List of product dicts, each containing a list of variant stat dicts.
         """
+        from src.database.models.enums import DeliveryType
         from src.database.models.product import Product
         from src.database.models.product_variation import ProductVariation
-        from src.database.models.enums import DeliveryType
 
         now = datetime.now(timezone.utc)
 
         # Fetch only PRE_UPLOADED products
-        products: List[Product] = (
+        products: list[Product] = (
             self.session.query(Product)
             .filter(Product.delivery_type == DeliveryType.PRE_UPLOADED)
             .order_by(Product.name)
             .all()
         )
 
-        result: List[Dict[str, Any]] = []
+        result: list[dict[str, Any]] = []
 
         for product in products:
-            variants: List[ProductVariation] = (
+            variants: list[ProductVariation] = (
                 self.session.query(ProductVariation)
                 .filter_by(product_id=product.id)
                 .order_by(ProductVariation.name)

@@ -2,8 +2,10 @@
 Discount tier service for managing quantity-based price discounts.
 """
 import uuid
-from typing import List, Optional, Dict, Any, Tuple
+from typing import Any
+
 from sqlalchemy.orm import Session
+
 from src.database.models.discount_tier import DiscountTier
 from src.database.models.product_variation import ProductVariation
 
@@ -23,7 +25,7 @@ class DiscountTierService:
         discount_type: str,
         discount_value: int,
         is_active: bool = True,
-        tier_id: Optional[str] = None,
+        tier_id: str | None = None,
     ) -> DiscountTier:
         """
         Create a new discount tier.
@@ -69,14 +71,14 @@ class DiscountTierService:
         self.session.refresh(tier)
         return tier
 
-    def get_discount_tier_by_id(self, tier_id: str) -> Optional[DiscountTier]:
+    def get_discount_tier_by_id(self, tier_id: str) -> DiscountTier | None:
         return self.session.query(DiscountTier).filter_by(id=tier_id).first()
 
     def get_discount_tiers_by_variation(
         self,
         variation_id: str,
         only_active: bool = True,
-    ) -> List[DiscountTier]:
+    ) -> list[DiscountTier]:
         query = self.session.query(DiscountTier).filter_by(variation_id=variation_id)
         if only_active:
             query = query.filter_by(is_active=True)
@@ -85,8 +87,8 @@ class DiscountTierService:
     def update_discount_tier(
         self,
         tier_id: str,
-        update_data: Dict[str, Any],
-    ) -> Optional[DiscountTier]:
+        update_data: dict[str, Any],
+    ) -> DiscountTier | None:
         """
         Update a discount tier.
 
@@ -140,7 +142,7 @@ class DiscountTierService:
         self,
         variation_id: str,
         quantity: int,
-    ) -> Optional[DiscountTier]:
+    ) -> DiscountTier | None:
         """
         Return the best (highest min_quantity) active tier where quantity >= min_quantity.
         No stock check needed — discounts don't consume extra stock.
@@ -160,7 +162,7 @@ class DiscountTierService:
         unit_price: int,
         quantity: int,
         tier: DiscountTier,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """
         Calculate the post-discount subtotal and the savings amount.
 
@@ -179,9 +181,9 @@ class DiscountTierService:
 
     def get_all_discount_tiers_for_variations(
         self,
-        variation_ids: List[str],
+        variation_ids: list[str],
         only_active: bool = True,
-    ) -> Dict[str, List[DiscountTier]]:
+    ) -> dict[str, list[DiscountTier]]:
         """Batch-fetch discount tiers for multiple variations."""
         query = self.session.query(DiscountTier).filter(
             DiscountTier.variation_id.in_(variation_ids)
@@ -191,7 +193,7 @@ class DiscountTierService:
 
         tiers = query.order_by(DiscountTier.min_quantity.asc()).all()
 
-        result: Dict[str, List[DiscountTier]] = {vid: [] for vid in variation_ids}
+        result: dict[str, list[DiscountTier]] = {vid: [] for vid in variation_ids}
         for tier in tiers:
             result[tier.variation_id].append(tier)
         return result

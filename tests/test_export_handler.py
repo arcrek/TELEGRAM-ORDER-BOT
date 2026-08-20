@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-import src.bot.handlers.export as export
+from src.bot.handlers import export
 from src.bot.handlers.commands import state_manager
 from src.bot.states.state_manager import UserState
 

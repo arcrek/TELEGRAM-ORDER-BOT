@@ -1,10 +1,11 @@
 """
 Delivery service layer for handling order fulfillment.
 """
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
+from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.models.product import Product
-from src.database.models.enums import OrderStatus, DeliveryType
 from src.database.services.order_service import OrderService
 
 
@@ -21,7 +22,7 @@ class DeliveryService:
         self.session = session
         self.order_service = OrderService(session)
 
-    def get_order_delivery_type(self, order_id: str) -> Optional[DeliveryType]:
+    def get_order_delivery_type(self, order_id: str) -> DeliveryType | None:
         """
         Get the delivery type for an order.
         

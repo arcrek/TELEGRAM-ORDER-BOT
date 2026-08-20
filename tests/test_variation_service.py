@@ -5,10 +5,11 @@ Following TDD: Write tests first, then implement service.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
+
 from src.database.models import DeliveryType
-from src.database.services.variation_service import VariationService
+from src.database.models.base import Base
 from src.database.services.product_service import ProductService
+from src.database.services.variation_service import VariationService
 
 
 @pytest.fixture

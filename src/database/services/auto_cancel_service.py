@@ -4,15 +4,16 @@ Auto-cancel service for cancelling unpaid orders after 10 minutes.
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import and_
+from sqlalchemy.orm import Session
+
+from src.bot.states.state_manager import StateManager
 from src.database.models import Order
 from src.database.models.enums import OrderStatus
+from src.database.models.topup_order import TopupOrder
 from src.database.services.order_service import OrderService
 from src.database.services.topup_service import TopupService
-from src.database.models.topup_order import TopupOrder
-from src.bot.states.state_manager import StateManager
 from src.payos.client import build_payos_client
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class AutoCancelService:
             return future.result(timeout=30)
         return asyncio.run(coro)
     
-    def find_expired_pending_orders(self, minutes: int = 10) -> List[Order]:
+    def find_expired_pending_orders(self, minutes: int = 10) -> list[Order]:
         """
         Find PENDING orders older than specified minutes.
         
@@ -104,7 +105,7 @@ class AutoCancelService:
                     )
                     logger.info(f"Cancelled PayOS payment link {order.payos_payment_link_id} for order {order.id}")
                 except Exception as e:
-                    logger.warning(f"Failed to cancel PayOS payment link for order {order.id}: {str(e)}")
+                    logger.warning(f"Failed to cancel PayOS payment link for order {order.id}: {e!s}")
             
             # Cancel the order
             cancelled_order = self.order_service.cancel_order(order.id)
@@ -123,7 +124,7 @@ class AutoCancelService:
                         # Clear payment message ID from state
                         state_manager.update_user_state(cancelled_order.user_id, payment_message_id=None)
                     except Exception as e:
-                        logger.warning(f"Could not delete payment message: {str(e)}")
+                        logger.warning(f"Could not delete payment message: {e!s}")
             
             # Send notification if bot instance is available
             if send_notification and self.bot:
@@ -142,17 +143,17 @@ class AutoCancelService:
                     logger.info(f"Sent auto-cancellation notification to user {cancelled_order.user_id}")
                 except Exception as e:
                     logger.error(
-                        f"Failed to send auto-cancellation notification to user {cancelled_order.user_id}: {str(e)}"
+                        f"Failed to send auto-cancellation notification to user {cancelled_order.user_id}: {e!s}"
                     )
             
             return True
             
         except ValueError as e:
             # Order cannot be cancelled (race condition - already paid/cancelled)
-            logger.warning(f"Cannot auto-cancel order {order.id}: {str(e)}")
+            logger.warning(f"Cannot auto-cancel order {order.id}: {e!s}")
             return False
         except Exception as e:
-            logger.error(f"Error auto-cancelling order {order.id}: {str(e)}", exc_info=True)
+            logger.error(f"Error auto-cancelling order {order.id}: {e!s}", exc_info=True)
             return False
     
     def process_expired_orders(self, minutes: int = 10, send_notification: bool = True) -> dict:
@@ -193,7 +194,7 @@ class AutoCancelService:
     # Topup auto-cancel methods (parallel to the order variants above)
     # ------------------------------------------------------------------
 
-    def find_expired_pending_topups(self, minutes: int = 10) -> List[TopupOrder]:
+    def find_expired_pending_topups(self, minutes: int = 10) -> list[TopupOrder]:
         """
         Find PENDING TopupOrders older than `minutes` minutes.
 
@@ -243,7 +244,7 @@ class AutoCancelService:
                     )
                 except Exception as e:
                     logger.warning(
-                        f"Failed to cancel PayOS payment link for topup {topup.id}: {str(e)}"
+                        f"Failed to cancel PayOS payment link for topup {topup.id}: {e!s}"
                     )
 
             # Send user notification if bot is available.
@@ -264,13 +265,13 @@ class AutoCancelService:
                 except Exception as e:
                     logger.error(
                         f"Failed to send auto-cancellation notification to user {topup.user_id} "
-                        f"for topup {topup.id}: {str(e)}"
+                        f"for topup {topup.id}: {e!s}"
                     )
 
             return True
 
         except Exception as e:
-            logger.error(f"Error auto-cancelling topup {topup.id}: {str(e)}", exc_info=True)
+            logger.error(f"Error auto-cancelling topup {topup.id}: {e!s}", exc_info=True)
             return False
 
     def process_expired_topups(self, minutes: int = 10, send_notification: bool = True) -> dict:
@@ -311,7 +312,7 @@ class AutoCancelService:
     # Expiry warning methods (1 minute before cancellation)
     # ------------------------------------------------------------------
 
-    def find_expiring_soon_orders(self, expire_minutes: int = 10, warn_minutes: int = 1) -> List[Order]:
+    def find_expiring_soon_orders(self, expire_minutes: int = 10, warn_minutes: int = 1) -> list[Order]:
         """Find PENDING orders that have `warn_minutes` left before expiry."""
         now = datetime.now(timezone.utc)
         # Orders created between (expire_minutes) and (expire_minutes - warn_minutes) ago
@@ -325,7 +326,7 @@ class AutoCancelService:
             )
         ).all()
 
-    def find_expiring_soon_topups(self, expire_minutes: int = 10, warn_minutes: int = 1) -> List[TopupOrder]:
+    def find_expiring_soon_topups(self, expire_minutes: int = 10, warn_minutes: int = 1) -> list[TopupOrder]:
         """Find PENDING topups that have `warn_minutes` left before expiry."""
         now = datetime.now(timezone.utc)
         window_end = now - timedelta(minutes=expire_minutes - warn_minutes)
@@ -354,7 +355,7 @@ class AutoCancelService:
             logger.info(f"Sent expiry warning for order {order.id} to user {order.user_id}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send expiry warning for order {order.id}: {str(e)}")
+            logger.error(f"Failed to send expiry warning for order {order.id}: {e!s}")
             return False
 
     def send_expiry_warning_topup(self, topup: TopupOrder) -> bool:
@@ -373,7 +374,7 @@ class AutoCancelService:
             logger.info(f"Sent expiry warning for topup {topup.id} to user {topup.user_id}")
             return True
         except Exception as e:
-            logger.error(f"Failed to send expiry warning for topup {topup.id}: {str(e)}")
+            logger.error(f"Failed to send expiry warning for topup {topup.id}: {e!s}")
             return False
 
     def process_expiring_soon(self, warned_order_ids: set, warned_topup_ids: set) -> dict:

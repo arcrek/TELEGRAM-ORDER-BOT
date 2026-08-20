@@ -1,14 +1,14 @@
-from src.database.connection import create_engine_instance
-from src.database.models.base import Base
-from src.database.models.order import Order
-from src.database.models.bot_user import BotUser
-from src.database.models.enums import OrderStatus
-from src.database.services.order_service import OrderService
-from src.database.services.balance_service import BalanceService
 from sqlalchemy.orm import sessionmaker
 
 # Import all models so Base.metadata is fully populated before create_all.
 import src.database.models  # noqa: F401
+from src.database.connection import create_engine_instance
+from src.database.models.base import Base
+from src.database.models.bot_user import BotUser
+from src.database.models.enums import OrderStatus
+from src.database.models.order import Order
+from src.database.services.balance_service import BalanceService
+from src.database.services.order_service import OrderService
 
 
 def _session():

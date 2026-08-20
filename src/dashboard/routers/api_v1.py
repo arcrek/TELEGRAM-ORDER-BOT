@@ -11,7 +11,7 @@ convention.
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -54,7 +54,7 @@ class ApiProductOut(BaseModel):
 
     id: str
     name: str
-    description: Optional[str]
+    description: str | None
     delivery_type: str
     is_active: bool
     variations: list[ApiVariationOut]
@@ -90,9 +90,9 @@ class ApiDeliveredProduct(BaseModel):
     """A single delivered pre-uploaded product row."""
 
     id: str
-    used_at: Optional[str]
+    used_at: str | None
     display: str
-    data: Optional[dict[str, Any]]
+    data: dict[str, Any] | None
 
 
 class ApiOrderItemOut(BaseModel):
@@ -105,10 +105,10 @@ class ApiOrderItemOut(BaseModel):
     unit_price: int
     subtotal: int
     discount_amount: int
-    product_id: Optional[str]
-    product_name: Optional[str]
-    variation_id: Optional[str]
-    variation_name: Optional[str]
+    product_id: str | None
+    product_name: str | None
+    variation_id: str | None
+    variation_name: str | None
     delivered_products: list[ApiDeliveredProduct]
     delivered_count: int
 
@@ -120,7 +120,7 @@ class ApiOrderOut(BaseModel):
     status: str
     total_amount: int
     discount_amount: int
-    payment_transaction_id: Optional[str]
+    payment_transaction_id: str | None
     created_at: str
     updated_at: str
     items: list[ApiOrderItemOut]
@@ -149,7 +149,7 @@ class ApiChargedUndeliveredError(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _build_product_out(product, db: Session) -> Optional[ApiProductOut]:
+def _build_product_out(product, db: Session) -> ApiProductOut | None:
     """Build ApiProductOut for a single product, or None if not PRE_UPLOADED."""
     if product.delivery_type != DeliveryType.PRE_UPLOADED:
         return None
@@ -235,7 +235,7 @@ def _build_order_out(details: dict) -> ApiOrderOut:
 async def list_products(
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
-    search: Optional[str] = None,
+    search: str | None = None,
     db: Session = Depends(get_db),
     current_user: BotUser = Depends(get_api_user),
 ) -> ApiProductListOut:
@@ -442,7 +442,7 @@ async def create_order(
 
     # 6. Fulfill via IPN processor (mirrors callbacks.py:1471-1485)
     delivery_ok = False
-    delivery_error: Optional[Exception] = None
+    delivery_error: Exception | None = None
     try:
         loop = asyncio.get_running_loop()
         delivery_ok = await loop.run_in_executor(

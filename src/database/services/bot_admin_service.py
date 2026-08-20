@@ -2,7 +2,6 @@
 BotAdmin service — persistent DB-backed storage for bot-admin Telegram IDs.
 """
 import uuid
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -19,11 +18,11 @@ class BotAdminService:
     # Queries
     # ------------------------------------------------------------------
 
-    def list_all(self) -> List[BotAdmin]:
+    def list_all(self) -> list[BotAdmin]:
         """Return every stored bot admin record."""
         return self.session.query(BotAdmin).order_by(BotAdmin.created_at.asc()).all()
 
-    def get_all_telegram_ids(self) -> List[int]:
+    def get_all_telegram_ids(self) -> list[int]:
         """Return every stored admin Telegram user ID."""
         rows = self.session.query(BotAdmin.telegram_user_id).all()
         return [row[0] for row in rows]
@@ -40,7 +39,7 @@ class BotAdminService:
     # Mutations
     # ------------------------------------------------------------------
 
-    def add(self, telegram_user_id: int, added_by: Optional[int] = None) -> BotAdmin:
+    def add(self, telegram_user_id: int, added_by: int | None = None) -> BotAdmin:
         """
         Insert a new bot admin record.
 

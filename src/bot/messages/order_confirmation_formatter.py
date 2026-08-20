@@ -1,10 +1,11 @@
 """
 Order confirmation formatter for Telegram messages.
 """
-from typing import Optional, Tuple
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from src.database.models import Product, ProductVariation
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+
 from src.bot.utils.language import t
+from src.database.models import Product, ProductVariation
 
 
 class OrderConfirmationFormatter:
@@ -18,10 +19,10 @@ class OrderConfirmationFormatter:
         product: Product,
         variation: ProductVariation,
         quantity: int,
-        update: Optional[Update] = None,
+        update: Update | None = None,
         bonus_quantity: int = 0,
-        bonus_label: Optional[str] = None,
-        discount_label: Optional[str] = None,
+        bonus_label: str | None = None,
+        discount_label: str | None = None,
         discount_amount: int = 0,
         sold_count: int = 0,
     ) -> str:
@@ -96,7 +97,7 @@ class OrderConfirmationFormatter:
         session,
         language: str = 'vi',
         benefit_mode: str = 'bonus',
-    ) -> Tuple[Optional[str], int]:
+    ) -> tuple[str | None, int]:
         """
         Get applicable discount label and savings amount for the given quantity.
 
@@ -131,7 +132,7 @@ class OrderConfirmationFormatter:
         stock: int,
         session,
         language: str = 'vi',
-    ) -> Tuple[int, Optional[str]]:
+    ) -> tuple[int, str | None]:
         """
         Get applicable bonus for a given quantity and stock.
         
@@ -194,7 +195,7 @@ class OrderConfirmationFormatter:
         variation_id: str,
         quantity: int,
         max_stock: int,
-        update: Optional[Update] = None,
+        update: Update | None = None,
     ) -> InlineKeyboardMarkup:
         """
         Create inline keyboard for quantity adjustment.

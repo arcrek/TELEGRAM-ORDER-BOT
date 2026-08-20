@@ -3,21 +3,22 @@ Pre-uploaded product management router.
 """
 
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import Literal
+
+from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
-from src.dashboard.auth import get_current_admin, require_admin_role, get_db
+from sqlalchemy.orm import Session
+
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
 from src.database.services.pre_uploaded_service import (
-    PreUploadedService,
     EXPIRING_SOON_DAYS,
+    PreUploadedService,
 )
-from dateutil.relativedelta import relativedelta
 from src.utils.datetime_format import to_utc_iso
-
 
 router = APIRouter()
 
@@ -32,8 +33,8 @@ class PreUploadedProductResponse(BaseModel):
     variation_name: str
     product_data: str
     is_used: bool
-    used_at: Optional[str]
-    used_by_order_id: Optional[str]
+    used_at: str | None
+    used_by_order_id: str | None
     created_at: str
 
     class Config:
@@ -49,10 +50,10 @@ class BulkDeleteRequest(BaseModel):
 class DeleteByDateRequest(BaseModel):
     """Request schema for deleting unsold stock by upload date range."""
 
-    product_id: Optional[str] = None
-    variation_id: Optional[str] = None
-    uploaded_from: Optional[str] = None
-    uploaded_to: Optional[str] = None
+    product_id: str | None = None
+    variation_id: str | None = None
+    uploaded_from: str | None = None
+    uploaded_to: str | None = None
     dry_run: bool = False
 
 
@@ -70,7 +71,7 @@ class ExportResponse(BaseModel):
     requested: int
     exported: int
     short: bool  # True when exported < requested
-    data: List[str]  # raw product_data strings, oldest-first
+    data: list[str]  # raw product_data strings, oldest-first
 
 
 def _parse_date(raw: str, field: str) -> datetime:
@@ -97,12 +98,12 @@ def _apply_aging_filter(
     """
     now = datetime.now(timezone.utc)
 
-    variants: List[ProductVariation] = db.query(ProductVariation).all()
+    variants: list[ProductVariation] = db.query(ProductVariation).all()
 
-    matching_ids: List[str] = []
+    matching_ids: list[str] = []
 
     # Variants without thresholds: every unsold item counts as in_stock
-    no_threshold_variation_ids: List[str] = []
+    no_threshold_variation_ids: list[str] = []
 
     for variant in variants:
         tv = variant.warning_threshold_value
@@ -176,13 +177,13 @@ def _apply_aging_filter(
 def _apply_common_filters(
     query,
     db: Session,
-    product_id: Optional[str],
-    variation_id: Optional[str],
-    is_used: Optional[bool],
-    uploaded_from: Optional[str],
-    uploaded_to: Optional[str],
-    aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]],
-    data_search: Optional[str] = None,
+    product_id: str | None,
+    variation_id: str | None,
+    is_used: bool | None,
+    uploaded_from: str | None,
+    uploaded_to: str | None,
+    aging_status: Literal["in_stock", "aging", "expiring_soon"] | None,
+    data_search: str | None = None,
 ):
     """Apply all shared filter params to a PreUploadedProduct query."""
     if product_id:
@@ -209,13 +210,13 @@ def _apply_common_filters(
 async def list_pre_uploaded_products(
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
-    product_id: Optional[str] = Query(None),
-    variation_id: Optional[str] = Query(None),
-    is_used: Optional[bool] = Query(None),
-    uploaded_from: Optional[str] = Query(None),
-    uploaded_to: Optional[str] = Query(None),
-    aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]] = Query(None),
-    data_search: Optional[str] = Query(None),
+    product_id: str | None = Query(None),
+    variation_id: str | None = Query(None),
+    is_used: bool | None = Query(None),
+    uploaded_from: str | None = Query(None),
+    uploaded_to: str | None = Query(None),
+    aging_status: Literal["in_stock", "aging", "expiring_soon"] | None = Query(None),
+    data_search: str | None = Query(None),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
@@ -284,12 +285,12 @@ async def get_inventory_stats(
 
 @router.get("/pre-uploaded-products/statistics")
 async def get_pre_uploaded_statistics(
-    product_id: Optional[str] = Query(None),
-    variation_id: Optional[str] = Query(None),
-    is_used: Optional[bool] = Query(None),
-    uploaded_from: Optional[str] = Query(None),
-    uploaded_to: Optional[str] = Query(None),
-    aging_status: Optional[Literal["in_stock", "aging", "expiring_soon"]] = Query(None),
+    product_id: str | None = Query(None),
+    variation_id: str | None = Query(None),
+    is_used: bool | None = Query(None),
+    uploaded_from: str | None = Query(None),
+    uploaded_to: str | None = Query(None),
+    aging_status: Literal["in_stock", "aging", "expiring_soon"] | None = Query(None),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
@@ -423,7 +424,7 @@ async def delete_pre_uploaded_by_date(
 @router.put("/pre-uploaded-products/{product_id}/mark-used")
 async def mark_product_as_used(
     product_id: str,
-    order_id: Optional[str] = None,
+    order_id: str | None = None,
     current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):

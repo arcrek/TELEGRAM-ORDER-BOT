@@ -7,13 +7,13 @@ Selection menus edit in place; the .txt files are sent as new documents.
 """
 import logging
 from io import BytesIO
-from typing import Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from src.bot.handlers.commands import state_manager
-from src.bot.messages.emoji_renderer import render as render_emoji, split_icon
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.messages.emoji_renderer import split_icon
 from src.bot.messages.export_formatter import build_variant_file
 from src.bot.states.state_manager import UserState
 from src.bot.utils.admin_check import is_admin
@@ -106,7 +106,7 @@ async def _render_product_list(
     data_user_id: int,
     *,
     edit: bool,
-    state_user_id: Optional[int] = None,
+    state_user_id: int | None = None,
 ) -> None:
     """Render the product-selection step.
 

@@ -1,9 +1,10 @@
 """
 Pre-uploaded product model.
 """
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

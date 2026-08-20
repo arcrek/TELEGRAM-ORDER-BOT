@@ -4,7 +4,6 @@ unit lists to Telegram <tg-emoji> HTML.
 """
 import html
 import json
-from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -18,14 +17,14 @@ class EmojiPlaceholderService:
         self.session = session
 
     # ---- queries -----------------------------------------------------------
-    def list_all(self) -> List[EmojiPlaceholder]:
+    def list_all(self) -> list[EmojiPlaceholder]:
         return (
             self.session.query(EmojiPlaceholder)
             .order_by(EmojiPlaceholder.id.asc())
             .all()
         )
 
-    def get(self, placeholder_id: int) -> Optional[EmojiPlaceholder]:
+    def get(self, placeholder_id: int) -> EmojiPlaceholder | None:
         return self.session.get(EmojiPlaceholder, placeholder_id)
 
     def referenced_emoji_ids(self) -> set:
@@ -59,9 +58,9 @@ class EmojiPlaceholderService:
     def set_content(
         self,
         placeholder_id: int,
-        units: List[dict],
+        units: list[dict],
         raw_text: str,
-        set_by: Optional[int],
+        set_by: int | None,
     ) -> EmojiPlaceholder:
         row = self.get(placeholder_id)
         if row is None:
@@ -83,8 +82,8 @@ class EmojiPlaceholderService:
 
     # ---- rendering ---------------------------------------------------------
     @staticmethod
-    def units_to_html(units: List[dict]) -> str:
-        parts: List[str] = []
+    def units_to_html(units: list[dict]) -> str:
+        parts: list[str] = []
         for unit in units:
             if unit.get("t") == "emoji":
                 fallback = html.escape(unit.get("fb", ""))
@@ -103,10 +102,10 @@ class EmojiPlaceholderService:
         return self.units_to_html(json.loads(row.content))
 
     @staticmethod
-    def units_to_plain(units: List[dict]) -> str:
+    def units_to_plain(units: list[dict]) -> str:
         """Plain-text rendering: emoji units become their fallback char, text
         units their literal value. For contexts that cannot render <tg-emoji>."""
-        parts: List[str] = []
+        parts: list[str] = []
         for unit in units:
             if unit.get("t") == "emoji":
                 parts.append(unit.get("fb", ""))
@@ -121,7 +120,7 @@ class EmojiPlaceholderService:
             return ""
         return self.units_to_plain(json.loads(row.content))
 
-    def get_first_emoji_id(self, placeholder_id: int) -> Optional[str]:
+    def get_first_emoji_id(self, placeholder_id: int) -> str | None:
         """Return the custom_emoji_id of the placeholder's first emoji unit, or
         None if the placeholder is missing/empty or holds no emoji. Used to set a
         button's icon_custom_emoji_id (one icon per button)."""

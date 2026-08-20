@@ -2,17 +2,19 @@
 Tests for database models.
 Following TDD: Write tests first, then implement models.
 """
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models import (
     Base,
-    Product,
-    ProductVariation,
     Order,
     OrderItem,
     PreUploadedProduct,
+    Product,
+    ProductVariation,
     Supplier,
     SupplierOrder,
 )

@@ -5,11 +5,11 @@ from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
 from src.database.models.emoji_thumbnail import EmojiThumbnail
-from src.database.services.emoji_thumbnail_service import (
-    EmojiThumbnailService,
-    THUMBNAIL_NEGATIVE_TTL,
-)
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.database.services.emoji_thumbnail_service import (
+    THUMBNAIL_NEGATIVE_TTL,
+    EmojiThumbnailService,
+)
 
 
 def _session():

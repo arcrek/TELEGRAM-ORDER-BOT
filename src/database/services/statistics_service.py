@@ -2,10 +2,12 @@
 Statistics service for order and sales analytics.
 """
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
+
+from sqlalchemy import and_, extract, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, extract
-from src.database.models import Order, OrderItem, Product, BotUser, TopupOrder
+
+from src.database.models import BotUser, Order, OrderItem, Product, TopupOrder
 from src.database.models.enums import OrderStatus, TopupStatus
 from src.utils.datetime_format import resolve_tz
 
@@ -28,7 +30,7 @@ class StatisticsService:
         tz_name = AppSettingsService(self.session).get_settings().timezone
         return resolve_tz(tz_name)
 
-    def _get_date_range(self, period: str) -> Tuple[Optional[datetime], Optional[datetime]]:
+    def _get_date_range(self, period: str) -> tuple[datetime | None, datetime | None]:
         """
         Get date range for period filter, computed in the app timezone and returned
         as naive UTC datetimes for comparison against naive-UTC DB columns.
@@ -60,9 +62,9 @@ class StatisticsService:
     
     def get_total_orders_count(
         self,
-        period: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        period: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> int:
         """
         Get total orders count.
@@ -91,9 +93,9 @@ class StatisticsService:
 
     def get_total_revenue(
         self,
-        period: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        period: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> int:
         """
         Get total revenue (sum of paid and delivered orders).
@@ -127,9 +129,9 @@ class StatisticsService:
 
     def get_vendor_revenue(
         self,
-        period: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        period: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> int:
         """
         Get vendor cash revenue = QR-paid orders + PAID topups, excluding balance payments.
@@ -148,8 +150,8 @@ class StatisticsService:
         """
         # Resolve time window (naive UTC)
         if start_date or end_date:
-            sd: Optional[datetime] = start_date
-            ed: Optional[datetime] = end_date
+            sd: datetime | None = start_date
+            ed: datetime | None = end_date
         elif period:
             sd, ed = self._get_date_range(period)
         else:
@@ -181,9 +183,9 @@ class StatisticsService:
 
     def get_orders_by_status(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Dict[str, int]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict[str, int]:
         """
         Get orders grouped by status.
 
@@ -197,7 +199,7 @@ class StatisticsService:
             query = query.filter(Order.created_at <= end_date)
         return {status.value: count for status, count in query.all()}
     
-    def get_orders_by_product(self) -> List[Dict[str, any]]:
+    def get_orders_by_product(self) -> list[dict[str, any]]:
         """
         Get orders grouped by product.
         
@@ -228,9 +230,9 @@ class StatisticsService:
         self,
         interval: str = "daily",
         days: int = 30,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Dict[str, any]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, any]]:
         """
         Get revenue over time.
 
@@ -279,9 +281,9 @@ class StatisticsService:
     def get_top_selling_products(
         self,
         limit: int = 10,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Dict[str, any]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, any]]:
         """
         Get top selling products by quantity sold.
 
@@ -327,9 +329,9 @@ class StatisticsService:
 
     def get_total_sold_by_product(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Dict[str, any]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, any]]:
         """
         Get total sold quantity by product.
 
@@ -369,8 +371,8 @@ class StatisticsService:
     
     def get_total_sold_all_products(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> int:
         """
         Get total sold quantity for all products.
@@ -392,9 +394,9 @@ class StatisticsService:
     def get_recent_orders(
         self,
         limit: int = 10,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Dict[str, any]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, any]]:
         """
         Get recent orders.
 
@@ -430,9 +432,9 @@ class StatisticsService:
     
     def get_funnel(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Dict[str, Any]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, Any]]:
         """Conversion funnel: counts per status stage in pipeline order."""
         stages = [
             OrderStatus.PENDING,
@@ -453,9 +455,9 @@ class StatisticsService:
 
     def get_orders_heatmap(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> List[Dict[str, int]]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict[str, int]]:
         """Hour×weekday heatmap (168 cells). Returns [{day, hour, count}]."""
         q = self.session.query(
             extract("dow", Order.created_at).label("day"),
@@ -469,7 +471,7 @@ class StatisticsService:
         q = q.group_by("day", "hour")
 
         # Build full 7×24 grid
-        grid: Dict[Tuple[int, int], int] = {}
+        grid: dict[tuple[int, int], int] = {}
         for row in q.all():
             grid[(int(row.day), int(row.hour))] = int(row.count)
 
@@ -483,7 +485,7 @@ class StatisticsService:
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> Optional[float]:
+    ) -> float | None:
         """Revenue % change vs. equal-length prior period. None when no prior data."""
         period_len = end_date - start_date
         prev_start = start_date - period_len
@@ -513,7 +515,7 @@ class StatisticsService:
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> Optional[float]:
+    ) -> float | None:
         """Orders % change vs. equal-length prior period."""
         period_len = end_date - start_date
         prev_start = start_date - period_len
@@ -537,7 +539,7 @@ class StatisticsService:
         self,
         start_date: datetime,
         end_date: datetime,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Revenue by product with % change vs equal-length prior period."""
         current = self.get_total_sold_by_product(start_date, end_date)
         period_len = end_date - start_date
@@ -548,7 +550,7 @@ class StatisticsService:
         result = []
         for item in current:
             prev_rev = prev_lookup.get(item["product_id"], 0)
-            pct_change: Optional[float] = (
+            pct_change: float | None = (
                 round((item["revenue"] - prev_rev) / prev_rev * 100, 1)
                 if prev_rev > 0
                 else None
@@ -556,7 +558,7 @@ class StatisticsService:
             result.append({**item, "pct_change": pct_change})
         return result
 
-    def get_user_stats(self) -> Dict[str, int]:
+    def get_user_stats(self) -> dict[str, int]:
         """Count all users who pressed /start and how many are still active (not blocked)."""
         started = (
             self.session.query(func.count(BotUser.id))
@@ -574,9 +576,9 @@ class StatisticsService:
 
     def get_active_users(
         self,
-        start_date: Optional[datetime],
-        end_date: Optional[datetime],
-    ) -> Dict[str, Any]:
+        start_date: datetime | None,
+        end_date: datetime | None,
+    ) -> dict[str, Any]:
         """
         Count active users for a period.
 
@@ -602,7 +604,7 @@ class StatisticsService:
             current = _buyers(start_date, end_date)
             period_len = end_date - start_date
             previous = _buyers(start_date - period_len, start_date)
-            pct_change: Optional[float] = (
+            pct_change: float | None = (
                 round((current - previous) / previous * 100, 1)
                 if previous > 0
                 else None
@@ -619,9 +621,9 @@ class StatisticsService:
 
     def get_statistics_overview(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict[str, Any]:
         """
         Get comprehensive statistics overview with optional range filter.
 
@@ -632,7 +634,7 @@ class StatisticsService:
         Returns:
             Dictionary with all key statistics
         """
-        base: Dict[str, Any] = {
+        base: dict[str, Any] = {
             "total_orders": self.get_total_orders_count(start_date=start_date, end_date=end_date),
             "total_orders_today": self.get_total_orders_count("today"),
             "total_orders_this_week": self.get_total_orders_count("this_week"),
@@ -669,7 +671,7 @@ class StatisticsService:
             base["orders_delta"] = None
         return base
 
-    def get_top_buyers_today(self, limit: int = 5) -> List[Dict[str, Any]]:
+    def get_top_buyers_today(self, limit: int = 5) -> list[dict[str, Any]]:
         """
         Get top buyers by total amount spent today (paid/delivered orders only).
 
@@ -713,10 +715,11 @@ class StatisticsService:
 
     def _upgrade_orders_query(self):
         from sqlalchemy import select
+
+        from src.database.models.enums import DeliveryType, OrderStatus
         from src.database.models.order import Order
         from src.database.models.order_item import OrderItem
         from src.database.models.product import Product
-        from src.database.models.enums import DeliveryType, OrderStatus
 
         # Orders that contain at least one UPGRADE-delivery product. Use a
         # subquery on order ids rather than a join: joining through OrderItem
@@ -737,7 +740,7 @@ class StatisticsService:
             .order_by(Order.created_at.asc())
         )
 
-    def get_todo_items(self) -> Dict[str, Any]:
+    def get_todo_items(self) -> dict[str, Any]:
         from src.database.services.pre_uploaded_service import PreUploadedService
 
         rows = self._upgrade_orders_query().all()

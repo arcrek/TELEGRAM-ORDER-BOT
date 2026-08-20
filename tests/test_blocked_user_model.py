@@ -3,6 +3,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models.base import Base
 from src.database.models.blocked_users import BlockedUser
 

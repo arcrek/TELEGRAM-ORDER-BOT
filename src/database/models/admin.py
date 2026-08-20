@@ -2,8 +2,11 @@
 Admin model for dashboard access.
 """
 from enum import Enum
-from sqlalchemy import Column, String, DateTime, Boolean, Enum as SQLEnum
+
+from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

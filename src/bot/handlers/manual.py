@@ -1,12 +1,14 @@
 """Manual (user guide) bot handlers."""
 
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from src.database.connection import get_session_factory
-from src.database.services.manual_service import ManualService
+
 from src.bot.handlers.callbacks import state_manager
 from src.bot.utils.language import t
+from src.database.connection import get_session_factory
+from src.database.services.manual_service import ManualService
 
 logger = logging.getLogger(__name__)
 

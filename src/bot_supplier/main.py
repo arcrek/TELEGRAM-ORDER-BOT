@@ -1,12 +1,14 @@
 """
 Main entry point for the supplier Telegram bot.
 """
-import os
 import logging
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import os
+
 from dotenv import load_dotenv
-from src.bot_supplier.handlers.commands import start, register, help_command
+from telegram import Bot, Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
+
+from src.bot_supplier.handlers.commands import help_command, register, start
 from src.bot_supplier.handlers.messages import handle_supplier_reply
 from src.ipn import set_global_supplier_bot
 

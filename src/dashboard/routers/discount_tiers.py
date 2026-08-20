@@ -1,10 +1,11 @@
 """
 Discount tiers router.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.discount_tier_service import DiscountTierService
 from src.utils.datetime_format import to_utc_iso
@@ -20,10 +21,10 @@ class DiscountTierCreate(BaseModel):
 
 
 class DiscountTierUpdate(BaseModel):
-    min_quantity: Optional[int] = Field(None, ge=1)
-    discount_type: Optional[str] = None
-    discount_value: Optional[int] = Field(None, ge=1)
-    is_active: Optional[bool] = None
+    min_quantity: int | None = Field(None, ge=1)
+    discount_type: str | None = None
+    discount_value: int | None = Field(None, ge=1)
+    is_active: bool | None = None
 
 
 def _tier_dict(tier) -> dict:
@@ -112,4 +113,3 @@ async def delete_discount_tier(
     service = DiscountTierService(db)
     if not service.delete_discount_tier(tier_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Discount tier not found")
-    return None

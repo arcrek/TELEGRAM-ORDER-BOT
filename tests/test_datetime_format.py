@@ -6,13 +6,12 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from src.utils.datetime_format import (
-    to_utc_iso,
-    resolve_tz,
-    now_local,
     format_local,
+    now_local,
+    resolve_tz,
+    to_utc_iso,
     validate_timezone,
 )
-
 
 # ---------------------------------------------------------------------------
 # to_utc_iso

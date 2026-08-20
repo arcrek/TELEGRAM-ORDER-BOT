@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 @router.post("/webhook")
-async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> dict[str, Any]:
     """
     PayOS webhook endpoint.
 

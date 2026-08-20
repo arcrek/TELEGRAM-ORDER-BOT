@@ -15,10 +15,10 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from src.database.connection import get_session_factory
-from src.database.services.bot_user_service import BotUserService
-from src.database.services.app_settings_service import AppSettingsService
 from src.bot.utils.language import t
+from src.database.connection import get_session_factory
+from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.bot_user_service import BotUserService
 
 logger = logging.getLogger(__name__)
 

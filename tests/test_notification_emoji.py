@@ -3,7 +3,9 @@ from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
-from src.database.services.notification_settings_service import NotificationSettingsService
+from src.database.services.notification_settings_service import (
+    NotificationSettingsService,
+)
 from src.database.services.order_notification_service import OrderNotificationService
 
 

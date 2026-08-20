@@ -4,18 +4,20 @@ Order notification service for sending new-order alerts to whitelisted chat IDs.
 import asyncio
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any
+
 from sqlalchemy.orm import Session
 from telegram import Bot
 from telegram.error import TelegramError
+
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.database.models import Order
+from src.database.services.app_settings_service import AppSettingsService
 from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
-from src.database.services.app_settings_service import AppSettingsService
-from src.utils.datetime_format import resolve_tz, format_local
+from src.utils.datetime_format import format_local, resolve_tz
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ logger = logging.getLogger(__name__)
 class OrderNotificationService:
     """High-level service for sending order lifecycle notifications to admins."""
 
-    def __init__(self, session: Session, bot: Optional[Bot] = None):
+    def __init__(self, session: Session, bot: Bot | None = None):
         """
         Initialize order notification service.
 
@@ -35,7 +37,7 @@ class OrderNotificationService:
         self.bot = bot
         self._settings_service = NotificationSettingsService(session)
 
-    def _compose_with_emoji(self, message: str) -> Tuple[str, Optional[str]]:
+    def _compose_with_emoji(self, message: str) -> tuple[str, str | None]:
         """
         Prepend/append the configured header/footer placeholders (as {emo:id}
         tokens) and render the whole thing. Returns (text, parse_mode).
@@ -50,7 +52,7 @@ class OrderNotificationService:
             combined = f"{combined}\n{{emo:{footer_id}}}"
         return render_emoji(combined, EmojiPlaceholderService(self.session))
 
-    async def _send_async(self, event: str, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
+    async def _send_async(self, event: str, order_id: str, delivery_data: str | None = None) -> dict[str, Any]:
         """
         Internal async implementation of sending an order notification.
 
@@ -116,8 +118,8 @@ class OrderNotificationService:
         return await self.send_message_to_whitelist_async(message=message, targets=whitelist_targets)
 
     async def send_message_to_whitelist_async(
-        self, message: str, targets: Optional[List[Dict[str, Optional[int]]]] = None
-    ) -> Dict[str, Any]:
+        self, message: str, targets: list[dict[str, int | None]] | None = None
+    ) -> dict[str, Any]:
         """
         Send a raw message to order notification whitelist targets.
         """
@@ -202,11 +204,11 @@ class OrderNotificationService:
 
         return results
 
-    def _get_order(self, order_id: str) -> Optional[Order]:
+    def _get_order(self, order_id: str) -> Order | None:
         """Fetch order by ID using the ORM session."""
         return self.session.query(Order).filter_by(id=order_id).first()
 
-    def _format_message(self, event: str, order: Order, delivery_data: Optional[str] = None) -> str:
+    def _format_message(self, event: str, order: Order, delivery_data: str | None = None) -> str:
         """
         Format a notification message.
 
@@ -277,7 +279,7 @@ class OrderNotificationService:
 
         return "\n".join(lines)
 
-    async def send_order_created_async(self, order_id: str) -> Dict[str, Any]:
+    async def send_order_created_async(self, order_id: str) -> dict[str, Any]:
         """
         Send notification for a newly created order (PENDING).
 
@@ -285,7 +287,7 @@ class OrderNotificationService:
         """
         return await self._send_async("created", order_id)
 
-    async def send_order_paid_async(self, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
+    async def send_order_paid_async(self, order_id: str, delivery_data: str | None = None) -> dict[str, Any]:
         """
         Send notification for a paid order (PAID).
 
@@ -295,8 +297,8 @@ class OrderNotificationService:
         return await self._send_async("paid", order_id, delivery_data=delivery_data)
 
     def prepare_order_paid_notification(
-        self, order: Order, delivery_data: Optional[str] = None
-    ) -> Optional[Tuple[str, List[Dict[str, Optional[int]]]]]:
+        self, order: Order, delivery_data: str | None = None
+    ) -> tuple[str, list[dict[str, int | None]]] | None:
         """Synchronously check settings and format an ORDER_PAID notification.
 
         Returns (message, targets) ready to pass to send_message_to_whitelist_async,
@@ -325,7 +327,7 @@ class OrderNotificationService:
 
     def prepare_topup_notification(
         self, topup, bot_user
-    ) -> Optional[Tuple[str, List[Dict[str, Optional[int]]]]]:
+    ) -> tuple[str, list[dict[str, int | None]]] | None:
         """Synchronously check settings and format a BALANCE_TOPUP_PAID notification.
 
         Returns (message, targets) ready to pass to send_message_to_whitelist_async,
@@ -353,7 +355,7 @@ class OrderNotificationService:
             return None
         return self._format_topup_message(topup, bot_user), targets
 
-    def send_order_paid(self, order_id: str, delivery_data: Optional[str] = None) -> Dict[str, Any]:
+    def send_order_paid(self, order_id: str, delivery_data: str | None = None) -> dict[str, Any]:
         """
         Blocking wrapper for send_order_paid_async, for use in sync flows
         such as the IPN server.
@@ -415,7 +417,7 @@ class OrderNotificationService:
         ])
         return "\n".join(lines)
 
-    async def _send_topup_async(self, topup_id: str) -> Dict[str, Any]:
+    async def _send_topup_async(self, topup_id: str) -> dict[str, Any]:
         """Async implementation of the BALANCE_TOPUP_PAID admin notification.
 
         Dispatch rules (mirroring the UPGRADE channel pattern):
@@ -468,8 +470,8 @@ class OrderNotificationService:
                 "skipped": "no_targets",
             }
 
-        from src.database.services.topup_service import TopupService
         from src.database.models.bot_user import BotUser
+        from src.database.services.topup_service import TopupService
 
         topup = TopupService(self.session).get_by_id(topup_id)
         if not topup:
@@ -485,7 +487,7 @@ class OrderNotificationService:
         message = self._format_topup_message(topup, bot_user)
         return await self.send_message_to_whitelist_async(message=message, targets=targets)
 
-    def send_topup_paid(self, topup_id: str) -> Dict[str, Any]:
+    def send_topup_paid(self, topup_id: str) -> dict[str, Any]:
         """
         Blocking wrapper for _send_topup_async, for use in sync flows
         such as the IPN processor.

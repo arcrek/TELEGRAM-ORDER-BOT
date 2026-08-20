@@ -3,17 +3,18 @@ Order model.
 """
 
 from sqlalchemy import (
-    Column,
-    String,
     BigInteger,
-    Integer,
+    Boolean,
+    Column,
     DateTime,
     Enum,
+    Integer,
+    String,
     Text,
-    Boolean,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 from src.database.models.enums import OrderStatus
 

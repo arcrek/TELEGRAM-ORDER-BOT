@@ -1,7 +1,8 @@
 """
 Keyboard utility functions for persistent keyboards.
 """
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram import KeyboardButton, ReplyKeyboardMarkup, Update
+
 from src.bot.utils.language import t
 
 

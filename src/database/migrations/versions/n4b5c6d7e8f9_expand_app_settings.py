@@ -1,7 +1,7 @@
 """Expand global app settings with operator identity fields."""
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "n4b5c6d7e8f9"
 down_revision = "m3a4b5c6d7e8"

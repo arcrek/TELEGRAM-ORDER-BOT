@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
 from src.database.services.app_settings_service import AppSettingsService
 
-
 router = APIRouter()
 
 

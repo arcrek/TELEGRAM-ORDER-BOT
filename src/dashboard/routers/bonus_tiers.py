@@ -1,14 +1,14 @@
 """
 Bonus tiers router.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_current_admin, get_db
 from src.database.services.bonus_tier_service import BonusTierService
 from src.utils.datetime_format import to_utc_iso
-
 
 router = APIRouter()
 
@@ -22,9 +22,9 @@ class BonusTierCreate(BaseModel):
 
 class BonusTierUpdate(BaseModel):
     """Bonus tier update schema."""
-    min_quantity: Optional[int] = Field(None, ge=1, description="Minimum quantity to qualify for bonus")
-    bonus_quantity: Optional[int] = Field(None, ge=1, description="Number of free items")
-    is_active: Optional[bool] = None
+    min_quantity: int | None = Field(None, ge=1, description="Minimum quantity to qualify for bonus")
+    bonus_quantity: int | None = Field(None, ge=1, description="Number of free items")
+    is_active: bool | None = None
 
 
 class BonusTierResponse(BaseModel):
@@ -211,4 +211,3 @@ async def delete_bonus_tier(
     if not service.delete_bonus_tier(tier_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bonus tier not found")
     
-    return None

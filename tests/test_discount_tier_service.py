@@ -4,11 +4,12 @@ Tests for DiscountTierService.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
+
 from src.database.models import DeliveryType
+from src.database.models.base import Base
 from src.database.services.discount_tier_service import DiscountTierService
-from src.database.services.variation_service import VariationService
 from src.database.services.product_service import ProductService
+from src.database.services.variation_service import VariationService
 
 
 @pytest.fixture

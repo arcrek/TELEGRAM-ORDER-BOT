@@ -1,6 +1,5 @@
 """Dashboard CRUD API for emoji placeholders."""
 import json
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, computed_field
@@ -14,17 +13,17 @@ router = APIRouter()
 
 class EmojiUnit(BaseModel):
     type: str  # 'text' | 'emoji'
-    value: Optional[str] = None
-    emoji_id: Optional[str] = None
-    fallback: Optional[str] = None
+    value: str | None = None
+    emoji_id: str | None = None
+    fallback: str | None = None
 
 
 class EmojiPlaceholderResponse(BaseModel):
     id: int
     name: str
     configured: bool
-    raw_text: Optional[str] = None
-    units: List[EmojiUnit] = []
+    raw_text: str | None = None
+    units: list[EmojiUnit] = []
 
     @computed_field
     @property
@@ -40,10 +39,10 @@ class EmojiPlaceholderUpdate(BaseModel):
     name: str
 
 
-def _parse_units(content: Optional[str]) -> List[EmojiUnit]:
+def _parse_units(content: str | None) -> list[EmojiUnit]:
     if not content:
         return []
-    out: List[EmojiUnit] = []
+    out: list[EmojiUnit] = []
     for u in json.loads(content):
         if u.get("t") == "emoji":
             out.append(EmojiUnit(type="emoji", emoji_id=str(u.get("id")), fallback=u.get("fb", "")))
@@ -62,8 +61,8 @@ def _to_response(row) -> EmojiPlaceholderResponse:
     )
 
 
-@router.get("", response_model=List[EmojiPlaceholderResponse], include_in_schema=True)
-@router.get("/", response_model=List[EmojiPlaceholderResponse], include_in_schema=False)
+@router.get("", response_model=list[EmojiPlaceholderResponse], include_in_schema=True)
+@router.get("/", response_model=list[EmojiPlaceholderResponse], include_in_schema=False)
 async def list_placeholders(
     current_admin=Depends(require_viewer_or_admin),
     db: Session = Depends(get_db),
@@ -116,4 +115,3 @@ async def delete_placeholder(
 ):
     if not EmojiPlaceholderService(db).delete(placeholder_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
-    return None

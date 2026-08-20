@@ -11,9 +11,8 @@ Revises: b8c9d0e1f2a3
 Create Date: 2026-04-30 00:00:00.000000
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision = "c9d0e1f2a3b4"
 down_revision = "b8c9d0e1f2a3"

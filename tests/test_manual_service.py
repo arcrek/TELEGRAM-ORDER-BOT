@@ -4,11 +4,12 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from src.dashboard.routers.manuals import ManualCreate
 from src.database.models.base import Base
 from src.database.models.enums import DeliveryType
 from src.database.services.manual_service import ManualService
 from src.database.services.product_service import ProductService
-from src.dashboard.routers.manuals import ManualCreate
 
 
 @pytest.fixture

@@ -1,21 +1,22 @@
 """Tests for the consolidated multipart notifications /send endpoint."""
+import atexit
 import io
-import pytest
+import os
+import tempfile
 from unittest.mock import Mock
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
 from src.dashboard.routers import notifications as notif_router
+from src.database.models import *
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
 from src.database.services.bot_user_service import BotUserService
-from src.dashboard.auth import get_password_hash, create_access_token, get_db
-from src.database.models import *  # noqa: F401,F403
-
-import tempfile
-import os
-import atexit
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
 test_db_path = test_db_file.name

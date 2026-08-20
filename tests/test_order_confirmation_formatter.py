@@ -4,8 +4,9 @@ Following TDD: Write tests first, then implement formatter.
 """
 import pytest
 from telegram import InlineKeyboardMarkup
+
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
-from src.database.models import Product, ProductVariation, DeliveryType
+from src.database.models import DeliveryType, Product, ProductVariation
 
 
 @pytest.fixture

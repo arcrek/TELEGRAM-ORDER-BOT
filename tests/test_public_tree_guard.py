@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 GUARD = ROOT / "scripts" / "check_public_tree.sh"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"

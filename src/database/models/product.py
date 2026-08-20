@@ -1,9 +1,10 @@
 """
 Product model.
 """
-from sqlalchemy import Column, String, Text, Boolean, DateTime, Enum
+from sqlalchemy import Boolean, Column, DateTime, Enum, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 from src.database.models.enums import DeliveryType
 

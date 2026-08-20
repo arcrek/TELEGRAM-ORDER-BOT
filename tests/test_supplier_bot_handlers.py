@@ -1,11 +1,13 @@
 """
 Tests for supplier bot handlers.
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from telegram import Update, Message, User, Chat
+
+import pytest
+from telegram import Chat, Message, Update, User
 from telegram.ext import ContextTypes
-from src.bot_supplier.handlers.commands import start, register, help_command
+
+from src.bot_supplier.handlers.commands import help_command, register, start
 from src.bot_supplier.handlers.messages import handle_supplier_reply, parse_product_data
 from src.database.services.supplier_service import SupplierService
 
@@ -16,6 +18,7 @@ def db_session():
     # Use in-memory SQLite for isolation
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from src.database.models.base import Base
     
     engine = create_engine("sqlite:///:memory:")

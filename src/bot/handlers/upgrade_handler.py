@@ -25,26 +25,28 @@ import html as html_module
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
-from src.bot.messages.emoji_renderer import render as render_emoji, substitute_plain
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.messages.emoji_renderer import substitute_plain
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.admin_check import is_admin
 from src.bot.utils.language import t
 from src.database.connection import get_session_factory
-from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.models import Order
 from src.database.models.enums import DeliveryType, OrderStatus
-from src.database.services.notification_settings_service import NotificationSettingsService
+from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.database.services.notification_settings_service import (
+    NotificationSettingsService,
+)
 from src.database.services.order_service import OrderService
 from src.database.services.user_preference_service import UserPreferenceService
 from src.i18n.bot_translations import get_translation
-from src.database.services.app_settings_service import AppSettingsService
-from src.utils.datetime_format import resolve_tz, format_local
+from src.utils.datetime_format import format_local, resolve_tz
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +243,7 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                             )
 
                     # Done prompt is only sent on the first reply, not additional ones.
-                    done_msg_id: Optional[int] = None
+                    done_msg_id: int | None = None
                     if not is_additional:
                         try:
                             done_msg = await context.bot.send_message(**done_kwargs)
@@ -284,7 +286,7 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
             logger.error(f"Failed to send UPGRADE confirmation to user {user_id}: {e}")
 
     except Exception as e:
-        logger.error(f"Error in _handle_customer_reply: {str(e)}", exc_info=True)
+        logger.error(f"Error in _handle_customer_reply: {e!s}", exc_info=True)
         session.rollback()
     finally:
         session.close()
@@ -362,7 +364,7 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
             logger.warning(f"Failed to confirm admin update for order {order.id}: {e}")
 
     except Exception as e:
-        logger.error(f"Error in _handle_admin_reply: {str(e)}", exc_info=True)
+        logger.error(f"Error in _handle_admin_reply: {e!s}", exc_info=True)
         session.rollback()
     finally:
         session.close()
@@ -373,7 +375,7 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ---------------------------------------------------------------------------
 
 
-def _load_forwards(raw: Optional[str]) -> list[dict]:
+def _load_forwards(raw: str | None) -> list[dict]:
     if not raw:
         return []
     try:
@@ -383,7 +385,7 @@ def _load_forwards(raw: Optional[str]) -> list[dict]:
         return []
 
 
-def _find_order_by_forward_message(session, chat_id: int, message_id: int) -> Optional[Order]:
+def _find_order_by_forward_message(session, chat_id: int, message_id: int) -> Order | None:
     """Return the Order whose stored forward IDs match this reply target."""
     candidates = (
         session.query(Order)
@@ -519,7 +521,7 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer()
 
     except Exception as e:
-        logger.error(f"Error in handle_upgrade_done: {str(e)}", exc_info=True)
+        logger.error(f"Error in handle_upgrade_done: {e!s}", exc_info=True)
         session.rollback()
         try:
             await query.answer(

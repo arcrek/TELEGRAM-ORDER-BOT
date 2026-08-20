@@ -5,6 +5,7 @@ Following TDD: Write tests first, then implement service.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models.base import Base
 from src.database.services.bot_user_service import BotUserService
 

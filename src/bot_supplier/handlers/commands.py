@@ -2,8 +2,10 @@
 Command handlers for the supplier bot.
 """
 import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
 from src.database.connection import get_session_factory
 from src.database.services.supplier_service import SupplierService
 
@@ -87,7 +89,7 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             )
             
     except Exception as e:
-        logger.error(f"Error during supplier registration: {str(e)}", exc_info=True)
+        logger.error(f"Error during supplier registration: {e!s}", exc_info=True)
         await update.message.reply_text(
             "❌ An error occurred during registration. Please try again later."
         )

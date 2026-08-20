@@ -3,17 +3,19 @@ Tests for pre-uploaded product service.
 """
 
 import json
-import pytest
 from datetime import datetime, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models.base import Base
-from src.database.services.pre_uploaded_service import PreUploadedService
-from src.database.services.order_service import OrderService
 from src.database.models.enums import DeliveryType
+from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-from src.database.models.pre_uploaded_product import PreUploadedProduct
+from src.database.services.order_service import OrderService
+from src.database.services.pre_uploaded_service import PreUploadedService
 
 
 @pytest.fixture

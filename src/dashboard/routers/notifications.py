@@ -1,23 +1,24 @@
 """
 Notifications router for sending custom notifications to bot users.
 """
-import os
 import logging
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status, Form, File, UploadFile
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from telegram import Bot
+import os
+
 from dotenv import load_dotenv
-from src.dashboard.auth import get_current_admin, require_admin_role, get_db
-from src.database.services.notification_service import NotificationService
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from telegram import Bot
+
+from src.bot.utils.bot_instance import get_shared_bot_instance
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.services.bot_user_service import BotUserService
+from src.database.services.notification_service import NotificationService
 from src.database.services.notification_settings_service import (
     NotificationSettingsService,
 )
 from src.database.services.order_notification_service import OrderNotificationService
 from src.ipn import get_global_customer_bot
-from src.bot.utils.bot_instance import get_shared_bot_instance
 from src.utils.datetime_format import to_utc_iso
 
 # Load environment variables
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def get_bot_instance() -> Optional[Bot]:
+def get_bot_instance() -> Bot | None:
     """
     Get bot instance for sending notifications.
     Tries multiple sources in order:
@@ -56,7 +57,7 @@ def get_bot_instance() -> Optional[Bot]:
             logger.info("Creating bot instance from TELEGRAM_BOT_TOKEN")
             return Bot(token=bot_token)
         except Exception as e:
-            logger.error(f"Failed to create bot instance from token: {str(e)}", exc_info=True)
+            logger.error(f"Failed to create bot instance from token: {e!s}", exc_info=True)
             return None
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not found in environment variables")
@@ -70,7 +71,7 @@ class NotificationResponse(BaseModel):
     total: int
     successful: int
     failed: int
-    details: Optional[List[dict]] = None
+    details: list[dict] | None = None
 
 
 class OrderNotificationSettingsResponse(BaseModel):
@@ -80,11 +81,11 @@ class OrderNotificationSettingsResponse(BaseModel):
     order_notify_on_created: bool
     order_notify_on_paid: bool
     topup_notify_on_paid: bool
-    whitelist_chat_ids: List[str]
-    upgrade_chat_ids: List[str]
-    topup_chat_ids: List[str]
-    header_placeholder_id: Optional[int] = None
-    footer_placeholder_id: Optional[int] = None
+    whitelist_chat_ids: list[str]
+    upgrade_chat_ids: list[str]
+    topup_chat_ids: list[str]
+    header_placeholder_id: int | None = None
+    footer_placeholder_id: int | None = None
 
 
 class OrderNotificationSettingsUpdate(BaseModel):
@@ -94,18 +95,18 @@ class OrderNotificationSettingsUpdate(BaseModel):
     order_notify_on_created: bool
     order_notify_on_paid: bool
     topup_notify_on_paid: bool
-    whitelist_chat_ids: List[str]
-    upgrade_chat_ids: List[str]
-    topup_chat_ids: List[str]
-    header_placeholder_id: Optional[int] = None
-    footer_placeholder_id: Optional[int] = None
+    whitelist_chat_ids: list[str]
+    upgrade_chat_ids: list[str]
+    topup_chat_ids: list[str]
+    header_placeholder_id: int | None = None
+    footer_placeholder_id: int | None = None
 
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # Telegram send_photo cap
 VALID_AUDIENCES = {"all", "active", "specific"}
 
 
-def _parse_user_ids(raw: Optional[str]) -> List[int]:
+def _parse_user_ids(raw: str | None) -> list[int]:
     """Parse a comma-separated telegram id string into a deduped int list."""
     if not raw:
         return []
@@ -128,8 +129,8 @@ def _parse_user_ids(raw: Optional[str]) -> List[int]:
 async def send_notification(
     message: str = Form(""),
     audience: str = Form("all"),
-    user_ids: Optional[str] = Form(None),
-    image: Optional[UploadFile] = File(None),
+    user_ids: str | None = Form(None),
+    image: UploadFile | None = File(None),
     current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
@@ -145,7 +146,7 @@ async def send_notification(
         )
 
     has_text = bool(message and message.strip())
-    image_bytes: Optional[bytes] = None
+    image_bytes: bytes | None = None
     if image is not None:
         if not (image.content_type or "").startswith("image/"):
             raise HTTPException(
@@ -165,7 +166,7 @@ async def send_notification(
             detail="Provide a message, an image, or both.",
         )
 
-    parsed_ids: List[int] = []
+    parsed_ids: list[int] = []
     if audience == "specific":
         parsed_ids = _parse_user_ids(user_ids)
         if not parsed_ids:

@@ -1,15 +1,17 @@
 """
 Tests for dashboard authentication.
 """
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from jose import jwt
+
 import src.dashboard.auth as _auth_module
 from src.dashboard.auth import (
-    verify_password,
-    get_password_hash,
-    create_access_token,
     ALGORITHM,
+    create_access_token,
+    get_password_hash,
+    verify_password,
 )
 
 
@@ -99,6 +101,7 @@ class TestJWTToken:
 def test_create_access_token_requires_secret_key(monkeypatch):
     """A missing DASHBOARD_SECRET_KEY must produce a clear error, not a jose traceback."""
     import pytest
+
     from src.dashboard import auth as dashboard_auth
 
     monkeypatch.delenv("DASHBOARD_SECRET_KEY", raising=False)

@@ -4,13 +4,14 @@ Tests for supplier order service.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.database.models.base import Base
-from src.database.services.supplier_order_service import SupplierOrderService
-from src.database.services.order_service import OrderService
 from src.database.models.enums import DeliveryType, SupplierOrderStatus
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
 from src.database.models.supplier import Supplier
+from src.database.services.order_service import OrderService
+from src.database.services.supplier_order_service import SupplierOrderService
 
 
 @pytest.fixture

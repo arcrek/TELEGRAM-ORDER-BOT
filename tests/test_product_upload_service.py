@@ -4,9 +4,14 @@ Following TDD: Write tests first, then implement service.
 """
 import pytest
 from sqlalchemy.orm import Session
+
+from src.database.connection import (
+    create_engine_instance,
+    get_session_factory,
+    init_database,
+)
+from src.database.models import DeliveryType, Product, ProductVariation
 from src.database.services.product_upload_service import ProductUploadService
-from src.database.models import Product, ProductVariation, DeliveryType
-from src.database.connection import create_engine_instance, init_database, get_session_factory
 
 
 @pytest.fixture

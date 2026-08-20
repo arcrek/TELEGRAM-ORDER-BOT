@@ -1,8 +1,9 @@
 """
 Run the dashboard API server.
 """
-import uvicorn
 import os
+
+import uvicorn
 
 if __name__ == "__main__":
     # Use import string for reload to work properly

@@ -3,14 +3,15 @@ Authentication and authorization for dashboard.
 """
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-from jose import JWTError, jwt
+
 import bcrypt
-from sqlalchemy.orm import Session
-from src.database.models.admin import Admin, AdminRole
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session
+
 from src.database.connection import get_db_session
+from src.database.models.admin import Admin, AdminRole
 
 get_db = get_db_session  # shared singleton-backed session factory
 
@@ -72,7 +73,7 @@ def get_password_hash(password: str) -> str:
     return hashed.decode('utf-8')
 
 
-def get_admin_by_username(session: Session, username: str) -> Optional[Admin]:
+def get_admin_by_username(session: Session, username: str) -> Admin | None:
     """
     Get admin by username.
     
@@ -86,7 +87,7 @@ def get_admin_by_username(session: Session, username: str) -> Optional[Admin]:
     return session.query(Admin).filter_by(username=username, is_active=True).first()
 
 
-def authenticate_admin(session: Session, username: str, password: str) -> Optional[Admin]:
+def authenticate_admin(session: Session, username: str, password: str) -> Admin | None:
     """
     Authenticate an admin.
     
@@ -115,7 +116,7 @@ def authenticate_admin(session: Session, username: str, password: str) -> Option
     return admin
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
     Create a JWT access token.
     

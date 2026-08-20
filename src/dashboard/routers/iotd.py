@@ -1,7 +1,7 @@
 """
 Image of the Day (IOTD) router.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
@@ -9,17 +9,16 @@ from sqlalchemy.orm import Session
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
 from src.database.services.iotd_settings_service import IotdSettingsService
 
-
 router = APIRouter()
 
 
 class IotdResponse(BaseModel):
-    image_url: Optional[str] = None
+    image_url: str | None = None
 
 
 class IotdUpdateRequest(BaseModel):
     # Allow null to clear. Use HttpUrl for basic validation when provided.
-    image_url: Optional[HttpUrl] = None
+    image_url: HttpUrl | None = None
 
 
 @router.get("", response_model=IotdResponse, include_in_schema=True)

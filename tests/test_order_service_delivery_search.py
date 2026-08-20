@@ -10,20 +10,20 @@ Covers:
 """
 
 import json
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.database.models.base import Base
-from src.database.models.enums import OrderStatus, DeliveryType
+from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.models.order import Order
 from src.database.models.order_item import OrderItem
+from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.services.order_service import OrderService
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

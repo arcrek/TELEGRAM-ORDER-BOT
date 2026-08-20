@@ -1,7 +1,8 @@
 """Blocked-user model — a row's existence blocks a Telegram id or username."""
 
-from sqlalchemy import Column, Integer, String, BigInteger, DateTime, Index, text
+from sqlalchemy import BigInteger, Column, DateTime, Index, Integer, String, text
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

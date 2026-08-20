@@ -1,7 +1,7 @@
 """
 Bot UI settings router.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -9,20 +9,19 @@ from sqlalchemy.orm import Session
 from src.dashboard.auth import get_db, require_admin_role, require_viewer_or_admin
 from src.database.services.bot_ui_settings_service import BotUiSettingsService
 
-
 router = APIRouter()
 
 
 class BotUiSettingsResponse(BaseModel):
-    product_choose_text: Optional[str] = None
-    variation_choose_text: Optional[str] = None
-    upload_notification_header: Optional[str] = None
+    product_choose_text: str | None = None
+    variation_choose_text: str | None = None
+    upload_notification_header: str | None = None
 
 
 class BotUiSettingsUpdateRequest(BaseModel):
-    product_choose_text: Optional[str] = None
-    variation_choose_text: Optional[str] = None
-    upload_notification_header: Optional[str] = None
+    product_choose_text: str | None = None
+    variation_choose_text: str | None = None
+    upload_notification_header: str | None = None
 
 
 @router.get("", response_model=BotUiSettingsResponse, include_in_schema=True)

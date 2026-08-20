@@ -2,7 +2,6 @@
 State management for user sessions.
 """
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -10,34 +9,34 @@ class UserState:
     """User session state."""
 
     current_page: int = 1
-    selected_product_id: Optional[str] = None
-    selected_variation_id: Optional[str] = None
+    selected_product_id: str | None = None
+    selected_variation_id: str | None = None
     quantity: int = 1
-    pending_order_id: Optional[str] = None
-    payment_message_id: Optional[int] = None  # Telegram message ID of QR code payment message
-    payment_message_ids: Optional[list] = None  # List of all payment-related message IDs to delete
+    pending_order_id: str | None = None
+    payment_message_id: int | None = None  # Telegram message ID of QR code payment message
+    payment_message_ids: list | None = None  # List of all payment-related message IDs to delete
     waiting_for_custom_quantity: bool = False  # Flag for custom quantity input mode
-    custom_quantity_prompt_message_id: Optional[int] = None  # Message ID of the prompt to delete
-    order_message_id: Optional[int] = None  # Message ID of the order confirmation message
+    custom_quantity_prompt_message_id: int | None = None  # Message ID of the prompt to delete
+    order_message_id: int | None = None  # Message ID of the order confirmation message
 
     # Balance / topup flow state
     awaiting_topup_amount: bool = False  # True while waiting for custom amount text input
-    pending_topup_order_id: Optional[str] = None  # Currently-pending TopupOrder being paid
-    pending_payment_order_id: Optional[str] = None  # Product Order in payment-method-picker step
-    topup_message_id: Optional[int] = None  # Main topup flow message ID (for edit-in-place)
+    pending_topup_order_id: str | None = None  # Currently-pending TopupOrder being paid
+    pending_payment_order_id: str | None = None  # Product Order in payment-method-picker step
+    topup_message_id: int | None = None  # Main topup flow message ID (for edit-in-place)
     topup_payment_message_ids: list = field(default_factory=list)  # QR/photo messages for topup
-    balance_message_id: Optional[int] = None  # Main balance view message ID
+    balance_message_id: int | None = None  # Main balance view message ID
 
     # /export flow state
     export_products: list = field(default_factory=list)  # [{"id","name"}] shown
-    export_product_id: Optional[str] = None              # product chosen in step 1
+    export_product_id: str | None = None              # product chosen in step 1
     export_variations: list = field(default_factory=list)  # [{"id","name"}] of that product
     export_selected_variation_ids: set = field(default_factory=set)  # toggled variants
-    export_target_user_id: Optional[int] = None          # admin-proxy: target user's telegram_user_id
+    export_target_user_id: int | None = None          # admin-proxy: target user's telegram_user_id
 
     # /set_emo flow state
     awaiting_emoji_input: bool = False
-    pending_emoji_placeholder_id: Optional[int] = None
+    pending_emoji_placeholder_id: int | None = None
 
 
 class StateManager:
@@ -47,7 +46,7 @@ class StateManager:
         """Initialize state manager."""
         self._states: dict[int, UserState] = {}
     
-    def get_user_state(self, user_id: int) -> Optional[UserState]:
+    def get_user_state(self, user_id: int) -> UserState | None:
         """
         Get user state.
         
@@ -72,22 +71,22 @@ class StateManager:
     def update_user_state(
         self,
         user_id: int,
-        current_page: Optional[int] = None,
-        selected_product_id: Optional[str] = None,
-        selected_variation_id: Optional[str] = None,
-        quantity: Optional[int] = None,
-        pending_order_id: Optional[str] = None,
-        payment_message_id: Optional[int] = None,
-        payment_message_ids: Optional[list] = None,
-        waiting_for_custom_quantity: Optional[bool] = None,
-        custom_quantity_prompt_message_id: Optional[int] = None,
-        order_message_id: Optional[int] = None,
-        awaiting_topup_amount: Optional[bool] = None,
-        pending_topup_order_id: Optional[str] = None,
-        pending_payment_order_id: Optional[str] = None,
-        topup_message_id: Optional[int] = None,
-        topup_payment_message_ids: Optional[list] = None,
-        balance_message_id: Optional[int] = None,
+        current_page: int | None = None,
+        selected_product_id: str | None = None,
+        selected_variation_id: str | None = None,
+        quantity: int | None = None,
+        pending_order_id: str | None = None,
+        payment_message_id: int | None = None,
+        payment_message_ids: list | None = None,
+        waiting_for_custom_quantity: bool | None = None,
+        custom_quantity_prompt_message_id: int | None = None,
+        order_message_id: int | None = None,
+        awaiting_topup_amount: bool | None = None,
+        pending_topup_order_id: str | None = None,
+        pending_payment_order_id: str | None = None,
+        topup_message_id: int | None = None,
+        topup_payment_message_ids: list | None = None,
+        balance_message_id: int | None = None,
     ) -> None:
         """
         Update user state with new values.

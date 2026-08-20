@@ -2,9 +2,8 @@
 Translation utilities for Telegram bot.
 """
 import json
-from pathlib import Path
-from typing import Dict
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +14,10 @@ DEFAULT_LANGUAGE = "vi"
 SUPPORTED_LANGUAGES = ["en", "vi"]
 
 # Translation cache
-_translation_cache: Dict[str, Dict] = {}
+_translation_cache: dict[str, dict] = {}
 
 
-def _load_translations(language: str) -> Dict:
+def _load_translations(language: str) -> dict:
     """
     Load translations for a specific language.
     

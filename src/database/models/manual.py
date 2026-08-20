@@ -1,19 +1,21 @@
 """Manual (user guide) models."""
 
 import uuid
+
 from sqlalchemy import (
-    Column,
-    String,
-    Text,
     Boolean,
-    Integer,
+    Column,
     DateTime,
     ForeignKey,
-    UniqueConstraint,
     Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

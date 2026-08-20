@@ -2,91 +2,98 @@
 Main entry point for the Telegram bot.
 """
 
-import os
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler
+import os
+
 from dotenv import load_dotenv
-from src.bot.handlers.commands import (
-    start,
-    help_command,
-    products_command,
-    language_command,
-    order_history_command,
-    handle_products_button,
-    setadmin_command,
-    balance_command,
-    unknown_command,
-    handle_top_buyers_button,
-    doanhthu_command,
-    handle_start_menu,
-    handle_start_products,
-    handle_start_history,
-    block_command,
-    unblock_command,
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
 )
-from src.bot.handlers.notification_commands import (
-    notify_all,
-    notify_user,
-    notify_active,
-)
-from src.bot.handlers.callbacks import (
-    handle_page_navigation,
-    handle_product_selection,
-    handle_variation_selection,
-    handle_quantity_adjustment,
-    handle_custom_quantity_prompt,
-    handle_custom_quantity_input,
-    handle_refresh_product,
-    handle_back_to_list,
-    handle_payment,
-    handle_cancel_order,
-    handle_language_selection,
-    handle_order_history_page,
-    handle_order_detail,
-    handle_back_to_order_history,
-    handle_show_products_list,
-    handle_pay_with_qr,
-    handle_pay_with_balance,
-)
-from src.bot.handlers.balance import (
-    handle_balance_view,
-    handle_balance_topup_start,
-    handle_balance_topup_amount,
-    handle_balance_topup_custom,
-    handle_topup_amount_text,
-    handle_balance_history,
-    handle_balance_close,
-    handle_topup_cancel,
-)
-from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
-from src.bot.handlers.manual import handle_manual_list, handle_manual_view
+
 from src.bot.handlers.apitoken import (
     api_command,
     apitoken_command,
-    handle_api_menu,
     handle_api_create,
+    handle_api_menu,
     handle_api_revoke,
 )
-from src.bot.handlers.refund import (
-    refund_command,
-    handle_refund_credit,
-    handle_refund_cancel,
+from src.bot.handlers.balance import (
+    handle_balance_close,
+    handle_balance_history,
+    handle_balance_topup_amount,
+    handle_balance_topup_custom,
+    handle_balance_topup_start,
+    handle_balance_view,
+    handle_topup_amount_text,
+    handle_topup_cancel,
 )
+from src.bot.handlers.callbacks import (
+    handle_back_to_list,
+    handle_back_to_order_history,
+    handle_cancel_order,
+    handle_custom_quantity_input,
+    handle_custom_quantity_prompt,
+    handle_language_selection,
+    handle_order_detail,
+    handle_order_history_page,
+    handle_page_navigation,
+    handle_pay_with_balance,
+    handle_pay_with_qr,
+    handle_payment,
+    handle_product_selection,
+    handle_quantity_adjustment,
+    handle_refresh_product,
+    handle_show_products_list,
+    handle_variation_selection,
+)
+from src.bot.handlers.commands import (
+    balance_command,
+    block_command,
+    doanhthu_command,
+    handle_products_button,
+    handle_start_history,
+    handle_start_menu,
+    handle_start_products,
+    handle_top_buyers_button,
+    help_command,
+    language_command,
+    order_history_command,
+    products_command,
+    setadmin_command,
+    start,
+    unblock_command,
+    unknown_command,
+)
+from src.bot.handlers.emoji_admin import handle_emoji_capture, set_emo_command
 from src.bot.handlers.export import (
     export_command,
-    handle_export_start,
-    handle_export_product,
-    handle_export_variant_toggle,
     handle_export_back,
     handle_export_cancel,
     handle_export_generate,
+    handle_export_product,
+    handle_export_start,
+    handle_export_variant_toggle,
 )
-from src.bot.handlers.emoji_admin import set_emo_command, handle_emoji_capture
-from telegram.ext import CallbackQueryHandler, MessageHandler, filters
-from src.ipn import set_global_bot
+from src.bot.handlers.manual import handle_manual_list, handle_manual_view
+from src.bot.handlers.notification_commands import (
+    notify_active,
+    notify_all,
+    notify_user,
+)
+from src.bot.handlers.refund import (
+    handle_refund_cancel,
+    handle_refund_credit,
+    refund_command,
+)
+from src.bot.handlers.upgrade_handler import handle_upgrade_done, handle_upgrade_message
 from src.bot.tasks.auto_cancel_task import AutoCancelTask
 from src.bot.utils.bot_instance import set_shared_bot_instance
+from src.ipn import set_global_bot
 
 # Load environment variables
 load_dotenv()

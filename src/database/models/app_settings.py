@@ -4,6 +4,7 @@ App settings model — singleton row for global application configuration.
 
 from sqlalchemy import Column, DateTime, String
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 

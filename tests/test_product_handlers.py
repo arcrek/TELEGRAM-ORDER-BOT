@@ -2,14 +2,16 @@
 Tests for product browsing handlers.
 Following TDD: Write tests first, then implement handlers.
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from telegram import Update, Message, User, Chat, CallbackQuery
-from telegram.ext import ContextTypes
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
+from telegram import CallbackQuery, Chat, Message, Update, User
+from telegram.ext import ContextTypes
+
 from src.database.models import DeliveryType
+from src.database.models.base import Base
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.services.product_service import ProductService
 from src.database.services.variation_service import VariationService

@@ -3,8 +3,9 @@ Admin service layer.
 """
 
 import uuid
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from src.database.models.admin import Admin, AdminRole
 
 
@@ -29,7 +30,7 @@ class AdminService:
         """
         return f"admin_{uuid.uuid4().hex[:8]}"
 
-    def get_admin_by_username(self, username: str) -> Optional[Admin]:
+    def get_admin_by_username(self, username: str) -> Admin | None:
         """
         Get admin by username.
 
@@ -45,7 +46,7 @@ class AdminService:
             .first()
         )
 
-    def get_admin_by_id(self, admin_id: str) -> Optional[Admin]:
+    def get_admin_by_id(self, admin_id: str) -> Admin | None:
         """
         Get admin by ID.
 
@@ -62,7 +63,7 @@ class AdminService:
         username: str,
         password_hash: str,
         full_name: str,
-        email: Optional[str] = None,
+        email: str | None = None,
         role: AdminRole = AdminRole.VIEWER,
         commit: bool = True,
     ) -> Admin:
@@ -99,7 +100,7 @@ class AdminService:
 
         return admin
 
-    def update_admin_status(self, admin_id: str, is_active: bool) -> Optional[Admin]:
+    def update_admin_status(self, admin_id: str, is_active: bool) -> Admin | None:
         """
         Update admin active status.
 

@@ -3,8 +3,9 @@ Tests for product detail formatter.
 """
 import pytest
 from telegram import InlineKeyboardMarkup
+
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
-from src.database.models import Product, ProductVariation, DeliveryType
+from src.database.models import DeliveryType, Product, ProductVariation
 
 
 @pytest.fixture

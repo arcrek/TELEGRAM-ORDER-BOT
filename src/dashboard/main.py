@@ -4,42 +4,44 @@ Main FastAPI application for dashboard.
 
 import logging
 import os
+
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from src.dashboard.limiter import limiter
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_db
-from src.database.services.app_settings_service import AppSettingsService
+from src.dashboard.limiter import limiter
 
 # Supplier functionality disabled
 # from src.dashboard.routers import auth, statistics, products, orders, suppliers, product_upload, pre_uploaded, variations, product_supplier_assignments, notifications, payos_webhook, iotd
 from src.dashboard.routers import (
-    auth,
-    statistics,
-    products,
-    orders,
-    product_upload,
-    pre_uploaded,
-    variations,
-    notifications,
-    payos_webhook,
-    iotd,
-    bonus_tiers,
-    discount_tiers,
-    bot_ui_settings,
+    api_v1,
     app_settings,
+    auth,
     balances,
-    manuals,
+    blocked_users,
+    bonus_tiers,
+    bot_ui_settings,
+    discount_tiers,
     emoji_placeholders,
     emoji_thumbnails,
-    blocked_users,
+    iotd,
+    manuals,
+    notifications,
+    orders,
+    payos_webhook,
+    pre_uploaded,
+    product_upload,
+    products,
     refunds,
+    statistics,
+    variations,
 )
-from src.dashboard.routers import api_v1
+from src.database.services.app_settings_service import AppSettingsService
 
 # Load environment variables from .env file
 load_dotenv()

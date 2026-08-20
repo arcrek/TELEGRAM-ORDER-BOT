@@ -2,6 +2,7 @@
 Tests for supplier service.
 """
 import pytest
+
 from src.database.services.supplier_service import SupplierService
 
 
@@ -11,6 +12,7 @@ def db_session():
     # Use in-memory SQLite for isolation
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     from src.database.models.base import Base
     
     engine = create_engine("sqlite:///:memory:")

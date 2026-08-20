@@ -2,26 +2,29 @@
 Callback query handlers for the Telegram bot.
 """
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from src.database.connection import get_session_factory
-from src.database.services.product_service import ProductService
-from src.database.services.variation_service import VariationService
-from src.database.services.order_service import OrderService
-from src.database.services.bot_ui_settings_service import BotUiSettingsService
-from src.database.services.pre_uploaded_service import PreUploadedService
-from src.bot.messages.product_formatter import ProductFormatter
-from src.bot.messages.product_detail_formatter import ProductDetailFormatter
+
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.messages.emoji_renderer import substitute_tokens
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
+from src.bot.messages.product_detail_formatter import ProductDetailFormatter
+from src.bot.messages.product_formatter import ProductFormatter
 from src.bot.states.state_manager import StateManager
-from src.database.models.enums import DeliveryType, OrderStatus
-from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
-from src.database.services.app_settings_service import AppSettingsService
-from src.bot.utils.user_locks import get_user_lock
-from src.bot.messages.emoji_renderer import render as render_emoji, substitute_tokens
-from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.bot.utils.language import t
 from src.bot.utils.qr import make_qr_png_bytes
+from src.bot.utils.user_locks import get_user_lock
+from src.database.connection import get_session_factory
+from src.database.models.enums import DeliveryType, OrderStatus
+from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
+from src.database.services.bot_ui_settings_service import BotUiSettingsService
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.database.services.order_service import OrderService
+from src.database.services.pre_uploaded_service import PreUploadedService
+from src.database.services.product_service import ProductService
+from src.database.services.variation_service import VariationService
 from src.payos.client import build_payos_client
 
 logger = logging.getLogger(__name__)
@@ -641,13 +644,13 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
                     message_id=user_state.custom_quantity_prompt_message_id
                 )
             except Exception as e:
-                logger.warning(f"Could not delete prompt message: {str(e)}")
+                logger.warning(f"Could not delete prompt message: {e!s}")
         
         # Delete the user's input message
         try:
             await update.message.delete()
         except Exception as e:
-            logger.warning(f"Could not delete user input message: {str(e)}")
+            logger.warning(f"Could not delete user input message: {e!s}")
         
         # Update the order confirmation message with bonus and/or discount
         if user_state.order_message_id:
@@ -680,7 +683,7 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
                     parse_mode=parse_mode,
                 )
             except Exception as e:
-                logger.warning(f"Could not edit order message: {str(e)}")
+                logger.warning(f"Could not edit order message: {e!s}")
                 # Fallback: send a new message
                 await context.bot.send_message(
                     chat_id=user_id,
@@ -855,8 +858,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     try:
         # Block gate: a blocked user cannot create an order.
-        from src.database.services.block_service import BlockService
         from src.bot.utils.language import t as _t
+        from src.database.services.block_service import BlockService
 
         if BlockService(session).is_blocked(user_id, query.from_user.username):
             await query.edit_message_text(_t("errors.user_blocked", update))
@@ -917,15 +920,15 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 discount_tier=discount_tier,
             )
         except ValueError as e:
-            await query.edit_message_text(f"❌ {str(e)}")
+            await query.edit_message_text(f"❌ {e!s}")
             return
 
         # NEW_ORDER_CREATED notification is disabled; only ORDER_PAID is sent after delivery.
 
         # --- Show payment method picker (balance vs QR) ---
+        from src.bot.utils.language import t as _t
         from src.database.services.balance_service import BalanceService
         from src.database.services.bot_user_service import BotUserService
-        from src.bot.utils.language import t as _t
 
         bot_user_svc = BotUserService(session)
         bot_user = bot_user_svc.get_user_by_telegram_id(user_id)
@@ -979,8 +982,8 @@ async def _create_qr_for_order(
         context: Bot context for sending messages.
         reply_to_query: If set (a CallbackQuery), we will edit it for the text message.
     """
-    import time
     import json
+    import time
 
     user_id = update.effective_user.id
 
@@ -1159,7 +1162,7 @@ async def _create_qr_for_order(
         else:
             await context.bot.send_message(chat_id=user_id, text=err_text)
     except Exception as e:
-        logger.error(f"Error creating payment: {str(e)}", exc_info=True)
+        logger.error(f"Error creating payment: {e!s}", exc_info=True)
         error_detail = str(e)
         if "Connection" in error_detail or "timeout" in error_detail.lower():
             error_message = (
@@ -1368,7 +1371,7 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
                     )
                     logger.info(f"Deleted payment message {user_state.payment_message_id} for cancelled order {order_id}")
                 except Exception as e:
-                    logger.warning(f"Could not delete payment message: {str(e)}")
+                    logger.warning(f"Could not delete payment message: {e!s}")
             
             # Try to edit the message to remove the cancel button (if it's a callback query message)
             try:
@@ -1382,7 +1385,7 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
                 )
             except Exception as e:
                 # If editing fails (e.g., message already edited), just send new message
-                logger.warning(f"Could not edit message: {str(e)}")
+                logger.warning(f"Could not edit message: {e!s}")
             
             # Send confirmation message
             await context.bot.send_message(
@@ -1395,11 +1398,11 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
             
         except ValueError as e:
             # Order cannot be cancelled (not PENDING)
-            await query.answer(f"❌ {str(e)}", show_alert=True)
-            logger.warning(f"Cannot cancel order {order_id}: {str(e)}")
+            await query.answer(f"❌ {e!s}", show_alert=True)
+            logger.warning(f"Cannot cancel order {order_id}: {e!s}")
     
     except Exception as e:
-        logger.error(f"Error cancelling order: {str(e)}", exc_info=True)
+        logger.error(f"Error cancelling order: {e!s}", exc_info=True)
         await query.answer("❌ Error cancelling order. Please try again later.", show_alert=True)
     
     finally:
@@ -1483,7 +1486,7 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
         message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
-        logger.error(f"Error in handle_order_history_page: {str(e)}", exc_info=True)
+        logger.error(f"Error in handle_order_history_page: {e!s}", exc_info=True)
         await query.answer(t("order_history.error", update), show_alert=True)
     finally:
         session.close()
@@ -1492,6 +1495,7 @@ async def handle_order_history_page(update: Update, context: ContextTypes.DEFAUL
 async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle order_detail_<order_id>_from_<page> callbacks."""
     import html
+
     from src.bot.utils.language import t
 
     query = update.callback_query
@@ -1599,7 +1603,7 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode="HTML",
         )
     except Exception as e:
-        logger.error(f"Error in handle_order_detail: {str(e)}", exc_info=True)
+        logger.error(f"Error in handle_order_detail: {e!s}", exc_info=True)
         await query.answer(t("order_history.error", update), show_alert=True)
     finally:
         session.close()
@@ -1631,7 +1635,7 @@ async def handle_back_to_order_history(update: Update, context: ContextTypes.DEF
         message, reply_markup = _build_order_history_message_and_keyboard(orders, page, update)
         await query.edit_message_text(message, reply_markup=reply_markup)
     except Exception as e:
-        logger.error(f"Error in handle_back_to_order_history: {str(e)}", exc_info=True)
+        logger.error(f"Error in handle_back_to_order_history: {e!s}", exc_info=True)
         await query.answer(t("order_history.error", update), show_alert=True)
     finally:
         session.close()
@@ -1661,8 +1665,8 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
     session = session_factory()
     
     try:
-        from src.database.services.user_preference_service import UserPreferenceService
         from src.bot.utils.language import t
+        from src.database.services.user_preference_service import UserPreferenceService
         
         preference_service = UserPreferenceService(session)
         preference_service.set_user_language(user_id, language_code)
@@ -1676,7 +1680,7 @@ async def handle_language_selection(update: Update, context: ContextTypes.DEFAUL
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)
-        logger.error(f"Error setting language: {str(e)}", exc_info=True)
+        logger.error(f"Error setting language: {e!s}", exc_info=True)
         await query.answer("❌ Error changing language. Please try again.", show_alert=True)
     finally:
         session.close()

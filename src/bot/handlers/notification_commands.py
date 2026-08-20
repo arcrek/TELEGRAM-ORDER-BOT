@@ -2,11 +2,13 @@
 Notification command handlers for admin users.
 """
 import logging
+
 from telegram import Update
 from telegram.ext import ContextTypes
+
+from src.bot.utils.admin_check import is_admin
 from src.database.connection import get_session_factory
 from src.database.services.notification_service import NotificationService
-from src.bot.utils.admin_check import is_admin
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +58,8 @@ async def notify_all(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         await update.message.reply_text(report)
         
     except Exception as e:
-        logger.error(f"Error sending notification: {str(e)}", exc_info=True)
-        await update.message.reply_text(f"❌ Error sending notification: {str(e)}")
+        logger.error(f"Error sending notification: {e!s}", exc_info=True)
+        await update.message.reply_text(f"❌ Error sending notification: {e!s}")
     finally:
         session.close()
 
@@ -113,8 +115,8 @@ async def notify_user(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             )
         
     except Exception as e:
-        logger.error(f"Error sending notification: {str(e)}", exc_info=True)
-        await update.message.reply_text(f"❌ Error sending notification: {str(e)}")
+        logger.error(f"Error sending notification: {e!s}", exc_info=True)
+        await update.message.reply_text(f"❌ Error sending notification: {e!s}")
     finally:
         session.close()
 
@@ -164,8 +166,8 @@ async def notify_active(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(report)
         
     except Exception as e:
-        logger.error(f"Error sending notification: {str(e)}", exc_info=True)
-        await update.message.reply_text(f"❌ Error sending notification: {str(e)}")
+        logger.error(f"Error sending notification: {e!s}", exc_info=True)
+        await update.message.reply_text(f"❌ Error sending notification: {e!s}")
     finally:
         session.close()
 

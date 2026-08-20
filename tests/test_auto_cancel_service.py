@@ -2,13 +2,15 @@
 Tests for auto-cancel service.
 Following TDD: Write tests first, then implement service.
 """
-import pytest
 from datetime import datetime, timedelta, timezone
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from src.database.models import Order, OrderItem, Product, ProductVariation
 from src.database.models.base import Base
-from src.database.models import Order, OrderItem, ProductVariation, Product
-from src.database.models.enums import OrderStatus, DeliveryType
+from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.auto_cancel_service import AutoCancelService
 
 
@@ -285,6 +287,7 @@ def test_run_coro_uses_main_loop_when_running():
     """When a running main loop is provided, the helper schedules onto it."""
     import asyncio
     import threading
+
     from src.database.services.auto_cancel_service import AutoCancelService
 
     loop = asyncio.new_event_loop()

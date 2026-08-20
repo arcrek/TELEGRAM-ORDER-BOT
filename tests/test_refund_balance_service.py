@@ -3,12 +3,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.database.models import *  # noqa: F401,F403 — register all models
+from src.database.models import *
+from src.database.models.balance_transaction import BalanceTransaction
 from src.database.models.base import Base
 from src.database.models.bot_user import BotUser
+from src.database.models.enums import BalanceTxKind, OrderStatus
 from src.database.models.order import Order
-from src.database.models.balance_transaction import BalanceTransaction
-from src.database.models.enums import OrderStatus, BalanceTxKind
 from src.database.services.balance_service import BalanceService
 
 

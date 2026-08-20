@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import requests
 
@@ -24,7 +24,7 @@ class PayOSCredentials:
     checksum_key: str
 
 
-def build_payos_client() -> "PayOSClient":
+def build_payos_client() -> PayOSClient:
     values = {
         "PAYOS_CLIENT_ID": os.getenv("PAYOS_CLIENT_ID", "").strip(),
         "PAYOS_API_KEY": os.getenv("PAYOS_API_KEY", "").strip(),
@@ -49,7 +49,7 @@ class PayOSClient:
         self.credentials = credentials
         self.timeout_seconds = timeout_seconds
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         return {
             "x-client-id": self.credentials.client_id,
             "x-api-key": self.credentials.api_key,
@@ -64,12 +64,12 @@ class PayOSClient:
         description: str,
         return_url: str,
         cancel_url: str,
-        expired_at: Optional[int] = None,
-        buyer_name: Optional[str] = None,
-        buyer_email: Optional[str] = None,
-        buyer_phone: Optional[str] = None,
-        buyer_address: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        expired_at: int | None = None,
+        buyer_name: str | None = None,
+        buyer_email: str | None = None,
+        buyer_phone: str | None = None,
+        buyer_address: str | None = None,
+    ) -> dict[str, Any]:
         """
         Create PayOS payment link.
 
@@ -84,7 +84,7 @@ class PayOSClient:
             checksum_key=self.credentials.checksum_key,
         )
 
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "orderCode": int(order_code),
             "amount": int(amount),
             "description": str(description),
@@ -112,7 +112,7 @@ class PayOSClient:
             raise ValueError(f"PayOS create_payment_link failed: {data.get('code')} - {data.get('desc')}")
         return data
 
-    def cancel_payment_link(self, *, payment_link_id: str, cancellation_reason: str = "cancelled") -> Dict[str, Any]:
+    def cancel_payment_link(self, *, payment_link_id: str, cancellation_reason: str = "cancelled") -> dict[str, Any]:
         url = f"{self.base_url}/v2/payment-requests/{payment_link_id}/cancel"
         resp = requests.post(
             url,

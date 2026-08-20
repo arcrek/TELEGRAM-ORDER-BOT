@@ -1,13 +1,16 @@
 """
 Product supplier assignments router.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
 from src.dashboard.auth import get_current_admin, get_db
-from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
 from src.database.services.product_service import ProductService
+from src.database.services.product_supplier_assignment_service import (
+    ProductSupplierAssignmentService,
+)
 from src.database.services.supplier_service import SupplierService
 from src.utils.datetime_format import to_utc_iso
 
@@ -25,7 +28,7 @@ class AssignmentUpdate(BaseModel):
     """Assignment update schema."""
     product_id: str
     supplier_id: str
-    is_primary: Optional[bool] = None
+    is_primary: bool | None = None
 
 
 @router.post("/assignments", status_code=status.HTTP_201_CREATED)

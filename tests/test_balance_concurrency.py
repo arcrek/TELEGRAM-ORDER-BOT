@@ -10,26 +10,25 @@ database-locked serialisation is realistic enough to catch logical errors,
 even though SQLite serialises writes at the OS level.
 """
 import threading
-import pytest
 
+import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
 
 # Import all models so Base.metadata is fully populated before create_all.
 from src.database.models import (
-    Base,
     Admin,
     AdminRole,
+    BalanceTransaction,
+    BalanceTxKind,
+    Base,
     BotUser,
     Order,
-    BalanceTransaction,
-    TopupOrder,
     OrderStatus,
+    TopupOrder,
     TopupStatus,
-    BalanceTxKind,
 )
 from src.database.services.balance_service import BalanceService
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

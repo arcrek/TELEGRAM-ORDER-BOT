@@ -1,15 +1,17 @@
 """
 Product upload service layer for parsing and importing product data.
 """
-import uuid
 import csv
 import io
 import json
-from typing import List, Dict, Any
+import uuid
+from typing import Any
+
 from sqlalchemy.orm import Session
+
+from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
-from src.database.models.pre_uploaded_product import PreUploadedProduct
 
 
 class ProductUploadService:
@@ -28,7 +30,7 @@ class ProductUploadService:
         self, 
         content: str, 
         format_type: str = "line_separated"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Parse text content based on format type.
         
@@ -48,12 +50,12 @@ class ProductUploadService:
         else:
             raise ValueError(f"Unsupported format type: {format_type}")
     
-    def _parse_line_separated(self, content: str) -> List[Dict[str, Any]]:
+    def _parse_line_separated(self, content: str) -> list[dict[str, Any]]:
         """Parse line-separated format."""
         lines = [line.strip() for line in content.strip().split("\n") if line.strip()]
         return [{"data": line} for line in lines]
     
-    def _parse_key_value(self, content: str) -> List[Dict[str, Any]]:
+    def _parse_key_value(self, content: str) -> list[dict[str, Any]]:
         """Parse key-value pairs format."""
         lines = [line.strip() for line in content.strip().split("\n") if line.strip()]
         result = []
@@ -81,12 +83,12 @@ class ProductUploadService:
         
         return result
     
-    def _parse_csv(self, content: str) -> List[Dict[str, Any]]:
+    def _parse_csv(self, content: str) -> list[dict[str, Any]]:
         """Parse CSV format."""
         reader = csv.DictReader(io.StringIO(content))
         return [dict(row) for row in reader]
     
-    def validate_product_data(self, data: Dict[str, Any]) -> bool:
+    def validate_product_data(self, data: dict[str, Any]) -> bool:
         """
         Validate product data.
         
@@ -133,8 +135,8 @@ class ProductUploadService:
 
     def check_duplicates(
         self,
-        products_data: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        products_data: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         """
         Check for duplicate product_data entries in the database.
 
@@ -175,9 +177,9 @@ class ProductUploadService:
 
     def bulk_import_products(
         self,
-        products_data: List[Dict[str, Any]],
+        products_data: list[dict[str, Any]],
         skip_duplicates: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Bulk import products.
         

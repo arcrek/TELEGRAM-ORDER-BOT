@@ -1,8 +1,9 @@
 """
 Order item model.
 """
-from sqlalchemy import Column, String, Integer, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
+
 from src.database.models.base import Base
 
 

@@ -3,27 +3,28 @@ Variations router.
 """
 import asyncio
 import uuid
-from typing import Optional, List, Literal
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field, field_validator, model_validator
-from src.dashboard.auth import get_current_admin, require_admin_role, get_db
-from src.database.services.variation_service import VariationService
-from src.database.services.product_service import ProductService
-from src.database.models.enums import DeliveryType
-from src.utils.datetime_format import to_utc_iso
+from sqlalchemy.orm import Session
+
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.dashboard.routers.product_upload import (
     _build_upload_notification_entry,
     _send_upload_notifications,
 )
-
+from src.database.models.enums import DeliveryType
+from src.database.services.product_service import ProductService
+from src.database.services.variation_service import VariationService
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 
 
 class VariationCreate(BaseModel):
     """Variation creation schema."""
-    id: Optional[str] = None
+    id: str | None = None
     product_id: str
     name: str
     price: int
@@ -33,19 +34,19 @@ class VariationCreate(BaseModel):
 
 class VariationUpdate(BaseModel):
     """Variation update schema."""
-    name: Optional[str] = None
-    price: Optional[int] = None
-    stock: Optional[int] = Field(None, ge=0)
-    is_active: Optional[bool] = None
-    benefit_mode: Optional[str] = None  # 'bonus' | 'discount' | 'both'
+    name: str | None = None
+    price: int | None = None
+    stock: int | None = Field(None, ge=0)
+    is_active: bool | None = None
+    benefit_mode: str | None = None  # 'bonus' | 'discount' | 'both'
     # Warning threshold for inventory aging/expiry tracking.
     # Both fields must be provided together or both must be null.
-    warning_threshold_value: Optional[int] = None
-    warning_threshold_unit: Optional[Literal['days', 'months', 'years']] = None
+    warning_threshold_value: int | None = None
+    warning_threshold_unit: Literal['days', 'months', 'years'] | None = None
 
     @field_validator('warning_threshold_value')
     @classmethod
-    def validate_threshold_value(cls, v: Optional[int]) -> Optional[int]:
+    def validate_threshold_value(cls, v: int | None) -> int | None:
         if v is not None and v <= 0:
             raise ValueError('warning_threshold_value must be greater than 0')
         return v
@@ -65,7 +66,7 @@ class VariationResponse(BaseModel):
     """Variation response schema."""
     id: str
     product_id: str
-    product_name: Optional[str] = None
+    product_name: str | None = None
     name: str
     price: int
     stock: int
@@ -89,19 +90,19 @@ class StockUpdateItem(BaseModel):
 
 class BulkStockUpdate(BaseModel):
     """Bulk stock update schema."""
-    updates: List[StockUpdateItem]
+    updates: list[StockUpdateItem]
 
 
 class BulkVariationOperation(BaseModel):
     """Bulk variation operation schema."""
-    variation_ids: List[str]
+    variation_ids: list[str]
 
 
 @router.get("", include_in_schema=True)
 @router.get("/", include_in_schema=False)
 async def list_variations(
-    product_id: Optional[str] = Query(None, description="Filter by product ID"),
-    only_active: Optional[bool] = Query(None, description="Filter by active status"),
+    product_id: str | None = Query(None, description="Filter by product ID"),
+    only_active: bool | None = Query(None, description="Filter by active status"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):

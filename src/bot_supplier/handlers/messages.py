@@ -3,21 +3,23 @@ Message handlers for the supplier bot.
 Handles supplier replies to order notifications.
 """
 import logging
-from typing import Dict, Any
+from typing import Any
+
 from telegram import Update
-from telegram.ext import ContextTypes
-from src.database.connection import get_session_factory
-from src.database.services.supplier_service import SupplierService
-from src.database.services.order_service import OrderService
-from src.database.models.supplier_order import SupplierOrder
-from src.database.models.enums import SupplierOrderStatus, OrderStatus
-from src.ipn import get_global_customer_bot
 from telegram.error import TelegramError
+from telegram.ext import ContextTypes
+
+from src.database.connection import get_session_factory
+from src.database.models.enums import OrderStatus, SupplierOrderStatus
+from src.database.models.supplier_order import SupplierOrder
+from src.database.services.order_service import OrderService
+from src.database.services.supplier_service import SupplierService
+from src.ipn import get_global_customer_bot
 
 logger = logging.getLogger(__name__)
 
 
-def parse_product_data(text: str) -> Dict[str, Any]:
+def parse_product_data(text: str) -> dict[str, Any]:
     """
     Parse product data from supplier's reply text.
     Supports formats like:
@@ -171,7 +173,7 @@ async def handle_supplier_reply(
                     product_lines.append(f"{key}: {value}")
                 product_message = "\n".join(product_lines)
         else:
-            product_message = f"✅ Your product is ready!\n\n📦 Order ID: {order.id}\n\n{str(product_data)}"
+            product_message = f"✅ Your product is ready!\n\n📦 Order ID: {order.id}\n\n{product_data!s}"
         
         # Send product data to customer
         # Get the customer bot instance from global or context
@@ -191,7 +193,7 @@ async def handle_supplier_reply(
                     f"Supplier {supplier.id} delivered product for order {order.id}"
                 )
             except TelegramError as e:
-                logger.error(f"Failed to send product to customer: {str(e)}")
+                logger.error(f"Failed to send product to customer: {e!s}")
                 await message.reply_text(
                     "❌ Failed to send product to customer.\n"
                     "Please try again or contact support."
@@ -204,7 +206,7 @@ async def handle_supplier_reply(
             )
             
     except Exception as e:
-        logger.error(f"Error handling supplier reply: {str(e)}", exc_info=True)
+        logger.error(f"Error handling supplier reply: {e!s}", exc_info=True)
         await message.reply_text(
             "❌ An error occurred while processing your reply.\n"
             "Please try again or contact support."

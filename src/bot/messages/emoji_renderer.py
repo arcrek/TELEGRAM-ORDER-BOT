@@ -7,7 +7,7 @@ Emoji rendering for the bot:
 """
 import html
 import re
-from typing import Iterable, List, Optional, Tuple
+from collections.abc import Iterable
 
 CUSTOM_EMOJI_TYPE = "custom_emoji"
 # Case-insensitive: legitimate tokens are always lowercase (from /set_emo and the
@@ -17,7 +17,7 @@ CUSTOM_EMOJI_TYPE = "custom_emoji"
 _TOKEN_RE = re.compile(r"\{emo:(\d+)\}", re.IGNORECASE)
 
 
-def parse_emoji_units(text: str, entities: Iterable) -> List[dict]:
+def parse_emoji_units(text: str, entities: Iterable) -> list[dict]:
     """
     Build an ordered unit list from message text + entities.
 
@@ -41,7 +41,7 @@ def parse_emoji_units(text: str, entities: Iterable) -> List[dict]:
     def slice_u16(start: int, length: int) -> str:
         return buf[start * 2 : (start + length) * 2].decode("utf-16-le")
 
-    units: List[dict] = []
+    units: list[dict] = []
     cursor = 0
     for e in custom:
         if e.offset > cursor:
@@ -61,7 +61,7 @@ def parse_emoji_units(text: str, entities: Iterable) -> List[dict]:
     return units
 
 
-def render(text: str, service) -> Tuple[str, Optional[str]]:
+def render(text: str, service) -> tuple[str, str | None]:
     """
     Expand {emo:<id>} tokens to <tg-emoji> HTML.
 
@@ -81,7 +81,7 @@ def render(text: str, service) -> Tuple[str, Optional[str]]:
     return _TOKEN_RE.sub(_replace, escaped), "HTML"
 
 
-def split_icon(text: str, service) -> Tuple[str, Optional[str]]:
+def split_icon(text: str, service) -> tuple[str, str | None]:
     """Resolve emoji tokens for a plain-text button label.
 
     Telegram inline-keyboard buttons render a custom emoji via the separate
@@ -96,7 +96,7 @@ def split_icon(text: str, service) -> Tuple[str, Optional[str]]:
     if not _TOKEN_RE.search(text):
         return text, None
 
-    icon_id: Optional[str] = None
+    icon_id: str | None = None
     m = _TOKEN_RE.search(text)
     if m is not None:
         icon_id = service.get_first_emoji_id(int(m.group(1)))
@@ -107,7 +107,7 @@ def split_icon(text: str, service) -> Tuple[str, Optional[str]]:
     # Remaining tokens (or all of them, if the first had no usable emoji) become
     # their plain fallback text.
     text = _TOKEN_RE.sub(lambda mm: service.get_plain_text(int(mm.group(1))), text)
-    return text.strip() or "​", icon_id
+    return text.strip() or "\u200b", icon_id
 
 
 def substitute_plain(text: str, service) -> str:

@@ -1,8 +1,9 @@
 """
 Service layer for Image of the Day (IOTD) settings.
 """
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from src.database.models.iotd_settings import IotdSettings
 
 
@@ -27,12 +28,12 @@ class IotdSettingsService:
         self.session.refresh(settings)
         return settings
 
-    def get_image_url(self) -> Optional[str]:
+    def get_image_url(self) -> str | None:
         settings = self.get_settings()
         url = settings.image_url.strip() if settings.image_url else None
         return url or None
 
-    def set_image_url(self, image_url: Optional[str]) -> IotdSettings:
+    def set_image_url(self, image_url: str | None) -> IotdSettings:
         settings = self.get_settings()
         if image_url is None:
             settings.image_url = None

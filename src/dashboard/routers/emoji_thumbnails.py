@@ -6,7 +6,6 @@ stored placeholder, so it can't be used to make the server fetch arbitrary ids.
 """
 import logging
 import os
-from typing import Optional, Tuple
 
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
@@ -22,19 +21,19 @@ router = APIRouter()
 _CACHE_HEADERS = {"Cache-Control": "public, max-age=86400"}
 
 
-def _get_bot() -> Optional[Bot]:
+def _get_bot() -> Bot | None:
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
         logger.warning("TELEGRAM_BOT_TOKEN not set; cannot fetch emoji thumbnails")
         return None
     try:
         return Bot(token=token)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error(f"Failed to build Bot for thumbnails: {exc}", exc_info=True)
         return None
 
 
-async def fetch_thumbnail_bytes(bot: Bot, custom_emoji_id: str) -> Optional[Tuple[bytes, str]]:
+async def fetch_thumbnail_bytes(bot: Bot, custom_emoji_id: str) -> tuple[bytes, str] | None:
     """Download a custom emoji's static thumbnail. Returns (data, mime) or None."""
     stickers = await bot.get_custom_emoji_stickers([custom_emoji_id])
     if not stickers:

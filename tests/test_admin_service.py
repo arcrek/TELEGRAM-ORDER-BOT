@@ -4,8 +4,9 @@ Tests for admin service.
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
+
 from src.database.models.admin import AdminRole
+from src.database.models.base import Base
 from src.database.services.admin_service import AdminService
 
 

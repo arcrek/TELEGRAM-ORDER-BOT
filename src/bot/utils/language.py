@@ -2,11 +2,12 @@
 Language utility functions for bot handlers.
 """
 from telegram import Update
+
 from src.database.connection import get_session_factory
 from src.database.services.user_preference_service import UserPreferenceService
 from src.i18n.bot_translations import (
-    get_translation,
     DEFAULT_LANGUAGE,
+    get_translation,
 )
 
 

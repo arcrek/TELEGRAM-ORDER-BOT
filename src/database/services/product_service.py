@@ -1,10 +1,11 @@
 """
 Product service layer for business logic.
 """
-from typing import Optional, List
-from sqlalchemy.orm import Session
+
 from sqlalchemy import func
-from src.database.models import Product, DeliveryType
+from sqlalchemy.orm import Session
+
+from src.database.models import DeliveryType, Product
 
 
 class ProductService:
@@ -49,7 +50,7 @@ class ProductService:
         self.session.refresh(product)
         return product
 
-    def get_product_by_id(self, product_id: str) -> Optional[Product]:
+    def get_product_by_id(self, product_id: str) -> Product | None:
         """
         Get product by ID.
         
@@ -65,11 +66,11 @@ class ProductService:
         self,
         page: int = 1,
         per_page: int = 15,
-        only_active: Optional[bool] = None,
-        search: Optional[str] = None,
-        sort_by: Optional[str] = None,
-        sort_order: Optional[str] = None,
-    ) -> List[Product]:
+        only_active: bool | None = None,
+        search: str | None = None,
+        sort_by: str | None = None,
+        sort_order: str | None = None,
+    ) -> list[Product]:
         """
         List products with pagination, search, and sorting.
         
@@ -123,8 +124,8 @@ class ProductService:
 
     def get_total_count(
         self,
-        only_active: Optional[bool] = None,
-        search: Optional[str] = None,
+        only_active: bool | None = None,
+        search: str | None = None,
     ) -> int:
         """
         Get total count of products.
@@ -156,7 +157,7 @@ class ProductService:
         
         return query.scalar() or 0
 
-    def update_product(self, product_id: str, update_data: dict) -> Optional[Product]:
+    def update_product(self, product_id: str, update_data: dict) -> Product | None:
         """
         Update a product.
         

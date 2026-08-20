@@ -2,18 +2,20 @@
 Orders router.
 """
 
-import logging
-from datetime import datetime, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import select, func as sa_func
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from src.dashboard.auth import get_current_admin, get_db
-from src.database.services.order_service import OrderService
-from src.database.models.enums import OrderStatus, DeliveryType
 import csv
 import io
+import logging
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from pydantic import BaseModel
+from sqlalchemy import func as sa_func
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from src.dashboard.auth import get_current_admin, get_db
+from src.database.models.enums import DeliveryType, OrderStatus
+from src.database.services.order_service import OrderService
 from src.utils.datetime_format import to_utc_iso
 
 logger = logging.getLogger(__name__)
@@ -32,25 +34,25 @@ class OrderStatusUpdate(BaseModel):
 async def list_orders(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(15, ge=1, le=100, description="Items per page"),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    user_id: Optional[int] = Query(None, description="Filter by user ID"),
-    product_id: Optional[str] = Query(None, description="Filter by product ID"),
-    search: Optional[str] = Query(None, description="Search by order ID"),
-    sort_by: Optional[str] = Query(
+    status: str | None = Query(None, description="Filter by status"),
+    user_id: int | None = Query(None, description="Filter by user ID"),
+    product_id: str | None = Query(None, description="Filter by product ID"),
+    search: str | None = Query(None, description="Search by order ID"),
+    sort_by: str | None = Query(
         "created_at", description="Sort field: created_at, total_amount, status"
     ),
-    sort_order: Optional[str] = Query("desc", description="Sort order: asc, desc"),
-    start_date: Optional[str] = Query(
+    sort_order: str | None = Query("desc", description="Sort order: asc, desc"),
+    start_date: str | None = Query(
         None, description="Filter from date (ISO format)"
     ),
-    end_date: Optional[str] = Query(None, description="Filter until date (ISO format)"),
-    delivery_search: Optional[str] = Query(
+    end_date: str | None = Query(None, description="Filter until date (ISO format)"),
+    delivery_search: str | None = Query(
         None, description="Search by delivered content (fuzzy match on product_data)"
     ),
-    delivery_start_date: Optional[str] = Query(
+    delivery_start_date: str | None = Query(
         None, description="Filter by delivery date from (ISO format, uses used_at)"
     ),
-    delivery_end_date: Optional[str] = Query(
+    delivery_end_date: str | None = Query(
         None, description="Filter by delivery date until (ISO format, uses used_at)"
     ),
     current_admin=Depends(get_current_admin),
@@ -146,21 +148,21 @@ async def list_orders(
 
 @router.get("/export")
 async def export_orders(
-    status: Optional[str] = Query(None, description="Filter by status"),
-    user_id: Optional[int] = Query(None, description="Filter by user ID"),
-    product_id: Optional[str] = Query(None, description="Filter by product ID"),
-    search: Optional[str] = Query(None, description="Search by order ID"),
-    start_date: Optional[str] = Query(
+    status: str | None = Query(None, description="Filter by status"),
+    user_id: int | None = Query(None, description="Filter by user ID"),
+    product_id: str | None = Query(None, description="Filter by product ID"),
+    search: str | None = Query(None, description="Search by order ID"),
+    start_date: str | None = Query(
         None, description="Filter from date (ISO format)"
     ),
-    end_date: Optional[str] = Query(None, description="Filter until date (ISO format)"),
-    delivery_search: Optional[str] = Query(
+    end_date: str | None = Query(None, description="Filter until date (ISO format)"),
+    delivery_search: str | None = Query(
         None, description="Search by delivered content (fuzzy match on product_data)"
     ),
-    delivery_start_date: Optional[str] = Query(
+    delivery_start_date: str | None = Query(
         None, description="Filter by delivery date from (ISO format, uses used_at)"
     ),
-    delivery_end_date: Optional[str] = Query(
+    delivery_end_date: str | None = Query(
         None, description="Filter by delivery date until (ISO format, uses used_at)"
     ),
     current_admin=Depends(get_current_admin),
@@ -254,7 +256,7 @@ async def export_orders(
 
 @router.get("/recent-paid")
 async def recent_paid(
-    since: Optional[str] = Query(None, description="ISO8601; return orders paid after this"),
+    since: str | None = Query(None, description="ISO8601; return orders paid after this"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
@@ -373,7 +375,9 @@ async def update_order_status(
             )
             if is_upgrade:
                 from src.dashboard.routers.notifications import get_bot_instance
-                from src.database.services.user_preference_service import UserPreferenceService
+                from src.database.services.user_preference_service import (
+                    UserPreferenceService,
+                )
                 from src.i18n.bot_translations import get_translation
 
                 bot = get_bot_instance()

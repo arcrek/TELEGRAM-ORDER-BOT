@@ -5,7 +5,6 @@ Bot user service layer for user tracking.
 import secrets
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -37,9 +36,9 @@ class BotUserService:
     def track_user(
         self,
         telegram_user_id: int,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
+        username: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
     ) -> BotUser:
         """
         Track a user (create or update).
@@ -92,7 +91,7 @@ class BotUserService:
             self.session.refresh(user)
             return user
 
-    def get_user_by_username(self, username: str) -> Optional[BotUser]:
+    def get_user_by_username(self, username: str) -> BotUser | None:
         """
         Get user by Telegram username (case-insensitive, with or without @).
 
@@ -109,7 +108,7 @@ class BotUserService:
             .first()
         )
 
-    def get_user_by_telegram_id(self, telegram_user_id: int) -> Optional[BotUser]:
+    def get_user_by_telegram_id(self, telegram_user_id: int) -> BotUser | None:
         """
         Get user by Telegram user ID.
 
@@ -125,7 +124,7 @@ class BotUserService:
             .first()
         )
 
-    def get_all_started_users(self) -> List[BotUser]:
+    def get_all_started_users(self) -> list[BotUser]:
         """
         Get all users who have pressed /start.
 
@@ -134,7 +133,7 @@ class BotUserService:
         """
         return self.session.query(BotUser).filter_by(has_started=True).all()
 
-    def get_active_users(self) -> List[BotUser]:
+    def get_active_users(self) -> list[BotUser]:
         """
         Get all active users.
 
@@ -150,7 +149,7 @@ class BotUserService:
 
     def update_user_active_status(
         self, telegram_user_id: int, is_active: bool
-    ) -> Optional[BotUser]:
+    ) -> BotUser | None:
         """
         Update user active status.
 
@@ -174,7 +173,7 @@ class BotUserService:
     # API token methods
     # ------------------------------------------------------------------
 
-    def generate_api_token(self, telegram_user_id: int) -> Optional[str]:
+    def generate_api_token(self, telegram_user_id: int) -> str | None:
         """
         Generate (or regenerate) an API token for the given Telegram user.
 
@@ -193,7 +192,7 @@ class BotUserService:
         self.session.refresh(user)
         return token
 
-    def get_user_by_api_token(self, token: str) -> Optional[BotUser]:
+    def get_user_by_api_token(self, token: str) -> BotUser | None:
         """
         Look up an active BotUser by their API token.
 
@@ -229,10 +228,10 @@ class BotUserService:
     def update_user_info(
         self,
         telegram_user_id: int,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        last_name: Optional[str] = None,
-    ) -> Optional[BotUser]:
+        username: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+    ) -> BotUser | None:
         """
         Update user information.
 

@@ -2,23 +2,23 @@
 Tests for product upload API endpoints.
 Following TDD: Write tests first, then implement endpoints.
 """
+import atexit
+import os
+import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
+
+from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
+
+# Import all models to ensure they're registered
+from src.database.models import *
 from src.database.models import Admin, AdminRole, Product, ProductVariation
 from src.database.models.base import Base
 from src.database.models.enums import DeliveryType
-from src.dashboard.auth import get_password_hash, create_access_token, get_db
-
-# Import all models to ensure they're registered
-from src.database.models import *  # noqa: F401, F403
-
-import tempfile
-import os
-import atexit
 
 # Create test database file
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')

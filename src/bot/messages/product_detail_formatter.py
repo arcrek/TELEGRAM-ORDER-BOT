@@ -2,13 +2,14 @@
 Product detail formatter for Telegram messages.
 """
 
-from typing import List, Optional, Dict, Tuple
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import KeyboardButtonStyle
-from src.database.models import Product, ProductVariation
-from src.database.models.enums import DeliveryType
+
 from src.bot.messages.emoji_renderer import split_icon
 from src.bot.utils.language import t
+from src.database.models import Product, ProductVariation
+from src.database.models.enums import DeliveryType
 
 
 class ProductDetailFormatter:
@@ -29,9 +30,9 @@ class ProductDetailFormatter:
     def _variation_button_text(
         self,
         variation: ProductVariation,
-        update: Optional[Update] = None,
+        update: Update | None = None,
         emoji_service=None,
-    ) -> Tuple[str, Optional[str]]:
+    ) -> tuple[str, str | None]:
         """Return (button_label, icon_custom_emoji_id).
 
         The first {emo:id} token in the variation name becomes the button's
@@ -58,11 +59,11 @@ class ProductDetailFormatter:
     def format_product_detail(
         self,
         product: Product,
-        variations: List[ProductVariation],
+        variations: list[ProductVariation],
         total_stock: int,
-        update: Optional[Update] = None,
-        bonus_texts: Optional[Dict[str, str]] = None,
-        variation_choose_text: Optional[str] = None,
+        update: Update | None = None,
+        bonus_texts: dict[str, str] | None = None,
+        variation_choose_text: str | None = None,
         sold_count: int = 0,
     ) -> str:
         """
@@ -143,10 +144,10 @@ class ProductDetailFormatter:
 
     def get_bonus_texts_for_variations(
         self,
-        variation_ids: List[str],
+        variation_ids: list[str],
         session,
         language: str = "vi",
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Get bonus display texts for multiple variations.
 
@@ -178,7 +179,7 @@ class ProductDetailFormatter:
 
         return result
 
-    def format_variations_list(self, variations: List[ProductVariation]) -> str:
+    def format_variations_list(self, variations: list[ProductVariation]) -> str:
         """
         Format variations list text.
 
@@ -196,8 +197,8 @@ class ProductDetailFormatter:
         return "\n".join(lines)
 
     def _variation_style(
-        self, variation: ProductVariation, delivery_type: Optional[str]
-    ) -> Optional[str]:
+        self, variation: ProductVariation, delivery_type: str | None
+    ) -> str | None:
         if delivery_type == DeliveryType.UPGRADE:
             return KeyboardButtonStyle.PRIMARY
         if delivery_type == DeliveryType.PRE_UPLOADED:
@@ -210,10 +211,10 @@ class ProductDetailFormatter:
 
     def create_variation_keyboard(
         self,
-        variations: List[ProductVariation],
+        variations: list[ProductVariation],
         product_id: str,
-        update: Optional[Update] = None,
-        delivery_type: Optional[str] = None,
+        update: Update | None = None,
+        delivery_type: str | None = None,
         emoji_service=None,
     ) -> InlineKeyboardMarkup:
         """
@@ -263,9 +264,9 @@ class ProductDetailFormatter:
         self,
         product_id: str,
         page: int = 1,
-        variations: List[ProductVariation] = None,
-        update: Optional[Update] = None,
-        delivery_type: Optional[str] = None,
+        variations: list[ProductVariation] = None,
+        update: Update | None = None,
+        delivery_type: str | None = None,
         emoji_service=None,
     ) -> InlineKeyboardMarkup:
         """

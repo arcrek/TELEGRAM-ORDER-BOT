@@ -1,8 +1,9 @@
 """Manual (user guide) service layer."""
 
 import uuid
-from typing import Optional
+
 from sqlalchemy.orm import Session
+
 from src.database.models.manual import Manual, ManualProductAssignment
 
 
@@ -22,16 +23,16 @@ class ManualService:
         self.session.refresh(manual)
         return manual
 
-    def get_manual_by_id(self, manual_id: str) -> Optional[Manual]:
+    def get_manual_by_id(self, manual_id: str) -> Manual | None:
         return self.session.query(Manual).filter_by(id=manual_id).first()
 
-    def list_manuals(self, only_active: Optional[bool] = None) -> list[Manual]:
+    def list_manuals(self, only_active: bool | None = None) -> list[Manual]:
         query = self.session.query(Manual)
         if only_active is not None:
             query = query.filter(Manual.is_active == only_active)
         return query.order_by(Manual.sort_order.asc(), Manual.created_at.asc()).all()
 
-    def update_manual(self, manual_id: str, data: dict) -> Optional[Manual]:
+    def update_manual(self, manual_id: str, data: dict) -> Manual | None:
         """Update manual fields. Ignores 'product_ids' key."""
         manual = self.get_manual_by_id(manual_id)
         if not manual:
@@ -64,7 +65,7 @@ class ManualService:
             .filter(ManualProductAssignment.product_id == product_id)
         )
         if only_active:
-            query = query.filter(Manual.is_active == True)  # noqa: E712
+            query = query.filter(Manual.is_active == True)
         return query.order_by(Manual.sort_order.asc(), Manual.created_at.asc()).all()
 
     def set_assignments(self, manual_id: str, product_ids: list[str]) -> None:

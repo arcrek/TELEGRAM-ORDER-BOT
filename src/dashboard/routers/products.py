@@ -2,46 +2,48 @@
 Products router.
 """
 import uuid
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from src.dashboard.auth import get_current_admin, get_db
-from src.database.services.product_service import ProductService
-from src.database.services.product_supplier_assignment_service import ProductSupplierAssignmentService
-from src.database.models.enums import DeliveryType
-from src.utils.datetime_format import to_utc_iso
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from src.dashboard.auth import get_current_admin, get_db
+from src.database.models.enums import DeliveryType
+from src.database.services.product_service import ProductService
+from src.database.services.product_supplier_assignment_service import (
+    ProductSupplierAssignmentService,
+)
+from src.utils.datetime_format import to_utc_iso
 
 router = APIRouter()
 
 
 class ProductCreate(BaseModel):
     """Product creation schema."""
-    id: Optional[str] = None
+    id: str | None = None
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     delivery_type: DeliveryType = DeliveryType.PRE_UPLOADED
-    upgrade_request_text: Optional[str] = None
+    upgrade_request_text: str | None = None
     is_active: bool = True
 
 
 class ProductUpdate(BaseModel):
     """Product update schema."""
-    name: Optional[str] = None
-    description: Optional[str] = None
-    delivery_type: Optional[DeliveryType] = None
-    upgrade_request_text: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    delivery_type: DeliveryType | None = None
+    upgrade_request_text: str | None = None
+    is_active: bool | None = None
 
 
 class ProductResponse(BaseModel):
     """Product response schema."""
     id: str
     name: str
-    description: Optional[str]
+    description: str | None
     delivery_type: str
-    upgrade_request_text: Optional[str]
+    upgrade_request_text: str | None
     is_active: bool
     created_at: str
     updated_at: str
@@ -55,10 +57,10 @@ class ProductResponse(BaseModel):
 async def list_products(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(15, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search by name or description"),
-    only_active: Optional[bool] = Query(None, description="Filter by active status"),
-    sort_by: Optional[str] = Query("name", description="Sort field: name, created_at"),
-    sort_order: Optional[str] = Query("asc", description="Sort order: asc, desc"),
+    search: str | None = Query(None, description="Search by name or description"),
+    only_active: bool | None = Query(None, description="Filter by active status"),
+    sort_by: str | None = Query("name", description="Sort field: name, created_at"),
+    sort_order: str | None = Query("asc", description="Sort order: asc, desc"),
     current_admin=Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):

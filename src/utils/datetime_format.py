@@ -9,7 +9,6 @@ All datetime values stored in the DB are naive UTC.
 import logging
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ _DEFAULT_TZ_NAME = "Asia/Ho_Chi_Minh"
 # ---------------------------------------------------------------------------
 
 
-def to_utc_iso(dt: Optional[datetime]) -> Optional[str]:
+def to_utc_iso(dt: datetime | None) -> str | None:
     """Serialize a datetime to a UTC-aware ISO 8601 string (e.g. 2026-06-16T10:30:00+00:00).
 
     - None → None

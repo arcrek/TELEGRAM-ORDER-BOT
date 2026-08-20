@@ -3,14 +3,16 @@ Tests for notification service.
 Following TDD: Write tests first, then implement service.
 """
 import asyncio
-import pytest
 from unittest.mock import Mock
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from src.database.models.base import Base
-from src.database.services.notification_service import NotificationService
-from src.database.services.bot_user_service import BotUserService
 from telegram.error import BadRequest
+
+from src.database.models.base import Base
+from src.database.services.bot_user_service import BotUserService
+from src.database.services.notification_service import NotificationService
 
 
 @pytest.fixture
@@ -277,7 +279,9 @@ class TestNotificationEmojiRendering:
     to <tg-emoji> HTML and send with parse_mode=HTML, mirroring OrderNotificationService."""
 
     def _make_placeholder(self, db_session):
-        from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+        from src.database.services.emoji_placeholder_service import (
+            EmojiPlaceholderService,
+        )
         svc = EmojiPlaceholderService(db_session)
         pid = svc.create("Star")
         svc.set_content(

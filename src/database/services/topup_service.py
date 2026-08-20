@@ -2,15 +2,14 @@
 Topup service — CRUD operations on TopupOrder.
 """
 import secrets
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import update, select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from src.database.models.topup_order import TopupOrder
 from src.database.models.bot_user import BotUser
 from src.database.models.enums import TopupStatus
+from src.database.models.topup_order import TopupOrder
 
 # Topup amount bounds (VND)
 BALANCE_TOPUP_MIN = 10_000
@@ -102,13 +101,13 @@ class TopupService:
     # Read methods
     # ------------------------------------------------------------------
 
-    def get_by_id(self, topup_id: str) -> Optional[TopupOrder]:
+    def get_by_id(self, topup_id: str) -> TopupOrder | None:
         """Return a TopupOrder by its string ID, or None."""
         return self.session.execute(
             select(TopupOrder).where(TopupOrder.id == topup_id)
         ).scalar_one_or_none()
 
-    def get_by_payos_code(self, payos_order_code: int) -> Optional[TopupOrder]:
+    def get_by_payos_code(self, payos_order_code: int) -> TopupOrder | None:
         """Return a TopupOrder by its PayOS orderCode, or None."""
         return self.session.execute(
             select(TopupOrder).where(TopupOrder.payos_order_code == payos_order_code)

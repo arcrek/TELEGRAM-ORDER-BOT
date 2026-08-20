@@ -1,18 +1,19 @@
 """
 Tests for bot UI settings API endpoints.
 """
-import pytest
+import atexit
 import os
 import tempfile
-import atexit
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
+
+from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
-from src.dashboard.auth import get_password_hash, create_access_token, get_db
-
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
 test_db_path = test_db_file.name

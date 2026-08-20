@@ -4,16 +4,13 @@ Command handlers for the Telegram bot.
 
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-from src.database.connection import get_session_factory
-from src.database.services.product_service import ProductService
-from src.database.services.bot_user_service import BotUserService
-from src.database.services.order_service import OrderService
-from src.database.services.statistics_service import StatisticsService
-from src.database.models.enums import OrderStatus
-from src.database.services.user_preference_service import UserPreferenceService
+
+from src.bot.messages.emoji_renderer import render as render_emoji
+from src.bot.messages.product_formatter import ProductFormatter
+from src.bot.states.state_manager import StateManager
 from src.bot.utils.admin_check import (
     add_admin,
     get_admin_telegram_ids,
@@ -21,18 +18,21 @@ from src.bot.utils.admin_check import (
     is_owner,
     remove_admin,
 )
-from src.database.services.bot_ui_settings_service import BotUiSettingsService
-from src.database.services.pre_uploaded_service import PreUploadedService
-from src.bot.messages.product_formatter import ProductFormatter
-from src.bot.states.state_manager import StateManager
-from src.bot.utils.language import t
 from src.bot.utils.keyboard import get_persistent_keyboard
+from src.bot.utils.language import t
+from src.database.connection import get_session_factory
+from src.database.models.enums import OrderStatus
 from src.database.services.app_settings_service import AppSettingsService
-from src.utils.datetime_format import resolve_tz, now_local
-from src.bot.messages.emoji_renderer import render as render_emoji
-from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.services.block_service import BlockService
-
+from src.database.services.bot_ui_settings_service import BotUiSettingsService
+from src.database.services.bot_user_service import BotUserService
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
+from src.database.services.order_service import OrderService
+from src.database.services.pre_uploaded_service import PreUploadedService
+from src.database.services.product_service import ProductService
+from src.database.services.statistics_service import StatisticsService
+from src.database.services.user_preference_service import UserPreferenceService
+from src.utils.datetime_format import now_local, resolve_tz
 
 # Global state manager instance
 state_manager = StateManager()
@@ -151,7 +151,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.error(f"Error tracking user: {str(e)}", exc_info=True)
+            logger.error(f"Error tracking user: {e!s}", exc_info=True)
     finally:
         session.close()
 
@@ -225,7 +225,7 @@ async def handle_start_products(
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in handle_start_products: {str(e)}", exc_info=True)
+        logger.error(f"Error in handle_start_products: {e!s}", exc_info=True)
         await query.edit_message_text(t("commands.products.error", update))
     finally:
         session.close()
@@ -303,7 +303,7 @@ async def handle_start_history(
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in handle_start_history: {str(e)}", exc_info=True)
+        logger.error(f"Error in handle_start_history: {e!s}", exc_info=True)
         await query.edit_message_text(t("order_history.error", update))
     finally:
         session.close()
@@ -336,7 +336,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error tracking user: {str(e)}", exc_info=True)
+        logger.error(f"Error tracking user: {e!s}", exc_info=True)
     finally:
         session.close()
 
@@ -426,7 +426,7 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in products command: {str(e)}", exc_info=True)
+        logger.error(f"Error in products command: {e!s}", exc_info=True)
         await update.message.reply_text(t("commands.products.error", update))
     finally:
         session.close()
@@ -450,7 +450,7 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error tracking user in /balance: {str(e)}", exc_info=True)
+        logger.error(f"Error tracking user in /balance: {e!s}", exc_info=True)
     finally:
         session.close()
 
@@ -543,7 +543,7 @@ async def order_history_command(
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in order_history_command: {str(e)}", exc_info=True)
+        logger.error(f"Error in order_history_command: {e!s}", exc_info=True)
         await update.message.reply_text(t("order_history.error", update))
     finally:
         session.close()
@@ -692,13 +692,13 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Error in language command: {str(e)}", exc_info=True)
+        logger.error(f"Error in language command: {e!s}", exc_info=True)
         await update.message.reply_text(t("commands.language.error", update))
     finally:
         session.close()
 
 
-async def _resolve_admin_target(arg: str, update: Update) -> Optional[int]:
+async def _resolve_admin_target(arg: str, update: Update) -> int | None:
     """
     Resolve a /setadmin argument to a Telegram user ID.
 

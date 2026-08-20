@@ -17,7 +17,6 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Optional
 
 from telegram import (
     InlineKeyboardButton,
@@ -26,23 +25,23 @@ from telegram import (
 )
 from telegram.ext import ContextTypes
 
+from src.bot.messages.emoji_renderer import render as render_emoji
 from src.bot.states.state_manager import StateManager
 from src.bot.utils.language import t
+from src.bot.utils.qr import make_qr_png_bytes
 from src.database.connection import get_session_factory
 from src.database.models.enums import BalanceTxKind
+from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
 from src.database.services.balance_service import BalanceService
 from src.database.services.bot_user_service import BotUserService
-from src.database.services.auto_cancel_service import PAYMENT_EXPIRE_MINUTES
-from src.database.services.app_settings_service import AppSettingsService
+from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.database.services.order_service import OrderService
 from src.database.services.topup_service import (
     BALANCE_TOPUP_MAX,
     BALANCE_TOPUP_MIN,
     TopupService,
 )
-from src.bot.messages.emoji_renderer import render as render_emoji
-from src.bot.utils.qr import make_qr_png_bytes
-from src.database.services.emoji_placeholder_service import EmojiPlaceholderService
 from src.payos.client import build_payos_client
 
 logger = logging.getLogger(__name__)
@@ -106,7 +105,7 @@ async def _create_topup_qr(
     topup_id: str,
     amount: int,
     user_id: int,
-    topup_message_id: Optional[int],
+    topup_message_id: int | None,
 ) -> None:
     """
     Create a PayOS QR for a TopupOrder and send it to the user.

@@ -5,11 +5,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+from src.dashboard.auth import get_db
+from src.dashboard.main import app
 from src.database.models.base import Base
 from src.database.models.bot_user import BotUser
 from src.database.services.block_service import BlockService
-from src.dashboard.main import app
-from src.dashboard.auth import get_db
 
 
 @pytest.fixture

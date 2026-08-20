@@ -5,7 +5,7 @@ Balances router — admin management of user wallet balances.
 import csv
 import io
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -31,13 +31,13 @@ class BalanceUserRow(BaseModel):
 
     bot_user_id: str
     telegram_user_id: int
-    username: Optional[str]
-    first_name: Optional[str]
-    last_name: Optional[str]
+    username: str | None
+    first_name: str | None
+    last_name: str | None
     balance: int
     total_topup: int
-    last_topup_at: Optional[str]  # ISO string from service
-    api_token: Optional[str] = None
+    last_topup_at: str | None  # ISO string from service
+    api_token: str | None = None
 
 
 class BalanceTxRow(BaseModel):
@@ -47,10 +47,10 @@ class BalanceTxRow(BaseModel):
     amount: int
     balance_after: int
     kind: str
-    reference_id: Optional[str]
-    admin_id: Optional[str]
-    admin_username: Optional[str]
-    reason: Optional[str]
+    reference_id: str | None
+    admin_id: str | None
+    admin_username: str | None
+    reason: str | None
     created_at: datetime
 
 
@@ -60,8 +60,8 @@ class TopupRow(BaseModel):
     id: str
     amount: int
     status: str
-    payment_provider: Optional[str]
-    payment_transaction_id: Optional[str]
+    payment_provider: str | None
+    payment_transaction_id: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -81,7 +81,7 @@ class BalanceAdjustRequest(BaseModel):
 
     action: Literal["add", "subtract", "set"]
     amount: int = Field(ge=0)
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class BalanceAdjustResponse(BaseModel):
@@ -89,14 +89,14 @@ class BalanceAdjustResponse(BaseModel):
 
     success: bool
     new_balance: int
-    reason: Optional[str] = None  # error code when success=False
+    reason: str | None = None  # error code when success=False
 
 
 class ApiTokenResponse(BaseModel):
     """Response after generating or revoking an API token."""
 
     bot_user_id: str
-    api_token: Optional[str]  # None after revocation
+    api_token: str | None  # None after revocation
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +107,7 @@ class ApiTokenResponse(BaseModel):
 @router.get("", include_in_schema=True)
 @router.get("/", include_in_schema=False)
 async def list_balances(
-    search: Optional[str] = None,
+    search: str | None = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
     sort_by: str = Query("balance"),

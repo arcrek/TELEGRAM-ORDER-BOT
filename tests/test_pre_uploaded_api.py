@@ -2,8 +2,8 @@
 Tests for the POST /pre-uploaded-products/export endpoint.
 """
 
-import os
 import atexit
+import os
 import tempfile
 
 import pytest
@@ -11,17 +11,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
-from src.dashboard.auth import get_db, get_password_hash, create_access_token
-from src.database.models.base import Base
-from src.database.models.admin import Admin, AdminRole
-from src.database.models.product import Product
-from src.database.models.product_variation import ProductVariation
-from src.database.models.pre_uploaded_product import PreUploadedProduct
-from src.database.models.enums import DeliveryType
 
 # Import all models so they're registered with Base.metadata
-from src.database.models import *  # noqa: F401, F403
+from src.database.models import *
+from src.database.models.admin import Admin, AdminRole
+from src.database.models.base import Base
+from src.database.models.enums import DeliveryType
+from src.database.models.pre_uploaded_product import PreUploadedProduct
+from src.database.models.product import Product
+from src.database.models.product_variation import ProductVariation
 
 # ── Test DB setup ─────────────────────────────────────────────────────────────
 

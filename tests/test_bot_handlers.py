@@ -2,9 +2,10 @@
 Tests for Telegram bot handlers.
 Following TDD: Write tests first, then implement handlers.
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from telegram import Update, Message, User, Chat
+
+import pytest
+from telegram import Chat, Message, Update, User
 from telegram.ext import ContextTypes
 
 # These will be imported after implementation

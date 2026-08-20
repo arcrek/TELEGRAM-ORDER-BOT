@@ -7,7 +7,6 @@ the only identity that can add/remove other admins via /setadmin.
 """
 import logging
 import os
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,7 @@ def get_owner_telegram_id() -> int | None:
     return owner_id
 
 
-def _database_admin_ids() -> List[int]:
+def _database_admin_ids() -> list[int]:
     session = _get_session()
     try:
         from src.database.services.bot_admin_service import BotAdminService
@@ -49,7 +48,7 @@ def _database_admin_ids() -> List[int]:
         session.close()
 
 
-def get_admin_telegram_ids() -> List[int]:
+def get_admin_telegram_ids() -> list[int]:
     """Return the configured owner and database-backed admins."""
     owner_id = get_owner_telegram_id()
     values = ([owner_id] if owner_id is not None else []) + _database_admin_ids()
@@ -71,7 +70,7 @@ def is_admin(telegram_user_id: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def add_admin(telegram_user_id: int, added_by: Optional[int] = None) -> bool:
+def add_admin(telegram_user_id: int, added_by: int | None = None) -> bool:
     """
     Add a bot admin to the DB.
 

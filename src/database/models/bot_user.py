@@ -3,8 +3,10 @@ Bot user model for tracking Telegram users.
 """
 
 import uuid
-from sqlalchemy import Column, String, BigInteger, Boolean, DateTime
+
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, String
 from sqlalchemy.sql import func
+
 from src.database.models.base import Base
 
 
