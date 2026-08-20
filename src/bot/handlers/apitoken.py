@@ -175,7 +175,9 @@ async def handle_api_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             update, has_token=bool(token), api_docs_url=api_docs_url
         )
         await query.edit_message_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
-    except Exception as exc:
+    # Outer boundary of the whole menu render (DB reads + Telegram edit) —
+    # any failure becomes a user-facing alert instead of a silent crash.
+    except Exception as exc:  # noqa: BLE001
         logger.error("Error showing API menu for user %s: %s", user_id, exc)
         await query.answer(t("api_menu.error", update), show_alert=True)
     finally:

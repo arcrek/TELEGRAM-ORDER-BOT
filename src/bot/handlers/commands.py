@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from src.bot.messages.emoji_renderer import render as render_emoji
@@ -69,12 +70,12 @@ async def _restore_reply_keyboard(
             await context.bot.delete_message(
                 chat_id=chat_id, message_id=sent.message_id
             )
-        except Exception:
+        except TelegramError:
             # If deletion fails (permissions, timing), it's harmless.
             import logging
 
             logging.getLogger(__name__).debug("Could not delete keyboard-restore placeholder message")
-    except Exception:
+    except TelegramError:
         # Never break the main flow just because keyboard restore failed.
         import logging
 

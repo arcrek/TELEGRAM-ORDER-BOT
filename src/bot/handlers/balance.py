@@ -18,11 +18,13 @@ import json
 import logging
 import time
 
+import requests
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Update,
 )
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from src.bot.messages.emoji_renderer import render as render_emoji
@@ -175,7 +177,7 @@ async def _create_topup_qr(
                     cancel_url=settings.bot_url,
                     expired_at=expired_at,
                 )
-            except Exception as exc:
+            except (requests.RequestException, ValueError) as exc:
                 logger.error(f"PayOS create link failed for topup {topup_id}: {exc}")
                 await context.bot.send_message(
                     chat_id=user_id,
@@ -527,7 +529,7 @@ async def handle_balance_close(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     try:
         await query.message.delete()
-    except Exception:
+    except TelegramError:
         await query.edit_message_reply_markup(reply_markup=None)
 
 
@@ -562,7 +564,7 @@ async def handle_topup_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE
         if topup.payment_message_ids:
             try:
                 msg_ids = json.loads(topup.payment_message_ids)
-            except Exception:
+            except (json.JSONDecodeError, TypeError):
                 logger.warning(
                     "Malformed payment_message_ids for topup %s: %r",
                     topup.id,
@@ -579,7 +581,7 @@ async def handle_topup_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE
         for mid in msg_ids:
             try:
                 await context.bot.delete_message(chat_id=user_id, message_id=mid)
-            except Exception:
+            except TelegramError:
                 # Expected when Telegram already dropped the message (too old,
                 # already deleted, chat cleared) — not worth surfacing above debug.
                 logger.debug("Could not delete payment message %s for user %s", mid, user_id)

@@ -62,7 +62,7 @@ async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> dict
 
     try:
         order_code_int = int(order_code)
-    except Exception:
+    except (TypeError, ValueError):
         logger.error(f"Invalid orderCode in PayOS webhook: {order_code!r}")
         return {"success": True}
 
@@ -79,7 +79,7 @@ async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> dict
 
     try:
         amount_int = int(amount)
-    except Exception:
+    except (TypeError, ValueError):
         logger.error(f"Invalid amount in PayOS webhook: {amount!r}")
         return {"success": True}
 

@@ -4,6 +4,7 @@ Callback query handlers for the Telegram bot.
 import logging
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from src.bot.messages.emoji_renderer import render as render_emoji
@@ -643,13 +644,13 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
                     chat_id=user_id,
                     message_id=user_state.custom_quantity_prompt_message_id
                 )
-            except Exception as e:
+            except TelegramError as e:
                 logger.warning(f"Could not delete prompt message: {e!s}")
         
         # Delete the user's input message
         try:
             await update.message.delete()
-        except Exception as e:
+        except TelegramError as e:
             logger.warning(f"Could not delete user input message: {e!s}")
         
         # Update the order confirmation message with bonus and/or discount
@@ -682,7 +683,7 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
                     reply_markup=keyboard,
                     parse_mode=parse_mode,
                 )
-            except Exception as e:
+            except TelegramError as e:
                 logger.warning(f"Could not edit order message: {e!s}")
                 # Fallback: send a new message
                 await context.bot.send_message(
@@ -1037,7 +1038,9 @@ async def _create_qr_for_order(
                         order.payment_provider = "payos"
                         order.payos_order_code = payos_order_code
                         session.commit()
-                except Exception as e:
+                # DB write + code generation — any failure must surface as a friendly
+                # retry message rather than crash the handler.
+                except Exception as e:  # noqa: BLE001
                     logger.error(f"Failed to set PayOS orderCode: {e}")
                     err = "❌ Error preparing payment. Please try again."
                     if reply_to_query:
@@ -1079,7 +1082,10 @@ async def _create_qr_for_order(
                     order.payos_checkout_url = str(checkout_url) if checkout_url else None
                     order.payos_qr_code = str(qr_code) if qr_code else None
                     session.commit()
-                except Exception as e:
+                # Best-effort persistence — the payment link itself was already
+                # created upstream; failing to cache its fields must not block
+                # the user from paying.
+                except Exception as e:  # noqa: BLE001
                     logger.warning(f"Failed to store PayOS payment link fields: {e}")
 
             state_manager.update_user_state(user_id, pending_order_id=order.id)
@@ -1161,7 +1167,11 @@ async def _create_qr_for_order(
             await reply_to_query.edit_message_text(err_text)
         else:
             await context.bot.send_message(chat_id=user_id, text=err_text)
-    except Exception as e:
+    # Outermost boundary of the whole payment-creation flow (PayOS API call,
+    # QR generation, DB commit, Telegram send) — last resort so any of those
+    # heterogeneous failures becomes a user-facing message instead of a
+    # silent, unhandled crash in the callback.
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error creating payment: {e!s}")
         error_detail = str(e)
         if "Connection" in error_detail or "timeout" in error_detail.lower():
@@ -1370,7 +1380,7 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
                         message_id=user_state.payment_message_id
                     )
                     logger.info(f"Deleted payment message {user_state.payment_message_id} for cancelled order {order_id}")
-                except Exception as e:
+                except TelegramError as e:
                     logger.warning(f"Could not delete payment message: {e!s}")
             
             # Try to edit the message to remove the cancel button (if it's a callback query message)
@@ -1383,7 +1393,7 @@ async def handle_cancel_order(update: Update, context: ContextTypes.DEFAULT_TYPE
                     ),
                     reply_markup=None
                 )
-            except Exception as e:
+            except TelegramError as e:
                 # If editing fails (e.g., message already edited), just send new message
                 logger.warning(f"Could not edit message: {e!s}")
             
@@ -1533,7 +1543,7 @@ async def handle_order_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             dt = datetime.fromisoformat(details["created_at"])
             date_str = dt.strftime("%d/%m/%Y %H:%M")
-        except Exception:
+        except (ValueError, TypeError):
             date_str = details["created_at"]
 
         lines = [

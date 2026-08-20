@@ -18,3 +18,24 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.File"]
 # against DB-sourced values. Production code has no DTZ001/DTZ003 findings —
 # only tests construct naive datetimes freely, so this is scoped to tests/.
 "tests/*" = ["DTZ001", "DTZ003"]
+
+# BLE001 (blind `except Exception`): these two files are the deliberate
+# outer safety boundary for their respective flows — every catch in them
+# already logs and degrades gracefully (return False / continue the loop /
+# skip one order), which is the correct behavior at this boundary, not a
+# bug BLE001 should flag:
+#   - ipn/processor.py: payment-webhook fulfillment. A crash here must not
+#     leave a payment received but the order never marked paid, and must
+#     not 500 the gateway's webhook call. Notification/cleanup sends inside
+#     are explicitly best-effort (Telegram delivery failing must not fail
+#     the payment). Every site already narrows to a specific type first
+#     where one exists (e.g. `except ValueError` before the general
+#     fallback) — the Exception catches are only the last-resort layer.
+#   - auto_cancel_service.py: the auto-cancel/expiry-warning sweep runs
+#     against every pending order/topup in one pass; one row's failure
+#     (bad PayOS state, a Telegram send failing) must not abort the rest
+#     of the batch.
+# Every other file's BLE001 findings are narrowed to specific exception
+# types or fixed properly instead of ignored here.
+"src/ipn/processor.py" = ["BLE001"]
+"src/database/services/auto_cancel_service.py" = ["BLE001"]

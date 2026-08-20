@@ -26,6 +26,7 @@ import json
 import logging
 from datetime import datetime, timezone
 
+from sqlalchemy.exc import SQLAlchemyError
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
@@ -283,7 +284,10 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
         except TelegramError as e:
             logger.error(f"Failed to send UPGRADE confirmation to user {user_id}: {e}")
 
-    except Exception as e:
+    # Outermost boundary of the customer-reply forward flow (DB writes +
+    # multi-chat Telegram forwarding) — must roll back and log rather than
+    # leave the session dirty or crash the handler.
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error in _handle_customer_reply: {e!s}")
         session.rollback()
     finally:
@@ -327,7 +331,7 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Pick the customer's preferred language for the status-update header.
         try:
             customer_language = UserPreferenceService(session).get_user_language(order.user_id)
-        except Exception:
+        except SQLAlchemyError:
             customer_language = "vi"
 
         header = get_translation(
@@ -359,7 +363,8 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
         except TelegramError as e:
             logger.warning(f"Failed to confirm admin update for order {order.id}: {e}")
 
-    except Exception as e:
+    # Same outer boundary as _handle_customer_reply, for the admin-reply path.
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error in _handle_admin_reply: {e!s}")
         session.rollback()
     finally:
@@ -474,7 +479,7 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         try:
             customer_language = UserPreferenceService(session).get_user_language(order.user_id)
-        except Exception:
+        except SQLAlchemyError:
             customer_language = "vi"
 
         try:
@@ -514,7 +519,8 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await query.answer()
 
-    except Exception as e:
+    # Same outer boundary, for the Done-button confirmation path.
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error in handle_upgrade_done: {e!s}")
         session.rollback()
         try:
