@@ -416,11 +416,8 @@ async def create_order(
             # Order is still PENDING — release the reservation immediately
             try:
                 order_svc.cancel_order(order_id)
-            except Exception as cancel_exc:
-                logger.exception("Failed to cancel order %s after insufficient balance: %s",
-                    order_id,
-                    cancel_exc,
-                )
+            except Exception:
+                logger.exception("Failed to cancel order %s after insufficient balance", order_id)
             raise HTTPException(
                 status_code=status.HTTP_402_PAYMENT_REQUIRED,
                 detail="Insufficient wallet balance to complete this order.",

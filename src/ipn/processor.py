@@ -89,8 +89,8 @@ def run_async(coro):
         return loop.run_until_complete(coro)
     except RuntimeError:
         return asyncio.run(coro)
-    except Exception as e:
-        logger.exception(f"Error in run_async: {e!s}")
+    except Exception:
+        logger.exception("Error in run_async")
         raise
 
 
@@ -540,8 +540,8 @@ class IPNOrderProcessor:
                         chat_id=order.user_id,
                         text=error_message,
                     ))
-                except TelegramError as e:
-                    logger.exception(f"Failed to send failure notification: {e!s}")
+                except TelegramError:
+                    logger.exception("Failed to send failure notification")
 
             return True
 
@@ -638,8 +638,8 @@ class IPNOrderProcessor:
             )
             try:
                 run_async(self.bot.send_message(chat_id=user_id, text=error_message))
-            except TelegramError as e:
-                logger.exception(f"Failed to send partial delivery notification: {e!s}")
+            except TelegramError:
+                logger.exception("Failed to send partial delivery notification")
 
         # Treat partial delivery as failure so upstream returns processed=False
         raise RuntimeError(f"Partial delivery failure for order {order_id}")
@@ -840,8 +840,8 @@ class IPNOrderProcessor:
                         f"You will receive your product soon."
                     )
                     run_async(self.bot.send_message(chat_id=user_id, text=user_message))
-                except TelegramError as e:
-                    logger.exception(f"Failed to send supplier delivery confirmation: {e!s}")
+                except TelegramError:
+                    logger.exception("Failed to send supplier delivery confirmation")
                     raise
 
         except Exception as e:
@@ -908,7 +908,7 @@ class IPNOrderProcessor:
                         for key, value in product_data.items():
                             product_lines += f"{key}: {value}\n"
                 elif isinstance(product_data, dict) and not product_data:
-                    product_id = product.get('id', 'N/A')
+                    product_id = product.get("id", "N/A")
                     product_lines += f"[Product ID: {product_id} - No delivery data available]\n"
                 else:
                     product_lines += f"{product_data!s}\n"
@@ -922,12 +922,12 @@ class IPNOrderProcessor:
                 if file_path.exists():
                     logger.warning(f"Delivery file already exists for order {order_id}. This should not happen due to order status check.")
                 else:
-                    file_path.write_text(file_content, encoding='utf-8')
+                    file_path.write_text(file_content, encoding="utf-8")
                     logger.info(f"Delivery data saved to file: {file_path}")
             except PermissionError as e:
                 logger.warning(f"Could not save delivery data to file: {e!s}")
-            except Exception as e:
-                logger.exception(f"Error saving delivery data to file: {e!s}")
+            except Exception:
+                logger.exception("Error saving delivery data to file")
 
             sent_ok = False
             try:
@@ -947,7 +947,7 @@ class IPNOrderProcessor:
                     logger.info(f"Sending delivery file to user {user_id} for order {order_id}")
                     logger.info(f"File path: {file_path}, File size: {file_path.stat().st_size} bytes")
 
-                    with open(file_path, 'rb') as f:
+                    with open(file_path, "rb") as f:
                         file_data = f.read()
 
                     file_obj = BytesIO(file_data)
@@ -970,8 +970,8 @@ class IPNOrderProcessor:
             except TelegramError as e:
                 logger.error(f"Telegram error sending delivery to user {user_id}: {e!s}")
                 raise
-            except Exception as e:
-                logger.exception(f"Failed to send delivery to user {user_id}: {e!s}")
+            except Exception:
+                logger.exception(f"Failed to send delivery to user {user_id}")
                 raise
 
             # Delete the delivery file only after successful delivery
@@ -985,8 +985,8 @@ class IPNOrderProcessor:
 
             return product_lines.strip()
 
-        except TelegramError as e:
-            logger.exception(f"Failed to send pre-uploaded products: {e!s}")
+        except TelegramError:
+            logger.exception("Failed to send pre-uploaded products")
             raise
         except Exception as e:
             logger.error(f"Error in _send_pre_uploaded_products: {e!s}")

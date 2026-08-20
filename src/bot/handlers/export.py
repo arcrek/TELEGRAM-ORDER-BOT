@@ -309,8 +309,8 @@ async def handle_export_generate(update: Update, context: ContextTypes.DEFAULT_T
                     chat_id=user_id, document=file_obj, filename=filename
                 )
                 sent += 1
-            except Exception as e:
-                logger.exception(f"Export send_document failed for {filename}: {e}")
+            except Exception:
+                logger.exception(f"Export send_document failed for {filename}")
     finally:
         session.close()
 

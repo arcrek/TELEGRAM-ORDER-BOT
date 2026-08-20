@@ -49,10 +49,10 @@ def get_user_language(update: Update) -> str:
         # but here we enforce Vietnamese as the initial language until the user changes it.
         preference_service.set_user_language(user.id, DEFAULT_LANGUAGE)
         return DEFAULT_LANGUAGE
-    except Exception as e:
+    except Exception:
         import logging
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error getting user language: {e}")
+        logger.exception("Error getting user language")
         # Conservative fallback: use global default (Vietnamese)
         return DEFAULT_LANGUAGE
     finally:

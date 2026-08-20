@@ -192,8 +192,8 @@ async def handle_supplier_reply(
                 logger.info(
                     f"Supplier {supplier.id} delivered product for order {order.id}"
                 )
-            except TelegramError as e:
-                logger.exception(f"Failed to send product to customer: {e!s}")
+            except TelegramError:
+                logger.exception("Failed to send product to customer")
                 await message.reply_text(
                     "❌ Failed to send product to customer.\n"
                     "Please try again or contact support."

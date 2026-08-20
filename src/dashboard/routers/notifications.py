@@ -56,8 +56,8 @@ def get_bot_instance() -> Bot | None:
         try:
             logger.info("Creating bot instance from TELEGRAM_BOT_TOKEN")
             return Bot(token=bot_token)
-        except Exception as e:
-            logger.exception(f"Failed to create bot instance from token: {e!s}")
+        except Exception:
+            logger.exception("Failed to create bot instance from token")
             return None
     else:
         logger.warning("TELEGRAM_BOT_TOKEN not found in environment variables")

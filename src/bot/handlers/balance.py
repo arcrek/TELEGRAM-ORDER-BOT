@@ -212,8 +212,8 @@ async def _create_topup_qr(
                     parse_mode=caption_parse_mode,
                 )
                 ids_to_track.append(sent.message_id)
-            except Exception as exc:
-                logger.exception(f"Failed to send PayOS QR for topup: {exc}")
+            except Exception:
+                logger.exception("Failed to send PayOS QR for topup")
                 sent = await context.bot.send_message(
                     chat_id=user_id,
                     text=rendered_caption,
@@ -240,8 +240,8 @@ async def _create_topup_qr(
         )
         return
 
-    except Exception as exc:
-        logger.exception(f"Error in _create_topup_qr for {topup_id}: {exc}")
+    except Exception:
+        logger.exception(f"Error in _create_topup_qr for {topup_id}")
     finally:
         session.close()
 

@@ -77,8 +77,8 @@ class AutoCancelTask:
                     f"Auto-cancel task (topups): Found {topup_results['found']} expired topups, "
                     f"Cancelled {topup_results['cancelled']}, Skipped {topup_results['skipped']}"
                 )
-        except Exception as e:
-            logger.exception(f"Error in auto-cancel task: {e!s}")
+        except Exception:
+            logger.exception("Error in auto-cancel task")
         finally:
             session.close()
 

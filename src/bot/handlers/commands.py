@@ -146,12 +146,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 first_name=user.first_name,
                 last_name=user.last_name,
             )
-        except Exception as e:
+        except Exception:
             # Log error but don't fail the command
             import logging
 
             logger = logging.getLogger(__name__)
-            logger.exception(f"Error tracking user: {e!s}")
+            logger.exception("Error tracking user")
     finally:
         session.close()
 
@@ -221,11 +221,11 @@ async def handle_start_products(
         await query.edit_message_text(
             rendered, reply_markup=inline_keyboard, parse_mode=parse_mode
         )
-    except Exception as e:
+    except Exception:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error in handle_start_products: {e!s}")
+        logger.exception("Error in handle_start_products")
         await query.edit_message_text(t("commands.products.error", update))
     finally:
         session.close()
@@ -299,11 +299,11 @@ async def handle_start_history(
 
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(message, reply_markup=reply_markup)
-    except Exception as e:
+    except Exception:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error in handle_start_history: {e!s}")
+        logger.exception("Error in handle_start_history")
         await query.edit_message_text(t("order_history.error", update))
     finally:
         session.close()
@@ -331,12 +331,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             first_name=user.first_name,
             last_name=user.last_name,
         )
-    except Exception as e:
+    except Exception:
         # Log error but don't fail the command
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error tracking user: {e!s}")
+        logger.exception("Error tracking user")
     finally:
         session.close()
 
@@ -421,12 +421,12 @@ async def products_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         # Restore reply keyboard without leaving a message
         await _restore_reply_keyboard(update, context)
-    except Exception as e:
+    except Exception:
         # Log error but don't fail the command
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error in products command: {e!s}")
+        logger.exception("Error in products command")
         await update.message.reply_text(t("commands.products.error", update))
     finally:
         session.close()
@@ -446,11 +446,11 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             first_name=user.first_name,
             last_name=user.last_name,
         )
-    except Exception as e:
+    except Exception:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error tracking user in /balance: {e!s}")
+        logger.exception("Error tracking user in /balance")
     finally:
         session.close()
 
@@ -539,11 +539,11 @@ async def order_history_command(
         await update.message.reply_text(message, reply_markup=reply_markup)
         await _restore_reply_keyboard(update, context)
 
-    except Exception as e:
+    except Exception:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error in order_history_command: {e!s}")
+        logger.exception("Error in order_history_command")
         await update.message.reply_text(t("order_history.error", update))
     finally:
         session.close()
@@ -688,11 +688,11 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         # Restore reply keyboard without leaving a message
         await _restore_reply_keyboard(update, context)
-    except Exception as e:
+    except Exception:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.exception(f"Error in language command: {e!s}")
+        logger.exception("Error in language command")
         await update.message.reply_text(t("commands.language.error", update))
     finally:
         session.close()

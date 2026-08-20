@@ -1,0 +1,7 @@
+[lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom calls Depends()/File() as parameter
+# defaults by design (the call result IS the sentinel FastAPI's DI resolves
+# at request time) — B008 (function-call-in-default-argument) exists to
+# catch mutable-default bugs, which this is not. Ruff's own docs recommend
+# this exact allowlist for FastAPI codebases instead of disabling B008.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File"]

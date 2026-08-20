@@ -248,9 +248,8 @@ async def _handle_customer_reply(update: Update, context: ContextTypes.DEFAULT_T
                         try:
                             done_msg = await context.bot.send_message(**done_kwargs)
                             done_msg_id = done_msg.message_id
-                        except TelegramError as e:
-                            logger.exception(f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}: {e}"
-                            )
+                        except TelegramError:
+                            logger.exception(f"Failed to send UPGRADE Done prompt for order {order.id} to {chat_id}")
                     forwards.append(
                         {
                             "chat_id": chat_id,
@@ -345,8 +344,7 @@ async def _handle_admin_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
                 message_id=msg.message_id,
             )
         except TelegramError as e:
-            logger.exception(f"Failed to relay admin update to customer {order.user_id} for order {order.id}: {e}"
-            )
+            logger.exception(f"Failed to relay admin update to customer {order.user_id} for order {order.id}")
             try:
                 await msg.reply_text(
                     t("upgrade.admin_update_failed", update, order_id=order.id, error=str(e))
@@ -488,9 +486,8 @@ async def handle_upgrade_done(update: Update, context: ContextTypes.DEFAULT_TYPE
                     order_id=order.id,
                 ),
             )
-        except TelegramError as e:
-            logger.exception(f"Failed to send UPGRADE done confirmation to customer {order.user_id} for order {order.id}: {e}"
-            )
+        except TelegramError:
+            logger.exception(f"Failed to send UPGRADE done confirmation to customer {order.user_id} for order {order.id}")
 
         admin_handle = user.username or user.first_name or str(user.id)
         _app_tz = resolve_tz(AppSettingsService(session).get_settings().timezone)

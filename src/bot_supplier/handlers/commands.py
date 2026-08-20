@@ -88,8 +88,8 @@ async def register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 "❌ Registration failed. Please try again or contact support."
             )
             
-    except Exception as e:
-        logger.exception(f"Error during supplier registration: {e!s}")
+    except Exception:
+        logger.exception("Error during supplier registration")
         await update.message.reply_text(
             "❌ An error occurred during registration. Please try again later."
         )

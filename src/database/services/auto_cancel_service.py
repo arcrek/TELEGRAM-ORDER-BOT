@@ -141,9 +141,8 @@ class AutoCancelService:
                         text=notification_message
                     ))
                     logger.info(f"Sent auto-cancellation notification to user {cancelled_order.user_id}")
-                except Exception as e:
-                    logger.exception(f"Failed to send auto-cancellation notification to user {cancelled_order.user_id}: {e!s}"
-                    )
+                except Exception:
+                    logger.exception(f"Failed to send auto-cancellation notification to user {cancelled_order.user_id}")
             
             return True
             
@@ -261,10 +260,8 @@ class AutoCancelService:
                         text=notification_message,
                     ))
                     logger.info(f"Sent auto-cancellation notification to user {topup.user_id} for topup {topup.id}")
-                except Exception as e:
-                    logger.exception(f"Failed to send auto-cancellation notification to user {topup.user_id} "
-                        f"for topup {topup.id}: {e!s}"
-                    )
+                except Exception:
+                    logger.exception(f"Failed to send auto-cancellation notification to user {topup.user_id} for topup {topup.id}")
 
             return True
 

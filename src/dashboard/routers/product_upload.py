@@ -41,8 +41,8 @@ def _get_bot_instance() -> Bot | None:
     if bot_token:
         try:
             return Bot(token=bot_token)
-        except Exception as e:
-            logger.exception(f"Failed to create bot instance for upload notification: {e}")
+        except Exception:
+            logger.exception("Failed to create bot instance for upload notification")
     return None
 
 
@@ -172,8 +172,8 @@ async def _send_upload_notifications(entries: list[dict[str, Any]]) -> None:
                 logger.error(f"Failed to send upload notification batch: {e}")
             finally:
                 session.close()
-    except Exception as e:
-        logger.exception(f"Unexpected error in upload notification task: {e}")
+    except Exception:
+        logger.exception("Unexpected error in upload notification task")
 
 
 class ParseTextRequest(BaseModel):
@@ -354,7 +354,7 @@ async def upload_file(
         Upload results
     """
     # Validate file type
-    if not file.filename.endswith('.txt'):
+    if not file.filename.endswith(".txt"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only .txt files are supported"
@@ -362,7 +362,7 @@ async def upload_file(
     
     # Read file content
     content = await file.read()
-    content_str = content.decode('utf-8')
+    content_str = content.decode("utf-8")
     
     service = ProductUploadService(db)
     
