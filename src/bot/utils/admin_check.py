@@ -8,6 +8,8 @@ the only identity that can add/remove other admins via /setadmin.
 import logging
 import os
 
+from sqlalchemy.exc import SQLAlchemyError
+
 logger = logging.getLogger(__name__)
 
 def _get_session():
@@ -41,7 +43,7 @@ def _database_admin_ids() -> list[int]:
         from src.database.services.bot_admin_service import BotAdminService
 
         return BotAdminService(session).get_all_telegram_ids()
-    except Exception as exc:
+    except SQLAlchemyError as exc:
         logger.warning("Failed to load bot admins from DB: %s", exc)
         return []
     finally:
@@ -85,7 +87,7 @@ def add_admin(telegram_user_id: int, added_by: int | None = None) -> bool:
         from src.database.services.bot_admin_service import BotAdminService
         BotAdminService(session).add(telegram_user_id, added_by=added_by)
         return True
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Failed to add bot admin {telegram_user_id} to DB: {e}")
         return False
     finally:
@@ -105,7 +107,7 @@ def remove_admin(telegram_user_id: int) -> bool:
     try:
         from src.database.services.bot_admin_service import BotAdminService
         return BotAdminService(session).remove(telegram_user_id)
-    except Exception as e:
+    except SQLAlchemyError as e:
         logger.error(f"Failed to remove bot admin {telegram_user_id} from DB: {e}")
         return False
     finally:

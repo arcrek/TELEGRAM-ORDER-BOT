@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import TelegramError
 
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.bot.utils.bot_instance import get_shared_bot_instance
@@ -164,11 +165,14 @@ async def _send_upload_notifications(entries: list[dict[str, Any]]) -> None:
                             chat_id=user.telegram_user_id,
                             **send_kwargs,
                         )
-                    except Exception as e:
+                    except TelegramError as e:
                         logger.warning(
                             f"Failed to send upload notification to {user.telegram_user_id}: {e}"
                         )
-            except Exception as e:
+            # Outer boundary: DB reads (users, emoji placeholders) plus the whole
+            # per-user send loop above — one broadcast failing must not crash
+            # the upload endpoint.
+            except Exception as e:  # noqa: BLE001
                 logger.error(f"Failed to send upload notification batch: {e}")
             finally:
                 session.close()

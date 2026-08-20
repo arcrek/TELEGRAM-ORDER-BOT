@@ -205,7 +205,10 @@ async def handle_supplier_reply(
                 "Please contact support."
             )
             
-    except Exception as e:
+    # Outer boundary of the whole supplier-reply flow (DB writes + notifying
+    # the customer bot + replying) — any failure must surface to the
+    # supplier instead of a silent crash.
+    except Exception as e:  # noqa: BLE001
         logger.error(f"Error handling supplier reply: {e!s}")
         await message.reply_text(
             "❌ An error occurred while processing your reply.\n"

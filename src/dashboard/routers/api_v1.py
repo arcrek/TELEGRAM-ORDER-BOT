@@ -447,7 +447,11 @@ async def create_order(
                 order_id=order_id, request_loop=loop
             ),
         )
-    except Exception as exc:
+    # process_balance_paid_order runs the full fulfillment pipeline (pre-uploaded
+    # delivery / supplier notification / Telegram sends) in an executor thread —
+    # payment was already captured above, so any failure here must be recorded
+    # and reported, not left to crash the request with the payment stuck mid-way.
+    except Exception as exc:  # noqa: BLE001
         delivery_error = exc
         logger.error(
             "Fulfillment raised an exception for balance-paid order %s: %s",

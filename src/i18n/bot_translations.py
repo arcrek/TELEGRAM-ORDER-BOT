@@ -46,7 +46,7 @@ def _load_translations(language: str) -> dict:
             translations = json.load(f)
             _translation_cache[language] = translations
             return translations
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         logger.error(f"Error loading translations for {language}: {e}")
         # Fallback to English
         if language != DEFAULT_LANGUAGE:

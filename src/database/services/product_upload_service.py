@@ -227,7 +227,9 @@ class ProductUploadService:
 
                 self.session.add(pre_uploaded)
                 success_count += 1
-            except Exception as e:
+            # One row's failure in a bulk import must not abort the rest of
+            # the batch — it's recorded per-row in errors[] and reported back.
+            except Exception as e:  # noqa: BLE001
                 failed_count += 1
                 errors.append({
                     "index": idx,

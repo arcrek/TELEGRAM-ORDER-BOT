@@ -91,7 +91,9 @@ def main() -> int:
         result = bootstrap_system(session, payload)
         print(json.dumps(result))
         return 0
-    except Exception as exc:
+    # Top-level CLI entrypoint boundary — any failure becomes exit code 1
+    # with a message on stderr instead of an unhandled traceback.
+    except Exception as exc:  # noqa: BLE001
         print(f"bootstrap failed: {type(exc).__name__}", file=sys.stderr)
         return 1
     finally:

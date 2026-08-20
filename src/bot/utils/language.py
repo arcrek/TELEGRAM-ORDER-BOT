@@ -1,6 +1,7 @@
 """
 Language utility functions for bot handlers.
 """
+from sqlalchemy.exc import SQLAlchemyError
 from telegram import Update
 
 from src.database.connection import get_session_factory
@@ -29,7 +30,7 @@ def get_user_language(update: Update) -> str:
     try:
         session_factory = get_session_factory()
         session = session_factory()
-    except Exception as e:
+    except (RuntimeError, SQLAlchemyError) as e:
         import logging
         logging.getLogger(__name__).error(f"DB unavailable for language lookup: {e}")
         return DEFAULT_LANGUAGE

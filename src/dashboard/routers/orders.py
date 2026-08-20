@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel
 from sqlalchemy import func as sa_func
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from src.dashboard.auth import get_current_admin, get_db
@@ -384,7 +385,7 @@ async def update_order_status(
                 if bot:
                     try:
                         language = UserPreferenceService(db).get_user_language(order.user_id)
-                    except Exception:
+                    except SQLAlchemyError:
                         language = "vi"
                     await bot.send_message(
                         chat_id=order.user_id,
@@ -394,7 +395,10 @@ async def update_order_status(
                             order_id=order.id,
                         ),
                     )
-        except Exception as e:
+        # Best-effort notification (bot lookup + language lookup + Telegram
+        # send) after the order's own status update already succeeded above —
+        # must not fail the request just because the customer ping didn't land.
+        except Exception as e:  # noqa: BLE001
             logger.warning(
                 f"Failed to send upgrade done notification for order {order_id}: {e}"
             )

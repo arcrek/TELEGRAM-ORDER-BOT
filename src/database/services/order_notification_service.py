@@ -185,7 +185,9 @@ class OrderNotificationService:
                     details["message_thread_id"] = int(message_thread_id)
                 results["details"].append(details)
                 results["failed"] += 1
-            except Exception as e:
+            # Deliberate last-resort fallback after TelegramError above — one
+            # chat's unexpected failure must not abort the rest of the batch.
+            except Exception as e:  # noqa: BLE001
                 error_msg = str(e)
                 logger.error(
                     f"Unexpected error sending order notification to chat {chat_id}: {error_msg}")

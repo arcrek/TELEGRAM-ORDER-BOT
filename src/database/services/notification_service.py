@@ -80,7 +80,10 @@ class NotificationService:
                 self.bot_user_service.update_user_active_status(telegram_user_id, False)
                 logger.info(f"Marked user {telegram_user_id} as inactive (bot blocked)")
             return {"success": False, "error": error_msg, "telegram_user_id": telegram_user_id}
-        except Exception as e:
+        # Deliberate last-resort fallback after TelegramError above — a
+        # rendering/service failure here must still return a failed-result
+        # dict, not crash whatever's sending this notification.
+        except Exception as e:  # noqa: BLE001
             error_msg = str(e)
             logger.error(
                 f"Unexpected error sending notification to user {telegram_user_id}: {error_msg}")

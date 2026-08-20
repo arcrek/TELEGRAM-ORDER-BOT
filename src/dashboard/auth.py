@@ -105,13 +105,17 @@ def authenticate_admin(session: Session, username: str, password: str) -> Admin 
     try:
         if not verify_password(password, admin.password_hash):
             return None
-    except (ValueError, Exception):
+    # passlib can fail in more ways than ValueError depending on backend/hash
+    # format; any failure here must fall back to raw bcrypt rather than 500
+    # a login request.
+    except Exception:  # noqa: BLE001
         # Fallback to direct bcrypt if passlib fails
         import bcrypt
         try:
             if not bcrypt.checkpw(password.encode('utf-8'), admin.password_hash.encode('utf-8')):
                 return None
-        except Exception:
+        # Same reasoning: a broken hash/backend must deny auth, not crash it.
+        except Exception:  # noqa: BLE001
             return None
     return admin
 

@@ -696,7 +696,7 @@ class OrderService:
                         "data": parsed if isinstance(parsed, dict) else None,
                     }
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Best-effort: do not break order details if delivery rows cannot be loaded
             delivered_by_variation = {}
 

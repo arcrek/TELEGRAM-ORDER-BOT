@@ -8,7 +8,7 @@ All datetime values stored in the DB are naive UTC.
 
 import logging
 from datetime import datetime, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def resolve_tz(name: str) -> ZoneInfo:
     """
     try:
         return ZoneInfo(name)
-    except Exception:
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
         logger.warning(
             "Unknown timezone %r — falling back to %s", name, _DEFAULT_TZ_NAME
         )
@@ -87,5 +87,5 @@ def validate_timezone(name: str) -> bool:
     try:
         ZoneInfo(name)
         return True
-    except Exception:
+    except (ZoneInfoNotFoundError, ValueError, TypeError):
         return False

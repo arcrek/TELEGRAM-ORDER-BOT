@@ -72,7 +72,9 @@ def create_first_admin(
 
         return True
 
-    except Exception as e:
+    # CLI operation boundary — any failure prints a message and returns False
+    # instead of an unhandled traceback.
+    except Exception as e:  # noqa: BLE001
         print(f"❌ Error creating admin: {type(e).__name__}")
         return False
     finally:
