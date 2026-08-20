@@ -185,7 +185,7 @@ async def handle_refund_credit(
             return
 
         # Recompute with fresh elapsed days (may cross a day boundary).
-        elapsed, remaining, refund_amount = _compute_refund(
+        elapsed, _remaining, refund_amount = _compute_refund(
             order.total_amount, duration_days, order.created_at
         )
 

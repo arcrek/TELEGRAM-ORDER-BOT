@@ -382,15 +382,13 @@ class AutoCancelService:
         results = {"orders_warned": 0, "topups_warned": 0}
 
         for order in self.find_expiring_soon_orders():
-            if order.id not in warned_order_ids:
-                if self.send_expiry_warning_order(order):
-                    warned_order_ids.add(order.id)
-                    results["orders_warned"] += 1
+            if order.id not in warned_order_ids and self.send_expiry_warning_order(order):
+                warned_order_ids.add(order.id)
+                results["orders_warned"] += 1
 
         for topup in self.find_expiring_soon_topups():
-            if topup.id not in warned_topup_ids:
-                if self.send_expiry_warning_topup(topup):
-                    warned_topup_ids.add(topup.id)
-                    results["topups_warned"] += 1
+            if topup.id not in warned_topup_ids and self.send_expiry_warning_topup(topup):
+                warned_topup_ids.add(topup.id)
+                results["topups_warned"] += 1
 
         return results

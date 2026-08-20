@@ -44,7 +44,7 @@ def test_compute_refund_half_elapsed():
 def test_compute_refund_expired_returns_zero():
     created = datetime(2026, 1, 1)
     now = datetime(2026, 3, 1)  # well past 30 days
-    elapsed, remaining, refund = compute_refund(300000, 30, created, now=now)
+    _elapsed, remaining, refund = compute_refund(300000, 30, created, now=now)
     assert remaining == 0
     assert refund == 0
 

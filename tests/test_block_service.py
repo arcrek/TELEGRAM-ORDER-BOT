@@ -67,7 +67,7 @@ def test_block_is_idempotent(svc):
     a = svc.block("555")
     b = svc.block("555")
     assert a.id == b.id
-    items, total = svc.list_blocked()
+    _items, total = svc.list_blocked()
     assert total == 1
 
 

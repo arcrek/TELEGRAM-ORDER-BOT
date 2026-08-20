@@ -3,6 +3,7 @@ Tests for Admin model.
 """
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
 from src.database.models.admin import Admin, AdminRole
@@ -87,6 +88,6 @@ class TestAdminModel:
         )
         db_session.add(admin2)
         
-        with pytest.raises(Exception):  # Should raise IntegrityError
+        with pytest.raises(IntegrityError):
             db_session.commit()
 

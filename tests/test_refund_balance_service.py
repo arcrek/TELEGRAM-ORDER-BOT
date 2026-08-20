@@ -44,7 +44,7 @@ def test_refund_order_credits_balance_and_sets_admin_id(session):
 
 
 def test_refund_order_bot_path_unchanged(session):
-    user, _ = _seed(session)
+    _user, _ = _seed(session)
     svc = BalanceService(session)
     ok, reason = svc.refund_order("ord1", 10000, 999)  # positional telegram_admin_id
     assert (ok, reason) == (True, "ok")

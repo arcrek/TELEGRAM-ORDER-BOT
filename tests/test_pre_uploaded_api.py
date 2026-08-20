@@ -279,7 +279,7 @@ def test_export_amount_exceeds_max_rejected(client, admin_token, product_and_var
 
 def test_export_variation_mismatch(client, admin_token, product_and_variation, test_db):
     """Variation that belongs to a different product → 400 Bad Request."""
-    product, variation = product_and_variation
+    product, _variation = product_and_variation
 
     # Create a second product with its own variation
     other_product = Product(

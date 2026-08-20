@@ -264,7 +264,7 @@ class ProductDetailFormatter:
         self,
         product_id: str,
         page: int = 1,
-        variations: list[ProductVariation] = None,
+        variations: list[ProductVariation] | None = None,
         update: Update | None = None,
         delivery_type: str | None = None,
         emoji_service=None,

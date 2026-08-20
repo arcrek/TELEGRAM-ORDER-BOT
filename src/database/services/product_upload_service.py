@@ -116,11 +116,8 @@ class ProductUploadService:
             .filter_by(id=data["variation_id"], product_id=data["product_id"])
             .first()
         )
-        if not variation:
-            return False
-        
-        return True
-    
+        return variation is not None
+
     def _normalize_product_data_str(self, product_data: Any) -> str:
         """Return the canonical JSON string for a product_data value (same logic as bulk_import)."""
         if isinstance(product_data, dict):

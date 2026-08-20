@@ -964,7 +964,10 @@ async def doanhthu_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 )
                 return
             try:
-                parsed = datetime.strptime(raw, "%Y-%m-%d")
+                # Input is a bare YYYY-MM-DD date, no tz component to parse;
+                # only year/month/day are read below, then combined with the
+                # app timezone — the naive intermediate is never used as-is.
+                parsed = datetime.strptime(raw, "%Y-%m-%d")  # noqa: DTZ007
                 # Interpret input as a local calendar day in app timezone
                 target = datetime(parsed.year, parsed.month, parsed.day, tzinfo=app_tz)
             except ValueError:
