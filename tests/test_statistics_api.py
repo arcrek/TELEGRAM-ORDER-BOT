@@ -17,6 +17,7 @@ from src.dashboard.main import app
 from src.database.models import *
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
+import contextlib
 
 # Create test database file
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
@@ -25,11 +26,9 @@ test_db_file.close()
 
 def cleanup_test_db():
     """Clean up test database file."""
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
-    except Exception:
-        pass
 
 atexit.register(cleanup_test_db)
 
@@ -66,10 +65,8 @@ def setup_database():
     # Clean up all data first
     with test_engine.connect() as conn:
         for table in reversed(Base.metadata.sorted_tables):
-            try:
+            with contextlib.suppress(Exception):
                 conn.execute(table.delete())
-            except Exception:
-                pass
         conn.commit()
     
     # Recreate tables

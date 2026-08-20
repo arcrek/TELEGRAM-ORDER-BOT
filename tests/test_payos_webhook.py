@@ -17,6 +17,7 @@ from src.database.models import Order
 from src.database.models.base import Base
 from src.database.models.enums import OrderStatus
 from src.payos.signature import create_hmac_sha256_hex
+import contextlib
 
 # Create test database file (shared across tests)
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
@@ -25,11 +26,9 @@ test_db_file.close()
 
 
 def cleanup_test_db():
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
-    except Exception:
-        pass
 
 
 atexit.register(cleanup_test_db)

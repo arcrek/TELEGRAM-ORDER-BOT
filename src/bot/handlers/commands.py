@@ -71,10 +71,14 @@ async def _restore_reply_keyboard(
             )
         except Exception:
             # If deletion fails (permissions, timing), it's harmless.
-            pass
+            import logging
+
+            logging.getLogger(__name__).debug("Could not delete keyboard-restore placeholder message")
     except Exception:
         # Never break the main flow just because keyboard restore failed.
-        pass
+        import logging
+
+        logging.getLogger(__name__).debug("Keyboard restore via placeholder message failed")
 
 
 async def unknown_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

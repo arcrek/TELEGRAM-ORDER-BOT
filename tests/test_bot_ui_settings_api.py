@@ -14,6 +14,7 @@ from src.dashboard.auth import create_access_token, get_db, get_password_hash
 from src.dashboard.main import app
 from src.database.models import Admin, AdminRole
 from src.database.models.base import Base
+import contextlib
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
 test_db_path = test_db_file.name
@@ -21,11 +22,9 @@ test_db_file.close()
 
 
 def cleanup_test_db():
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
-    except Exception:
-        pass
 
 
 atexit.register(cleanup_test_db)

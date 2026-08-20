@@ -563,7 +563,11 @@ async def handle_topup_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE
             try:
                 msg_ids = json.loads(topup.payment_message_ids)
             except Exception:
-                pass
+                logger.warning(
+                    "Malformed payment_message_ids for topup %s: %r",
+                    topup.id,
+                    topup.payment_message_ids,
+                )
 
         # Also check state
         user_state = state_manager.get_user_state(user_id)
@@ -576,7 +580,9 @@ async def handle_topup_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE
             try:
                 await context.bot.delete_message(chat_id=user_id, message_id=mid)
             except Exception:
-                pass
+                # Expected when Telegram already dropped the message (too old,
+                # already deleted, chat cleared) — not worth surfacing above debug.
+                logger.debug("Could not delete payment message %s for user %s", mid, user_id)
 
         # Clear topup state
         state = state_manager.get_user_state(user_id)

@@ -20,6 +20,7 @@ from src.dashboard.main import app
 from src.database.models import *
 from src.database.models.admin import Admin, AdminRole
 from src.database.models.base import Base
+import contextlib
 
 test_db_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
 test_db_path = test_db_file.name
@@ -28,11 +29,9 @@ test_db_file.close()
 # Clean up test database file on exit
 def cleanup_test_db():
     """Clean up test database file."""
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
-    except Exception:
-        pass
 
 atexit.register(cleanup_test_db)
 
@@ -67,11 +66,9 @@ def setup_database():
     Base.metadata.drop_all(test_engine)
     Base.metadata.create_all(test_engine)
     # Reset rate limiter storage so login attempts don't bleed between tests
-    try:
+    with contextlib.suppress(Exception):
         import src.dashboard.routers.auth as _auth_module
         _auth_module.limiter._storage.reset()
-    except Exception:
-        pass
     yield
     # Clean up after test - clear data but keep tables
     with test_engine.connect() as conn:

@@ -3,6 +3,7 @@ Tests for product supplier assignment API endpoints.
 Following TDD: Write tests first, then implement endpoints.
 """
 import pytest
+import contextlib
 
 pytestmark = pytest.mark.skip(reason="Supplier module disabled in dashboard API")
 import atexit
@@ -29,11 +30,9 @@ test_db_file.close()
 
 def cleanup_test_db():
     """Clean up test database file."""
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
-    except Exception:
-        pass
 
 atexit.register(cleanup_test_db)
 

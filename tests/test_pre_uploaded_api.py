@@ -22,6 +22,7 @@ from src.database.models.enums import DeliveryType
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
 from src.database.models.product_variation import ProductVariation
+import contextlib
 
 # ── Test DB setup ─────────────────────────────────────────────────────────────
 
@@ -31,11 +32,9 @@ test_db_file.close()
 
 
 def _cleanup_test_db() -> None:
-    try:
+    with contextlib.suppress(Exception):
         if os.path.exists(test_db_path):
             os.unlink(test_db_path)
-    except Exception:
-        pass
 
 
 atexit.register(_cleanup_test_db)
