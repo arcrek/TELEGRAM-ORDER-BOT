@@ -58,6 +58,7 @@ def run_guard(root: Path, env: dict[str, str]) -> subprocess.CompletedProcess[st
         env=env,
         text=True,
         capture_output=True,
+        check=False,
     )
 
 

@@ -235,6 +235,7 @@ def run_setup(
         input="\n".join(answers) + "\n",
         text=True,
         capture_output=True,
+        check=False,
     )
 
 
@@ -252,6 +253,7 @@ def test_setup_requires_git(tmp_path: Path) -> None:
         env={**os.environ, "PATH": str(core_dir)},
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -272,6 +274,7 @@ def test_setup_requires_docker(tmp_path: Path) -> None:
         env=isolated_env,
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -656,6 +659,7 @@ def test_manage_help_lists_supported_commands(tmp_path: Path) -> None:
         cwd=root,
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0
@@ -702,6 +706,7 @@ def test_manage_dispatches_lifecycle_commands(
         env=environment(bin_dir, tmp_path),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr
@@ -719,6 +724,7 @@ def test_manage_logs_rejects_unknown_service(tmp_path: Path) -> None:
         env=environment(bin_dir, tmp_path),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -742,6 +748,7 @@ def test_update_refuses_dirty_tracked_worktree(tmp_path: Path) -> None:
         env=environment(bin_dir, tmp_path),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -773,6 +780,7 @@ def test_update_backs_up_before_pull_and_rebuild(tmp_path: Path) -> None:
         env=env,
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr
@@ -815,6 +823,7 @@ def test_update_post_backup_failure_prints_recovery_evidence(
         env=environment(bin_dir, tmp_path, FAIL_STAGE=failure_stage),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -843,6 +852,7 @@ def test_backup_uses_container_database_environment_atomically(tmp_path: Path) -
         env=env,
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr
@@ -878,6 +888,7 @@ def test_backup_removes_partial_dump_on_failure(tmp_path: Path) -> None:
         env=environment(bin_dir, tmp_path),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -900,6 +911,7 @@ def test_backup_rejects_unsafe_name_without_running_docker(tmp_path: Path) -> No
         env=environment(bin_dir, tmp_path),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -934,6 +946,7 @@ def test_restore_uses_container_database_environment(tmp_path: Path) -> None:
         input="RESTORE\n",
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr
@@ -979,6 +992,7 @@ def test_restore_fails_when_final_api_database_readiness_fails(
         input="RESTORE\n",
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -1005,6 +1019,7 @@ def test_restore_requires_exact_confirmation(tmp_path: Path) -> None:
         input="yes\n",
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0
@@ -1026,6 +1041,7 @@ def test_restore_rejects_directory_without_running_docker(tmp_path: Path) -> Non
         input="RESTORE\n",
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -1054,6 +1070,7 @@ def test_restore_psql_failure_keeps_applications_stopped(tmp_path: Path) -> None
         input="RESTORE\n",
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -1086,6 +1103,7 @@ def test_doctor_reports_each_fake_check(tmp_path: Path) -> None:
         ),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode == 0, result.stderr
@@ -1110,6 +1128,7 @@ def test_doctor_aggregates_failed_df_and_runs_later_checks(tmp_path: Path) -> No
         ),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
@@ -1151,6 +1170,7 @@ def test_doctor_fails_when_configured_service_is_not_running(
         ),
         text=True,
         capture_output=True,
+        check=False,
     )
 
     assert result.returncode != 0
