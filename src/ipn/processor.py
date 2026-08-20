@@ -8,7 +8,6 @@ import asyncio
 import logging
 import os
 import threading
-from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Any
@@ -28,6 +27,7 @@ from src.database.services.order_service import OrderService
 from src.database.services.pre_uploaded_service import PreUploadedService
 from src.database.services.supplier_order_service import SupplierOrderService
 from src.database.services.topup_service import TopupService
+from src.utils.datetime_format import format_local, now_local, resolve_tz
 
 logger = logging.getLogger(__name__)
 
@@ -749,7 +749,8 @@ class IPNOrderProcessor:
         if not self.bot:
             raise RuntimeError("Bot instance is None, cannot deliver virtual order")
 
-        delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        app_tz = resolve_tz(AppSettingsService(session).get_settings().timezone)
+        delivery_time = format_local(now_local(app_tz), app_tz, fmt="%Y-%m-%d %H:%M:%S")
         system_name = os.getenv("SYSTEM_NAME", "MUATAIKHOANPRO")
         message = (
             f"================\n"
@@ -874,12 +875,14 @@ class IPNOrderProcessor:
             logger.info(f"Bot instance available: {self.bot is not None}")
 
             # Create file content with timestamp and header
-            delivery_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             settings_session = self.session_factory()
             try:
-                system_name = AppSettingsService(settings_session).get_settings().system_name
+                settings = AppSettingsService(settings_session).get_settings()
+                system_name = settings.system_name
+                app_tz = resolve_tz(settings.timezone)
             finally:
                 settings_session.close()
+            delivery_time = format_local(now_local(app_tz), app_tz, fmt="%Y-%m-%d %H:%M:%S")
             file_header = (
                 f"================\n"
                 f"{system_name}\n"

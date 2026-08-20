@@ -5,3 +5,16 @@
 # catch mutable-default bugs, which this is not. Ruff's own docs recommend
 # this exact allowlist for FastAPI codebases instead of disabling B008.
 extend-immutable-calls = ["fastapi.Depends", "fastapi.File"]
+
+[lint.per-file-ignores]
+# DTZ001 (naive datetime()) / DTZ003 (utcnow()): every DB timestamp column
+# in this project is naive UTC by convention (see src/utils/datetime_format.py
+# and CLAUDE.md — Postgres session runs in UTC, naive == UTC everywhere below
+# the API-serialization boundary). Test fixtures build naive datetimes on
+# purpose to match created_at/DB columns and the naive-vs-naive contract of
+# helpers like compute_refund(); one file (test_datetime_format.py) tests
+# the naive-input branch of to_utc_iso() directly. Adding tzinfo here would
+# either misrepresent what's under test or break naive/aware arithmetic
+# against DB-sourced values. Production code has no DTZ001/DTZ003 findings —
+# only tests construct naive datetimes freely, so this is scoped to tests/.
+"tests/*" = ["DTZ001", "DTZ003"]

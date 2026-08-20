@@ -6,7 +6,7 @@ identical across both call sites.
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 MONTH_DAYS = 30
 YEAR_DAYS = 365
@@ -72,7 +72,9 @@ def compute_refund(
     """
     if duration_days <= 0:
         return 0, 0, 0
-    ref_now = now if now is not None else datetime.utcnow()
+    # created_at (from the DB) is naive UTC by project convention — stay naive
+    # here too so the subtraction below doesn't raise on aware-vs-naive.
+    ref_now = now if now is not None else datetime.now(timezone.utc).replace(tzinfo=None)
     elapsed = max(0, (ref_now - created_at).days)
     remaining = max(0, duration_days - elapsed)
     refund = round(order_total / duration_days * remaining)

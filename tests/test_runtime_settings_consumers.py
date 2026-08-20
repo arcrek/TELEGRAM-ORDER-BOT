@@ -303,7 +303,9 @@ def test_delivery_file_header_uses_runtime_system_name(monkeypatch, tmp_path):
         processor_module,
         "AppSettingsService",
         lambda _session: SimpleNamespace(
-            get_settings=lambda: SimpleNamespace(system_name="Example Shop")
+            get_settings=lambda: SimpleNamespace(
+                system_name="Example Shop", timezone="Asia/Ho_Chi_Minh"
+            )
         ),
         raising=False,
     )
