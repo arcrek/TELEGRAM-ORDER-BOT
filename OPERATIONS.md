@@ -128,7 +128,7 @@ Schedule a maintenance window, create a backup, and keep the old credential acti
 - **Telegram token:** revoke/regenerate it with BotFather, update `TELEGRAM_BOT_TOKEN` in `.env`, run `./manage.sh restart`, and verify `/start`. Revocation interrupts the old bot immediately.
 - **PayOS keys:** rotate the client/API/checksum keys in the merchant dashboard, update all three `.env` values together, restart, confirm the registered webhook path, and complete a sandbox payment. Mismatched checksum keys cause callbacks to be acknowledged but skipped, so inspect API logs.
 - **Dashboard signing key:** replace `DASHBOARD_SECRET_KEY` with a strong random value and restart. All existing bearer tokens become invalid; sign in again.
-- **PostgreSQL password:** change the live role password and `DB_PASSWORD` in the same window, then restart and run doctor. Editing `.env` alone does not change an initialized PostgreSQL role; the interactive database step is documented only in the break-glass section.
+- **PostgreSQL password:** change the live role password and `DB_PASSWORD` in the same window, then restart and run doctor. Editing `.env` alone does not change an initialized PostgreSQL role; the interactive database step is documented only in the [break-glass section](#break-glass-raw-compose-boundary).
 - **Bot owner ID:** update `BOT_OWNER_TELEGRAM_ID`, restart, and verify the new owner can list bot administrators before considering the old owner removed.
 
 The current public API has no supported dashboard password-change, account-list, deactivation, or recovery operation. For a suspected dashboard-admin compromise, restrict public access and coordinate a supported recovery change rather than editing PostgreSQL directly.

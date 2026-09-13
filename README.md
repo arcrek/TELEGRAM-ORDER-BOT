@@ -69,6 +69,7 @@ Supplier-related source remains in the repository for future stabilization, but 
 
 ## Documentation
 
+- [Documentation index](docs/README.md) — navigation hub for deployment, configuration, and architecture guides.
 - [Installation](docs/INSTALLATION.md) — host preparation, setup prompts, first-run verification, and uninstall boundaries.
 - [Configuration](docs/CONFIGURATION.md) — complete deployment environment and runtime settings reference.
 - [Architecture](docs/ARCHITECTURE.md) — services, trust boundaries, persistence, and payment flows.
