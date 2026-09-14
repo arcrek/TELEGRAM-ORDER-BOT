@@ -7,14 +7,15 @@ import io
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy import func as sa_func
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.models.enums import DeliveryType, OrderStatus
 from src.database.services.order_service import OrderService
 from src.utils.datetime_format import to_utc_iso
@@ -89,7 +90,7 @@ async def list_orders(
             status_enum = OrderStatus(status.lower())
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {status}",
             )
 
@@ -195,7 +196,7 @@ async def export_orders(
             status_enum = OrderStatus(status.lower())
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid status: {status}",
             )
 
@@ -278,7 +279,7 @@ async def recent_paid(
             since_dt = datetime.fromisoformat(since_normalized)
         except ValueError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid 'since' timestamp: {since}",
             )
         # Compare naive-to-naive: DB timestamps are naive UTC.
@@ -327,7 +328,7 @@ async def get_order(
 
     if not order_details:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
+            status_code=http_status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
         )
 
     return order_details
@@ -337,7 +338,7 @@ async def get_order(
 async def update_order_status(
     order_id: str,
     status_data: OrderStatusUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     """
@@ -357,7 +358,7 @@ async def update_order_status(
         new_status = OrderStatus(status_data.status.lower())
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=http_status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid status: {status_data.status}",
         )
 
@@ -365,7 +366,7 @@ async def update_order_status(
 
     if not order:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
+            status_code=http_status.HTTP_404_NOT_FOUND, detail=f"Order {order_id} not found"
         )
 
     if new_status == OrderStatus.DELIVERED:

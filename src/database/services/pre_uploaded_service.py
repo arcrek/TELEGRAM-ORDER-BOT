@@ -226,7 +226,7 @@ class PreUploadedService:
 
         raw_data = product.product_data
         logger.info(
-            f"Product {product.id} raw product_data: {raw_data[:200] if len(raw_data) > 200 else raw_data}"
+            f"Product {product.id} raw product_data length: {len(raw_data)}"
         )
 
         # Try to parse as JSON first
@@ -261,6 +261,29 @@ class PreUploadedService:
         order = self.session.query(Order).filter_by(id=order_id).first()
         if not order:
             return None
+
+        # Check if items were already delivered/marked for this order (re-entrant delivery guard)
+        existing_products = (
+            self.session.query(PreUploadedProduct)
+            .filter_by(used_by_order_id=order_id)
+            .all()
+        )
+        if existing_products:
+            delivered_products = []
+            for product in existing_products:
+                product_data = self.get_product_data(product)
+                delivered_products.append(
+                    {
+                        "id": product.id,
+                        "variation_id": product.variation_id,
+                        "data": product_data,
+                    }
+                )
+            return {
+                "success": True,
+                "products": delivered_products,
+                "failed_items": [],
+            }
 
         delivered_products = []
         failed_items = []

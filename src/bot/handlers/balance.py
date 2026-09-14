@@ -28,7 +28,7 @@ from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 from src.bot.messages.emoji_renderer import render as render_emoji
-from src.bot.states.state_manager import StateManager
+from src.bot.states.state_manager import shared_state_manager
 from src.bot.utils.language import t
 from src.bot.utils.qr import make_qr_png_bytes
 from src.database.connection import get_session_factory
@@ -48,7 +48,7 @@ from src.payos.client import build_payos_client
 
 logger = logging.getLogger(__name__)
 
-state_manager = StateManager()
+state_manager = shared_state_manager
 
 # Preset topup amounts (VND)
 TOPUP_PRESETS = [50_000, 100_000, 200_000, 500_000, 1_000_000]

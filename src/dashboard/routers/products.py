@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.models.enums import DeliveryType
 from src.database.services.product_service import ProductService
 from src.database.services.product_supplier_assignment_service import (
@@ -185,7 +185,7 @@ async def get_product(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_product(
     product_data: ProductCreate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -237,7 +237,7 @@ async def create_product(
 async def update_product(
     product_id: str,
     product_data: ProductUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -290,7 +290,7 @@ async def update_product(
 @router.delete("/{product_id}")
 async def delete_product(
     product_id: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """

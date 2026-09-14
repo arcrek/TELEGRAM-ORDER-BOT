@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.services.discount_tier_service import DiscountTierService
 from src.utils.datetime_format import to_utc_iso
 
@@ -56,7 +56,7 @@ async def list_discount_tiers(
 async def create_discount_tier(
     variation_id: str,
     data: DiscountTierCreate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     service = DiscountTierService(db)
@@ -90,7 +90,7 @@ async def get_discount_tier(
 async def update_discount_tier(
     tier_id: str,
     data: DiscountTierUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     service = DiscountTierService(db)
@@ -107,7 +107,7 @@ async def update_discount_tier(
 @router.delete("/discount-tiers/{tier_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_discount_tier(
     tier_id: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     service = DiscountTierService(db)

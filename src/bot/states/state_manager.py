@@ -2,6 +2,7 @@
 State management for user sessions.
 """
 from dataclasses import dataclass, field
+from typing import Self
 
 
 @dataclass
@@ -40,11 +41,20 @@ class UserState:
 
 
 class StateManager:
-    """Manages user session states (in-memory storage)."""
-    
-    def __init__(self):
-        """Initialize state manager."""
-        self._states: dict[int, UserState] = {}
+    """Manages user session states (in-memory storage singleton)."""
+
+    _instance: "StateManager | None" = None
+
+    def __new__(cls) -> Self:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._states = {}
+        return cls._instance
+
+    def __init__(self) -> None:
+        """Initialize state manager (idempotent for singleton)."""
+        if not hasattr(self, "_states"):
+            self._states: dict[int, UserState] = {}
     
     def get_user_state(self, user_id: int) -> UserState | None:
         """
@@ -158,4 +168,12 @@ class StateManager:
         """
         if user_id in self._states:
             del self._states[user_id]
+
+    def clear_all(self) -> None:
+        """Clear all user states (useful for resets and tests)."""
+        self._states.clear()
+
+
+# Shared singleton instance
+shared_state_manager = StateManager()
 

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.services.bonus_tier_service import BonusTierService
 from src.utils.datetime_format import to_utc_iso
 
@@ -80,7 +80,7 @@ async def list_bonus_tiers(
 async def create_bonus_tier(
     variation_id: str,
     data: BonusTierCreate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     """
@@ -152,7 +152,7 @@ async def get_bonus_tier(
 async def update_bonus_tier(
     tier_id: str,
     data: BonusTierUpdate,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     """
@@ -197,7 +197,7 @@ async def update_bonus_tier(
 @router.delete("/bonus-tiers/{tier_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_bonus_tier(
     tier_id: str,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db),
 ):
     """

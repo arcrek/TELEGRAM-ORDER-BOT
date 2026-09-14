@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
-from src.bot.states.state_manager import StateManager
+from src.bot.states.state_manager import shared_state_manager
 from src.database.models import Order
 from src.database.models.enums import OrderStatus
 from src.database.models.topup_order import TopupOrder
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 PAYMENT_EXPIRE_MINUTES = 10
 
 # Global state manager instance
-state_manager = StateManager()
+state_manager = shared_state_manager
 
 
 class AutoCancelService:
