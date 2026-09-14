@@ -14,7 +14,7 @@ from telegram.error import TelegramError
 
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.bot.utils.bot_instance import get_shared_bot_instance
-from src.dashboard.auth import get_current_admin, get_db
+from src.dashboard.auth import get_current_admin, get_db, require_admin_role
 from src.database.connection import get_session_factory
 from src.database.models.pre_uploaded_product import PreUploadedProduct
 from src.database.models.product import Product
@@ -302,7 +302,7 @@ async def check_duplicate_products(
 @router.post("/products/upload", response_model=BulkUploadResponse)
 async def upload_products(
     request: BulkUploadRequest,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """
@@ -344,7 +344,7 @@ async def upload_products(
 async def upload_file(
     file: UploadFile = File(...),
     format_type: str | None = None,
-    current_admin=Depends(get_current_admin),
+    current_admin=Depends(require_admin_role),
     db: Session = Depends(get_db)
 ):
     """

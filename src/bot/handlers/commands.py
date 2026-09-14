@@ -11,7 +11,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.bot.messages.product_formatter import ProductFormatter
-from src.bot.states.state_manager import StateManager
+from src.bot.states.state_manager import shared_state_manager
 from src.bot.utils.admin_check import (
     add_admin,
     get_admin_telegram_ids,
@@ -36,7 +36,7 @@ from src.database.services.user_preference_service import UserPreferenceService
 from src.utils.datetime_format import now_local, resolve_tz
 
 # Global state manager instance
-state_manager = StateManager()
+state_manager = shared_state_manager
 
 
 def _get_bot_selection_prompts(session) -> tuple[str | None, str | None]:

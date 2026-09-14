@@ -15,7 +15,8 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from src.dashboard.auth import get_db
-from src.database.models import Order
+from src.database.services.order_service import OrderService
+from src.database.services.topup_service import TopupService
 from src.ipn import get_ipn_processor
 from src.payos.signature import verify_webhook_signature
 
@@ -66,12 +67,11 @@ async def payos_webhook(request: Request, db: Session = Depends(get_db)) -> dict
         logger.error(f"Invalid orderCode in PayOS webhook: {order_code!r}")
         return {"success": True}
 
-    order: Order | None = db.query(Order).filter(Order.payos_order_code == order_code_int).first()
+    order = OrderService(db).get_order_by_payos_code(order_code_int)
     if order:
         target_id = order.id
     else:
-        from src.database.models import TopupOrder
-        topup = db.query(TopupOrder).filter(TopupOrder.payos_order_code == order_code_int).first()
+        topup = TopupService(db).get_by_payos_code(order_code_int)
         if not topup:
             logger.error(f"No Order or TopupOrder found for PayOS orderCode={order_code_int}")
             return {"success": True}

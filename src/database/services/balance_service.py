@@ -178,6 +178,9 @@ class BalanceService:
                 reason=reason,
             )
         )
+        from src.database.services.pre_uploaded_service import PreUploadedService
+
+        PreUploadedService(self.session).release_reservations_for_order(order_id)
         self.session.commit()
         return True, "ok"
 
@@ -204,19 +207,23 @@ class BalanceService:
         if result.rowcount == 0:
             return False, "ineligible"
 
+        from src.database.services.pre_uploaded_service import PreUploadedService
+
+        PreUploadedService(self.session).release_reservations_for_order(order_id)
         self.session.commit()
         return True, "ok"
 
     def credit_topup(self, topup_id: str, transaction_id: str) -> tuple[bool, str]:
         """
-        Atomically transition topup PENDING -> PAID and credit balance.
+        Atomically transition topup PENDING -> PAID (or CANCELLED -> PAID on late payment)
+        and credit balance.
 
         Idempotent — calling twice on the same topup returns 'already_processed'
         the second time.
 
         Returns:
             (success, reason) where reason is one of:
-            'ok' | 'not_found' | 'already_processed'
+            'ok' | 'reactivated_cancelled' | 'not_found' | 'already_processed'
         """
         from src.database.models.enums import TopupStatus
         from src.database.models.topup_order import TopupOrder
@@ -227,6 +234,10 @@ class BalanceService:
         ).scalar_one_or_none()
         if topup is None:
             return False, "not_found"
+
+        # If already PAID, return already_processed immediately
+        if topup.status == TopupStatus.PAID:
+            return False, "already_processed"
 
         # Atomic transition PENDING -> PAID.
         r1 = self.session.execute(
@@ -240,9 +251,24 @@ class BalanceService:
                 payment_transaction_id=transaction_id,
             )
         )
+        is_reactivated = False
         if r1.rowcount == 0:
-            # Already PAID or CANCELLED — distinguish for the caller.
-            return False, "already_processed"
+            # Late topup recovery: allow atomic transition CANCELLED -> PAID.
+            r2 = self.session.execute(
+                update(TopupOrder)
+                .where(
+                    TopupOrder.id == topup_id,
+                    TopupOrder.status == TopupStatus.CANCELLED,
+                )
+                .values(
+                    status=TopupStatus.PAID,
+                    payment_transaction_id=transaction_id,
+                )
+            )
+            if r2.rowcount == 0:
+                # Already PAID or concurrent update won
+                return False, "already_processed"
+            is_reactivated = True
 
         # Atomic balance credit (addition cannot fail).
         self.session.execute(
@@ -266,6 +292,8 @@ class BalanceService:
             )
         )
         self.session.commit()
+        if is_reactivated:
+            return True, "reactivated_cancelled"
         return True, "ok"
 
     def adjust(
@@ -480,7 +508,7 @@ class BalanceService:
                 "balance": user.balance,
                 "total_topup": total_topup,
                 "last_topup_at": last_topup_at.isoformat() if last_topup_at else None,
-                "api_token": user.api_token,
+                "has_api_token": bool(user.api_token),
             }
             for user, total_topup, last_topup_at in rows
         ]
@@ -536,7 +564,7 @@ class BalanceService:
             "last_topup_at": topup_agg.last_topup_at.isoformat()
             if topup_agg.last_topup_at
             else None,
-            "api_token": user.api_token,
+            "has_api_token": bool(user.api_token),
         }
 
     def get_user_history(

@@ -12,7 +12,7 @@ from src.bot.messages.emoji_renderer import substitute_tokens
 from src.bot.messages.order_confirmation_formatter import OrderConfirmationFormatter
 from src.bot.messages.product_detail_formatter import ProductDetailFormatter
 from src.bot.messages.product_formatter import ProductFormatter
-from src.bot.states.state_manager import StateManager
+from src.bot.states.state_manager import shared_state_manager
 from src.bot.utils.language import t
 from src.bot.utils.qr import make_qr_png_bytes
 from src.bot.utils.user_locks import get_user_lock
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 # Global state manager instance
-state_manager = StateManager()
+state_manager = shared_state_manager
 
 # Sentinel returned for UPGRADE products to signal "stock doesn't apply".
 # Renderers treat any value >= this threshold as unlimited so the customer

@@ -284,6 +284,10 @@ class OrderService:
         """
         return self.session.query(Order).filter_by(id=order_id).first()
 
+    def get_order_by_payos_code(self, order_code: int) -> Order | None:
+        """Get order by numeric PayOS orderCode."""
+        return self.session.query(Order).filter(Order.payos_order_code == order_code).first()
+
     def get_oldest_awaiting_upgrade_order(self, user_id: int) -> Order | None:
         """
         Get the oldest order from this user that is waiting for upgrade

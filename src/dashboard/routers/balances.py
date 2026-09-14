@@ -37,7 +37,7 @@ class BalanceUserRow(BaseModel):
     balance: int
     total_topup: int
     last_topup_at: str | None  # ISO string from service
-    api_token: str | None = None
+    has_api_token: bool = False
 
 
 class BalanceTxRow(BaseModel):

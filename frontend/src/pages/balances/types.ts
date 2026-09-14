@@ -9,7 +9,8 @@ export interface BalanceUserRow {
   balance: number
   total_topup: number
   last_topup_at: string | null
-  api_token: string | null
+  has_api_token?: boolean
+  api_token?: string | null
 }
 
 export interface BalanceTxRow {

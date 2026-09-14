@@ -15,7 +15,7 @@ from typing import Any
 from telegram import Bot
 from telegram.error import TelegramError
 
-from src.bot.states.state_manager import StateManager
+from src.bot.states.state_manager import shared_state_manager
 from src.database.connection import get_session_factory
 from src.database.models import Order
 from src.database.models.enums import DeliveryType, OrderStatus
@@ -112,7 +112,7 @@ def _get_order_lock(order_id: str) -> threading.Lock:
 
 
 # Global state manager instance
-state_manager = StateManager()
+state_manager = shared_state_manager
 
 
 class IPNOrderProcessor:
@@ -188,56 +188,72 @@ class IPNOrderProcessor:
 
             # Serialize fulfillment for this order id across webhook threads.
             with _get_order_lock(order_id):
-                # Get order (fresh read inside the lock)
-                order = order_service.get_order_by_id(order_id)
-                if not order:
-                    logger.exception(f"Order {order_id} not found in database")
-                    return False
+                try:
+                    # Get order (fresh read inside the lock)
+                    order = order_service.get_order_by_id(order_id)
+                    if not order:
+                        logger.exception(f"Order {order_id} not found in database")
+                        return False
 
-                logger.info(
-                    f"Found order: user_id={order.user_id}, status={order.status}, "
-                    f"total={order.total_amount}"
-                )
-
-                # Already delivered (possibly by a concurrent IPN that won the lock)
-                if order.status == OrderStatus.DELIVERED:
-                    logger.warning(
-                        f"Order {order_id} already DELIVERED. Skipping duplicate delivery."
-                    )
-                    return True
-
-                # Validate amount: IPN amount must match order total
-                if amount != order.total_amount:
-                    logger.error(
-                        f"Amount mismatch! IPN amount: {amount}, "
-                        f"Order total: {order.total_amount}. Skipping delivery."
-                    )
-                    return False
-
-                logger.info(
-                    f"Amount validated: IPN amount ({amount}) matches order total "
-                    f"({order.total_amount})"
-                )
-
-                if order.status == OrderStatus.PAID:
-                    logger.warning(
-                        f"Order {order_id} already PAID but not delivered. "
-                        f"Attempting delivery under lock."
+                    logger.info(
+                        f"Found order: user_id={order.user_id}, status={order.status}, "
+                        f"total={order.total_amount}"
                     )
 
-                # Update order status to PAID
-                order_service.update_order_status(
-                    order_id=order_id,
-                    status=OrderStatus.PAID,
-                    payment_transaction_id=transaction_id,
-                )
+                    # Already delivered (possibly by a concurrent IPN that won the lock)
+                    if order.status == OrderStatus.DELIVERED:
+                        logger.warning(
+                            f"Order {order_id} already DELIVERED. Skipping duplicate delivery."
+                        )
+                        return True
 
-                # Process the order (determine delivery type and trigger delivery)
-                if not delivery_service.process_paid_order(order_id):
-                    logger.error(f"Failed to process order {order_id}")
-                    return False
+                    # Validate amount: IPN amount must match order total
+                    if amount != order.total_amount:
+                        logger.error(
+                            f"Amount mismatch! IPN amount: {amount}, "
+                            f"Order total: {order.total_amount}. Skipping delivery."
+                        )
+                        return False
 
-                return self._run_fulfillment(session, order)
+                    logger.info(
+                        f"Amount validated: IPN amount ({amount}) matches order total "
+                        f"({order.total_amount})"
+                    )
+
+                    # Zombie Order Resurrection Protection ([CRIT-04])
+                    if order.status in (OrderStatus.CANCELLED, OrderStatus.REFUNDED):
+                        logger.error(
+                            f"Received payment for {order.status.value} order {order_id}. "
+                            f"Transaction: {transaction_id}, Amount: {amount}. Aborting fulfillment."
+                        )
+                        order.payment_transaction_id = transaction_id
+                        session.commit()
+                        # Alert admin for manual reconciliation / refund
+                        OrderNotificationService(session, self.bot).send_late_payment_alert(order, transaction_id, amount)
+                        return False
+
+                    if order.status == OrderStatus.PAID:
+                        logger.warning(
+                            f"Order {order_id} already PAID but not delivered. "
+                            f"Attempting delivery under lock."
+                        )
+
+                    # Update order status to PAID
+                    order_service.update_order_status(
+                        order_id=order_id,
+                        status=OrderStatus.PAID,
+                        payment_transaction_id=transaction_id,
+                    )
+
+                    # Process the order (determine delivery type and trigger delivery)
+                    if not delivery_service.process_paid_order(order_id):
+                        logger.error(f"Failed to process order {order_id}")
+                        return False
+
+                    return self._run_fulfillment(session, order)
+                finally:
+                    with _order_locks_guard:
+                        _order_locks.pop(order_id, None)
 
         except Exception as e:
             logger.error(f"Error processing payment success: {e!s}")
@@ -378,6 +394,12 @@ class IPNOrderProcessor:
             logger.error(f"credit_topup failed for {topup_id}: reason={reason}")
             return False
 
+        if reason == "reactivated_cancelled":
+            logger.warning(
+                f"Late topup received for auto-cancelled topup {topup_id}. "
+                f"Reactivated CANCELLED -> PAID, balance credited for user {topup.bot_user_id}."
+            )
+
         # Fetch updated balance for user message.
         new_balance = BalanceService(session).get_balance(topup.bot_user_id)
         logger.info(f"Topup {topup_id} credited. New balance for user {topup.bot_user_id}: {new_balance:,} VND")
@@ -414,12 +436,20 @@ class IPNOrderProcessor:
         # TODO: replace with i18n keys when the bot UI phase (Phase 4) adds balance translations.
         if self.bot:
             try:
-                user_msg = (
-                    f"✅ Nạp tiền thành công\n\n"
-                    f"Mã giao dịch: {topup_id}\n"
-                    f"Số tiền: {topup.amount:,} VND\n"
-                    f"Số dư hiện tại: {new_balance:,} VND"
-                )
+                if reason == "reactivated_cancelled":
+                    user_msg = (
+                        f"✅ Nạp tiền thành công (Đơn nạp quá hạn đã được khôi phục và cộng tiền)\n\n"
+                        f"Mã giao dịch: {topup_id}\n"
+                        f"Số tiền: {topup.amount:,} VND\n"
+                        f"Số dư hiện tại: {new_balance:,} VND"
+                    )
+                else:
+                    user_msg = (
+                        f"✅ Nạp tiền thành công\n\n"
+                        f"Mã giao dịch: {topup_id}\n"
+                        f"Số tiền: {topup.amount:,} VND\n"
+                        f"Số dư hiện tại: {new_balance:,} VND"
+                    )
                 run_async(self.bot.send_message(chat_id=topup.user_id, text=user_msg))
                 logger.info(f"✓ Sent topup success message to user {topup.user_id}")
             except Exception as e:
@@ -435,6 +465,8 @@ class IPNOrderProcessor:
             notif = notify_service.prepare_topup_notification(topup, _notif_bot_user)
             if notif:
                 _msg, _targets = notif
+                if reason == "reactivated_cancelled":
+                    _msg = "⚠️ [LATE RECOVERY - CANCELLED REACTIVATED]\n" + _msg
                 run_async(
                     notify_service.send_message_to_whitelist_async(message=_msg, targets=_targets)
                 )
@@ -895,9 +927,10 @@ class IPNOrderProcessor:
             # Build product data lines separately so we can include them in the notification
             product_lines = ""
             for product in products:
-                logger.info(f"Product: {product}")
                 product_data = product.get("data", {})
-                logger.info(f"Product data: {product_data}")
+                logger.info(
+                    f"Delivering product {product.get('id')} to user {user_id} (data_present={bool(product_data)})"
+                )
 
                 # Format product data (could be account credentials, codes, etc.)
                 if isinstance(product_data, dict) and product_data:

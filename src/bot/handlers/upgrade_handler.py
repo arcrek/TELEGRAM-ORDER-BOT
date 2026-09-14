@@ -33,7 +33,7 @@ from telegram.ext import ContextTypes
 
 from src.bot.messages.emoji_renderer import render as render_emoji
 from src.bot.messages.emoji_renderer import substitute_plain
-from src.bot.states.state_manager import StateManager
+from src.bot.states.state_manager import shared_state_manager
 from src.bot.utils.admin_check import is_admin
 from src.bot.utils.language import t
 from src.database.connection import get_session_factory
@@ -51,7 +51,7 @@ from src.utils.datetime_format import format_local, resolve_tz
 
 logger = logging.getLogger(__name__)
 
-state_manager = StateManager()
+state_manager = shared_state_manager
 
 
 def _has_upgrade_item(order: Order) -> bool:

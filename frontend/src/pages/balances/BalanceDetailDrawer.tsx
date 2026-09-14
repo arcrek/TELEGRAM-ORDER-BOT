@@ -58,15 +58,19 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
 
   // API token state (initially populated from the user prop; updated by generate/revoke)
   const [apiToken, setApiToken] = useState<string | null>(null)
+  const [hasToken, setHasToken] = useState(false)
   const [tokenLoading, setTokenLoading] = useState(false)
   const [tokenError, setTokenError] = useState<string | null>(null)
   const [copyFeedback, setCopyFeedback] = useState(false)
 
   // Sync token from user prop when drawer opens
   useEffect(() => {
-    if (open && user) setApiToken(user.api_token ?? null)
-    if (!open) { setApiToken(null); setTokenError(null) }
-  }, [open, user?.bot_user_id]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (open && user) {
+      setApiToken(user.api_token ?? null)
+      setHasToken(Boolean(user.has_api_token || user.api_token))
+    }
+    if (!open) { setApiToken(null); setHasToken(false); setTokenError(null) }
+  }, [open, user?.bot_user_id, user?.has_api_token]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateToken = useCallback(async () => {
     if (!user) return
@@ -75,6 +79,7 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
     try {
       const res = await apiClient.post<ApiTokenResponse>(`/api/balances/${user.bot_user_id}/api-token`)
       setApiToken(res.data.api_token)
+      setHasToken(true)
     } catch (err) {
       setTokenError(formatApiError(err, 'Không thể tạo token'))
     } finally {
@@ -90,6 +95,7 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
     try {
       await apiClient.delete(`/api/balances/${user.bot_user_id}/api-token`)
       setApiToken(null)
+      setHasToken(false)
     } catch (err) {
       setTokenError(formatApiError(err, 'Không thể thu hồi token'))
     } finally {
@@ -366,7 +372,7 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
               API Token
             </div>
-            {apiToken ? (
+            {hasToken ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <code style={{
                   fontFamily: 'monospace',
@@ -379,11 +385,13 @@ export function BalanceDetailDrawer({ open, onClose, user }: BalanceDetailDrawer
                   flex: 1,
                   minWidth: 0,
                 }}>
-                  {apiToken}
+                  {apiToken || '••••••••••••••••••••••••••••••••'}
                 </code>
-                <Button size="sm" variant="secondary" tone="ghost" onClick={handleCopyToken} disabled={tokenLoading}>
-                  {copyFeedback ? '✓ Đã copy' : 'Copy'}
-                </Button>
+                {apiToken && (
+                  <Button size="sm" variant="secondary" tone="ghost" onClick={handleCopyToken} disabled={tokenLoading}>
+                    {copyFeedback ? '✓ Đã copy' : 'Copy'}
+                  </Button>
+                )}
                 <Button size="sm" variant="primary" onClick={handleGenerateToken} disabled={tokenLoading}>
                   {tokenLoading ? '...' : 'Tạo mới'}
                 </Button>

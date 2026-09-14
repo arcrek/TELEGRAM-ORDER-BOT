@@ -510,3 +510,48 @@ class OrderNotificationService:
             # No event loop
             return asyncio.run(self._send_topup_async(topup_id))
 
+    def send_late_payment_alert(self, order: Order, transaction_id: str, amount: int) -> dict[str, Any]:
+        """
+        Alert admin channel about payment received for a cancelled or refunded order.
+        Requires manual reconciliation / refund.
+        """
+        if not self.bot:
+            return {"skipped": "bot_not_available"}
+
+        settings = self._settings_service.get_settings()
+        targets = self._settings_service.get_whitelist_targets(settings)
+        if not settings.order_notify_enabled or not targets:
+            return {"skipped": "disabled_or_empty_whitelist"}
+
+        _app_tz = resolve_tz(AppSettingsService(self.session).get_settings().timezone)
+        ts = format_local(datetime.now(timezone.utc), _app_tz)
+
+        lines = [
+            f"⚠️ LATE_PAYMENT_ALERT: Order was {order.status.value}",
+            f"• Order ID: {order.id}",
+            f"• User ID: {order.user_id}",
+            f"• Transaction ID: {transaction_id}",
+            f"• Amount Received: {amount:,} VND",
+            f"• Order Amount: {order.total_amount:,} VND",
+            f"• At: {ts}",
+            "⚠️ Attention: Order was already cancelled/refunded. Digital delivery was aborted. Manual reconciliation or refund may be required.",
+        ]
+        message = "\n".join(lines)
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(
+                        asyncio.run,
+                        self.send_message_to_whitelist_async(message=message, targets=targets),
+                    )
+                    return future.result()
+            else:
+                return loop.run_until_complete(
+                    self.send_message_to_whitelist_async(message=message, targets=targets)
+                )
+        except RuntimeError:
+            return asyncio.run(self.send_message_to_whitelist_async(message=message, targets=targets))
+
